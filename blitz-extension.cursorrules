@@ -1,0 +1,547 @@
+# Blitz Chrome Extension — Cursor Prompt File
+# Full build spec. Read this entire file before writing any code.
+
+---
+
+## PROJECT OVERVIEW
+
+Build a Chrome Extension (Manifest V3) called **Blitz** that helps users automatically tailor and submit job applications across multiple platforms. The extension:
+
+- Detects when a user is on a supported job listing page
+- Scrapes the job description
+- Uses an LLM (via the user's own API key) to generate a tailored CV and cover letter
+- Shows a review/approve UI before any form interaction
+- Auto-fills and submits the application on approval
+
+Target platforms (in priority order):
+1. Greenhouse (most consistent form structure — build this first)
+2. LinkedIn Easy Apply
+3. Indeed
+4. Workday (deprioritise — complex Shadow DOM, tackle last)
+
+Distribution: Chrome Web Store
+Monetisation: Freemium — 15 free applications, then paid tier via LemonSqueezy license key
+AI: BYOK (Bring Your Own Key) — user supplies their Anthropic or OpenAI API key
+
+---
+
+## FOLDER STRUCTURE
+
+```
+/blitz-extension
+  manifest.json
+  /background
+    service-worker.js         # Orchestration, API calls, license checks, job queue
+  /content
+    detector.js               # Shared: detects platform on page load
+    greenhouse.js             # Greenhouse form scraper + filler
+    linkedin.js               # LinkedIn Easy Apply scraper + filler
+    indeed.js                 # Indeed scraper + filler
+    workday.js                # Workday (v2 — scaffold only for now)
+    humanise.js               # Shared: human-timing simulation utilities
+  /offscreen
+    offscreen.html            # Required for MV3 PDF generation
+    pdf-generator.js          # jsPDF-based CV PDF builder
+  /popup
+    index.html
+    /src
+      main.jsx                # React entry point
+      App.jsx                 # Router: Dashboard | Settings | Review | Tracker
+      /components
+        Dashboard.jsx         # Active job detection, quick stats
+        ReviewPanel.jsx       # Tailored CV + CL preview, approve/edit/reject
+        ApplicationTracker.jsx # History table with status management
+        Settings.jsx          # API key, user profile, preferences
+        LicenseGate.jsx       # Freemium paywall UI
+      /hooks
+        useStorage.js         # Wrapper around chrome.storage.local
+        useApplications.js    # IndexedDB CRUD for application history
+        useLicense.js         # License validation state
+      /lib
+        ai.js                 # LLM API call logic (Anthropic + OpenAI)
+        prompts.js            # All system + user prompt templates
+        storage.js            # chrome.storage.local helpers
+        db.js                 # IndexedDB schema + helpers
+        license.js            # License key validation against CF Worker
+        pdf.js                # Triggers offscreen PDF generation
+      /styles
+        globals.css
+  /assets
+    icon16.png
+    icon48.png
+    icon128.png
+```
+
+---
+
+## MANIFEST (manifest.json)
+
+```json
+{
+  "manifest_version": 3,
+  "name": "Blitz",
+  "version": "1.0.0",
+  "description": "Apply faster. Land sooner. Blitz tailors your CV and cover letter to every job in seconds.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://*.greenhouse.io/*",
+    "https://www.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.greenhouse.io/*",
+        "https://www.linkedin.com/jobs/*",
+        "https://*.indeed.com/*",
+        "https://*.myworkdayjobs.com/*"
+      ],
+      "js": ["content/humanise.js", "content/detector.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+```
+
+---
+
+## STORAGE SCHEMA
+
+### chrome.storage.local keys
+
+```js
+{
+  // User's base CV as plain text (parsed from uploaded PDF or pasted)
+  "cv_text": "string",
+
+  // Structured user profile for screening question answering
+  "user_profile": {
+    "name": "string",
+    "email": "string",
+    "phone": "string",
+    "location": "string",
+    "rightToWork": "string",          // e.g. "Yes - UK Citizen"
+    "noticePeriod": "string",         // e.g. "1 month"
+    "salaryExpectation": "string",    // e.g. "£55,000"
+    "remotePreference": "string",     // "Remote" | "Hybrid" | "On-site"
+    "willingToRelocate": false,
+    "skills": {                        // Years of experience per skill
+      "React": 4,
+      "Node.js": 3
+    }
+  },
+
+  // AI provider config
+  "ai_config": {
+    "provider": "anthropic",          // "anthropic" | "openai"
+    "apiKey": "string",               // Never logged, never sent anywhere except AI API
+    "model": "claude-sonnet-4-20250514"
+  },
+
+  // License
+  "license": {
+    "key": "string",
+    "tier": "free" | "pro",
+    "validatedAt": "ISO timestamp",   // Re-validate every 24hrs
+    "applicationsUsed": 0             // Tracked locally, also checked server-side
+  },
+
+  // User preferences
+  "preferences": {
+    "coverLetterMode": "always" | "never" | "ask",
+    "autoSubmit": false,              // If true, submit after approve. Default false.
+    "dailyLimit": 25,                 // Soft cap shown as recommendation
+    "cvTemplate": "modern"            // "modern" | "minimal" | "classic"
+  }
+}
+```
+
+### IndexedDB — "blitz_db"
+
+**Object store: `applications`**
+
+```js
+{
+  id: "uuid-v4",
+  company: "string",
+  role: "string",
+  url: "string",
+  platform: "greenhouse" | "linkedin" | "indeed" | "workday",
+  appliedAt: "ISO timestamp",
+  status: "applied" | "interview" | "rejected" | "offer" | "withdrawn",
+  matchScore: 82,                    // 0-100, generated by AI
+  cvSnapshot: "string",              // Tailored CV text used
+  coverLetterSnapshot: "string",     // Cover letter text used
+  screeningAnswers: [                // Array of Q&A pairs
+    { question: "string", answer: "string" }
+  ],
+  notes: "string"                    // User-editable notes
+}
+```
+
+---
+
+## BACKGROUND SERVICE WORKER (service-worker.js)
+
+Handles:
+- Message routing between content scripts and popup
+- All AI API calls (never call AI from content scripts)
+- License validation
+- PDF generation trigger via offscreen document
+- Application count tracking
+
+### Message types to handle:
+
+```js
+// From content scripts:
+{ type: "JOB_DETECTED", payload: { platform, jobTitle, company, jobDescription, url, screeningQuestions } }
+
+// From popup:
+{ type: "GENERATE_APPLICATION", payload: { jobData, cvText, userProfile, preferences } }
+{ type: "VALIDATE_LICENSE", payload: { key } }
+{ type: "GENERATE_PDF", payload: { cvText, template } }
+{ type: "GET_APPLICATION_COUNT" }
+
+// To popup:
+{ type: "APPLICATION_READY", payload: { tailoredCV, coverLetter, screeningAnswers, matchScore } }
+{ type: "JOB_DETECTED", payload: { ... } }  // Forward to popup to trigger review panel
+```
+
+### AI call flow:
+
+```js
+async function generateApplication(jobData, cvText, userProfile, preferences) {
+  const { provider, apiKey, model } = await getAIConfig();
+
+  const systemPrompt = PROMPTS.system(userProfile);
+  const userPrompt = PROMPTS.generateApplication(cvText, jobData, preferences);
+
+  // Call AI (see ai.js)
+  const result = await callAI({ provider, apiKey, model, systemPrompt, userPrompt });
+
+  // Parse structured JSON response
+  return parseApplicationResponse(result);
+}
+```
+
+---
+
+## AI PROMPTS (prompts.js)
+
+### System prompt
+
+```js
+export const PROMPTS = {
+  system: (profile) => `
+You are an expert career coach and CV writer. You help job seekers tailor their CVs and cover letters to specific job descriptions.
+
+User profile for screening questions:
+- Name: ${profile.name}
+- Right to work: ${profile.rightToWork}
+- Notice period: ${profile.noticePeriod}
+- Salary expectation: ${profile.salaryExpectation}
+- Remote preference: ${profile.remotePreference}
+- Willing to relocate: ${profile.willingToRelocate}
+- Skills and experience: ${JSON.stringify(profile.skills)}
+
+Always respond with valid JSON only. No markdown, no preamble.
+`,
+
+  generateApplication: (cvText, jobData, preferences) => `
+Base CV:
+${cvText}
+
+Job Title: ${jobData.jobTitle}
+Company: ${jobData.company}
+Job Description:
+${jobData.jobDescription}
+
+Screening questions (answer each honestly based on the user profile):
+${jobData.screeningQuestions?.map((q, i) => `${i + 1}. ${q}`).join('\n') || 'None'}
+
+Generate a tailored application. Respond with this exact JSON structure:
+{
+  "tailoredCV": "Full tailored CV as plain text, optimised for this specific role. Reorder skills section to prioritise relevant technologies. Rewrite summary/objective to mirror the job description tone. Adjust bullet points to emphasise most relevant experience. Do not fabricate experience.",
+  "coverLetter": ${preferences.coverLetterMode === 'never' ? '"" (empty string, not required)' : '"Professional cover letter, 3 paragraphs, specific to this role and company. Do not use generic filler phrases."'},
+  "screeningAnswers": [
+    { "question": "original question text", "answer": "honest answer based on user profile" }
+  ],
+  "matchScore": <integer 0-100 representing how well the base CV matches this role>,
+  "matchRationale": "2 sentence explanation of the match score"
+}
+`
+};
+```
+
+---
+
+## CONTENT SCRIPTS
+
+### detector.js (shared)
+
+Runs on all supported pages. Detects the platform and job listing, then dynamically injects the appropriate platform script.
+
+```js
+// Detect platform from URL and page structure
+// Send JOB_DETECTED message to background service worker
+// Only fire once per page load
+// Do NOT auto-fill anything — only scrape and report
+```
+
+### greenhouse.js
+
+Scrapes:
+- Job title: `h1.app-title`
+- Company: from page title or meta
+- Job description: `#content .job-description` (inner text)
+- Screening questions: `label` elements associated with form inputs
+
+Fills (after FILL_FORM message received from background):
+- Name, email, phone: standard input fields
+- CV upload: generate PDF blob, create File object, trigger file input
+- Cover letter: textarea
+- Screening questions: match label text to answer, fill inputs/selects
+- Use humanise.js for all interactions
+
+### linkedin.js
+
+LinkedIn Easy Apply uses a multi-step modal. Strategy:
+- Detect Easy Apply button: `button.jobs-apply-button`
+- Do NOT click it automatically — wait for user approval
+- After approval, click Easy Apply, then fill each modal step
+- Steps are identified by progress indicator
+- Handle: text inputs, dropdowns, radio buttons, file upload, textarea
+- If an unknown question type is encountered: pause, message popup to ask user
+
+### indeed.js
+
+Indeed has two apply flows:
+1. Native Indeed apply — handle like Greenhouse
+2. "Apply on company site" redirect — detect this and inform user in popup that the role redirects externally (do not attempt to fill)
+
+### humanise.js (shared utility)
+
+```js
+// All form interactions MUST go through these helpers
+
+export async function humanType(element, text) {
+  // Click element first
+  // Type character by character
+  // Random delay per character: 40–130ms
+  // Occasional "mistake + backspace" simulation (5% chance per word)
+}
+
+export async function humanClick(element) {
+  // Scroll element into view smoothly
+  // Wait 200–600ms (random)
+  // Dispatch mousedown, mouseup, click events
+  // Wait 100–300ms after
+}
+
+export async function humanSelect(selectElement, value) {
+  // Focus, wait, then change value
+  // Dispatch change event
+}
+
+export async function staggeredFill(fields) {
+  // Fill fields array sequentially with 500–1500ms gap between each
+}
+```
+
+---
+
+## POPUP UI
+
+Built with React 18 + Vite. Four views:
+
+### Dashboard.jsx
+- Shows current page detection status: "Greenhouse job detected: Senior Frontend Engineer at Acme Corp"
+- Match score badge if already generated
+- "Review Application" CTA button
+- Quick stats: applications this week, response rate
+
+### ReviewPanel.jsx
+- Two-column layout: left = tailored CV, right = cover letter
+- Both are editable textareas (user can tweak before approving)
+- Match score prominently displayed with rationale
+- Screening Q&A list (editable)
+- Three actions: **Approve & Fill** | **Regenerate** | **Skip**
+- If daily limit approaching: warning banner
+
+### ApplicationTracker.jsx
+- Table: Company | Role | Date | Platform | Match Score | Status
+- Status is a dropdown (applied/interview/rejected/offer/withdrawn)
+- Click row to expand: shows CV snapshot, cover letter, screening answers
+- Export to CSV button
+
+### Settings.jsx
+Sections:
+1. **API Key** — provider toggle (Anthropic/OpenAI), key input (masked), test button
+2. **Your CV** — paste CV text or upload PDF (parsed to text client-side via pdf.js)
+3. **Profile** — all user_profile fields
+4. **Preferences** — cover letter mode, auto-submit toggle, daily limit, CV template
+5. **License** — current tier, applications used, upgrade CTA / license key input
+
+### LicenseGate.jsx
+- Shown when free tier limit (15 applications) is reached
+- Clean paywall: "You've used your 15 free applications"
+- "Upgrade to Pro — £8/mo or £49/year" button → opens LemonSqueezy checkout in new tab
+- "Already have a license key?" input field
+
+---
+
+## LICENSE VALIDATION (license.js)
+
+```js
+const LICENSE_ENDPOINT = "https://license.blitz.workers.dev/validate";
+// This is a Cloudflare Worker you deploy separately (see CF Worker spec below)
+
+export async function validateLicense(key) {
+  const res = await fetch(LICENSE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key })
+  });
+  const data = await res.json();
+  // Returns { valid: boolean, tier: "pro", message: string }
+  return data;
+}
+
+export async function checkLicenseStatus() {
+  const stored = await getStorage("license");
+  if (!stored?.key) return { tier: "free" };
+
+  // Re-validate if last check was >24hrs ago
+  const lastCheck = new Date(stored.validatedAt);
+  const hoursSince = (Date.now() - lastCheck) / 1000 / 3600;
+  if (hoursSince > 24) {
+    const result = await validateLicense(stored.key);
+    await setStorage("license", { ...stored, tier: result.tier, validatedAt: new Date().toISOString() });
+    return result;
+  }
+
+  return { tier: stored.tier, valid: true };
+}
+```
+
+---
+
+## CLOUDFLARE WORKER — License Validator
+
+Deploy separately at `license.blitz.workers.dev`
+
+```js
+// KV namespace: LICENSE_KEYS
+// Key format: { tier: "pro", createdAt, email, active: true }
+
+export default {
+  async fetch(request, env) {
+    if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+
+    const { key } = await request.json();
+    if (!key) return Response.json({ valid: false, message: "No key provided" });
+
+    const record = await env.LICENSE_KEYS.get(key, { type: "json" });
+
+    if (!record || !record.active) {
+      return Response.json({ valid: false, tier: "free", message: "Invalid or inactive license" });
+    }
+
+    return Response.json({ valid: true, tier: record.tier, message: "License valid" });
+  }
+}
+```
+
+---
+
+## PDF GENERATION (offscreen)
+
+MV3 requires offscreen documents for DOM operations outside the service worker.
+
+offscreen.html loads pdf-generator.js which uses **jsPDF**.
+
+Message flow:
+```
+popup → background: { type: "GENERATE_PDF", payload: { cvText, template } }
+background → offscreen: forwards message
+offscreen: generates PDF blob → sends back as base64
+background → popup: { type: "PDF_READY", payload: { base64 } }
+```
+
+Content scripts receive the base64 and create a File object for the upload input.
+
+---
+
+## PHASE BUILD ORDER
+
+### Phase 1 — Core MVP
+- [ ] Manifest + folder scaffold
+- [ ] Settings page: API key + CV input + user profile
+- [ ] Greenhouse content script (scrape only)
+- [ ] Background service worker: message routing + AI call
+- [ ] AI prompts: CV tailoring + cover letter + screening Qs
+- [ ] ReviewPanel: show generated application, approve/edit
+- [ ] Greenhouse form filler via humanise.js
+- [ ] IndexedDB application tracker (write on submit)
+- [ ] Free tier counter (15 application limit)
+
+### Phase 2 — Full Platform Support
+- [ ] LinkedIn Easy Apply content script
+- [ ] Indeed content script
+- [ ] PDF generation via offscreen document
+- [ ] ApplicationTracker UI with status management
+- [ ] LicenseGate + LemonSqueezy integration
+- [ ] Cloudflare Worker license validator
+
+### Phase 3 — Polish & Growth
+- [ ] Workday content script
+- [ ] Match score visualisation
+- [ ] Bulk job queue (user pastes list of URLs)
+- [ ] CSV export from tracker
+- [ ] CV template selection (modern/minimal/classic)
+- [ ] Chrome Web Store listing
+
+---
+
+## CODING STANDARDS
+
+- Use ES modules throughout (type: "module" in service worker)
+- React 18 functional components only, hooks-based state
+- No class components
+- Tailwind CSS for popup UI
+- All storage access via the `storage.js` helper (never raw chrome.storage calls in components)
+- All DB access via `db.js` (never raw IndexedDB calls in components)
+- Content scripts must be side-effect free on load — only activate after JOB_DETECTED confirmation
+- Never console.log API keys, CV text, or personal data
+- All AI calls go through background service worker only — never from content scripts or popup directly
+
+---
+
+## KNOWN GOTCHAS
+
+1. **MV3 service worker lifecycle** — service workers terminate after ~30s of inactivity. Use `chrome.storage` to persist state, not in-memory variables.
+2. **Offscreen document** — only one can exist at a time. Check `chrome.offscreen.hasDocument()` before creating.
+3. **LinkedIn DOM** — uses React internally, so standard input value setting won't trigger React's state. Use `Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value)` then dispatch an `input` event.
+4. **Greenhouse file upload** — use `DataTransfer` API to programmatically set file input value.
+5. **Content Security Policy** — extension popup cannot make fetch calls to external APIs in some configurations. Route all external calls through background service worker via `chrome.runtime.sendMessage`.
+6. **jsPDF in offscreen** — import via CDN in offscreen.html, not as npm module, to avoid bundling issues.

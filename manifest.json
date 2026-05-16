@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Blitz",
+  "version": "1.0.0",
+  "description": "Apply faster. Land sooner. Blitz tailors your CV and cover letter to every job in seconds.",
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
+  "host_permissions": [
+    "https://*.greenhouse.io/*",
+    "https://www.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/dist/index.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://*.indeed.com/*",
+        "https://*.myworkdayjobs.com/*"
+      ],
+      "js": ["content/humanise.js", "content/detector.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.greenhouse.io/*"],
+      "js": ["content/humanise.js", "content/greenhouse.js", "content/detector.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  }
+}
