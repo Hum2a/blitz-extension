@@ -1,2 +1,4 @@
 node_modules/
 popup/dist/
+dist/
+.license-value.json

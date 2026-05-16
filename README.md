@@ -40,6 +40,31 @@ See `license-worker/README.md`. Extension config: `popup/src/lib/config.js`.
 
 See `chrome-store/SUBMISSION_CHECKLIST.md` and `blitz-store-listing.md`.
 
+## npm scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run setup` | Install deps, generate icons, build |
+| `npm run dev` | Watch-build popup UI |
+| `npm run build` | Production build popup |
+| `npm run build:check` | Build + validate required files |
+| `npm run validate` | Check manifest, assets, dist exist |
+| `npm run test` | Validate + license worker smoke test |
+| `npm run clean` | Remove `popup/dist` and pack output |
+| `npm run rebuild` | Clean + build |
+| `npm run pack` | Build, validate, zip for Chrome Web Store → `dist/blitz-extension-v*.zip` |
+| `npm run icons` | Regenerate placeholder icons |
+| `npm run version:patch` | Bump patch in `package.json` + `manifest.json` |
+| `npm run version:minor` | Bump minor version |
+| `npm run version:major` | Bump major version |
+| `npm run version:set -- 1.3.0` | Set explicit version |
+| `npm run version:sync` | Copy version from `package.json` → `manifest.json` |
+| `npm run changelog:add -- "Fixed X"` | Add entry to `CHANGELOG.md` |
+| `npm run release:pack` | Bump patch + create store zip |
+| `npm run deploy:worker` | Deploy Cloudflare license worker |
+| `npm run worker:license:add -- KEY` | Add license key to KV |
+| `npm run worker:test` | Hit license API (GET + POST) |
+
 ## Development
 
 ```bash
