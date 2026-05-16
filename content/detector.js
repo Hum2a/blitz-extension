@@ -2,6 +2,13 @@
   if (window.__blitzDetectorRan) return;
   window.__blitzDetectorRan = true;
 
+  const PLATFORMS = {
+    greenhouse: () => window.blitzGreenhouse,
+    linkedin: () => window.blitzLinkedin,
+    indeed: () => window.blitzIndeed,
+    workday: () => window.blitzWorkday,
+  };
+
   function detectPlatform() {
     const host = window.location.hostname;
     if (host.includes("greenhouse.io")) return "greenhouse";
@@ -13,31 +20,75 @@
 
   function isJobListingPage(platform) {
     if (platform === "greenhouse") {
-      return (
+      return Boolean(
         document.querySelector("h1.app-title") ||
-        document.querySelector(".job-description") ||
-        document.querySelector("#application_form") ||
-        document.querySelector("form#application_form, form[action*='apply']")
+          document.querySelector(".job-description") ||
+          document.querySelector("#application_form") ||
+          document.querySelector("form#application_form, form[action*='apply']")
+      );
+    }
+    if (platform === "linkedin") {
+      return Boolean(
+        document.querySelector(".job-details-jobs-unified-top-card__job-title") ||
+          document.querySelector(".jobs-unified-top-card__job-title") ||
+          (window.location.pathname.includes("/jobs/view/") &&
+            document.querySelector("h1"))
+      );
+    }
+    if (platform === "indeed") {
+      return Boolean(
+        document.querySelector("#jobDescriptionText") ||
+          document.querySelector("h1.jobsearch-JobInfoHeader-title") ||
+          document.querySelector(".jobsearch-JobComponent-description")
+      );
+    }
+    if (platform === "workday") {
+      return Boolean(
+        document.querySelector('[data-automation-id="jobPostingHeader"]') ||
+          document.querySelector('[data-automation-id="jobPostingDescription"]') ||
+          /\/job\//i.test(window.location.pathname)
       );
     }
     return false;
   }
 
-  function reportJob(platform) {
-    let jobData = null;
-    if (platform === "greenhouse" && window.blitzGreenhouse) {
-      jobData = window.blitzGreenhouse.scrapeJob();
+  function scrapeCurrentJob(platform) {
+    const handler = PLATFORMS[platform]?.();
+    if (!handler?.scrapeJob) return { error: `No scraper for ${platform}` };
+    const jobData = handler.scrapeJob();
+    if (!jobData?.jobTitle && !jobData?.jobDescription) {
+      return { error: "No job data found on page" };
     }
+    return jobData;
+  }
 
-    if (!jobData?.jobTitle && !jobData?.jobDescription) return;
-
+  function reportJob(platform) {
+    const jobData = scrapeCurrentJob(platform);
+    if (jobData.error) return;
     chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData });
   }
 
+  async function routeFillForm(payload) {
+    const platform = detectPlatform();
+    const handler = PLATFORMS[platform]?.();
+    if (!handler?.fillForm) {
+      throw new Error(`Form fill not supported for platform: ${platform || "unknown"}`);
+    }
+    await handler.fillForm(payload);
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === "FILL_FORM" && window.blitzGreenhouse) {
-      window.blitzGreenhouse
-        .fillForm(message.payload)
+    if (message.type === "SCRAPE_JOB") {
+      const platform = detectPlatform();
+      if (!platform) {
+        sendResponse({ error: "Unsupported page" });
+        return true;
+      }
+      sendResponse(scrapeCurrentJob(platform));
+      return true;
+    }
+    if (message.type === "FILL_FORM") {
+      routeFillForm(message.payload)
         .then(() => sendResponse({ ok: true }))
         .catch((err) => sendResponse({ error: err.message }));
       return true;
@@ -48,7 +99,8 @@
     const platform = detectPlatform();
     if (!platform || !isJobListingPage(platform)) return;
 
-    if (platform === "greenhouse" && !window.blitzGreenhouse) {
+    const handler = PLATFORMS[platform]?.();
+    if (!handler) {
       setTimeout(init, 300);
       return;
     }

@@ -31,6 +31,8 @@ const DEFAULTS = {
   },
   pending_job: null,
   pending_application: null,
+  job_queue: [],
+  queue_processing: false,
 };
 
 export async function getStorage(key) {

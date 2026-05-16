@@ -68,7 +68,7 @@ function findInputByName(names) {
 async function fillForm(payload) {
   if (!h) throw new Error("Humanise utilities not loaded");
 
-  const { tailoredCV, coverLetter, screeningAnswers, userProfile } = payload;
+  const { tailoredCV, coverLetter, screeningAnswers, userProfile, pdfBase64 } = payload;
   const fields = [];
 
   const firstName =
@@ -131,13 +131,21 @@ async function fillForm(payload) {
     document.querySelector('input[type="file"][name*="resume"]') ||
     document.querySelector('input[type="file"]');
 
-  if (resumeInput && tailoredCV) {
-    const blob = new Blob([tailoredCV], { type: "text/plain" });
-    const file = new File([blob], "CV.txt", { type: "text/plain" });
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    resumeInput.files = dt.files;
-    resumeInput.dispatchEvent(new Event("change", { bubbles: true }));
+  if (resumeInput) {
+    if (pdfBase64 && window.blitzFileUpload) {
+      window.blitzFileUpload.attachBase64ToInput(
+        resumeInput,
+        pdfBase64,
+        "CV.pdf",
+        "application/pdf"
+      );
+    } else if (tailoredCV) {
+      const blob = new Blob([tailoredCV], { type: "text/plain" });
+      const dt = new DataTransfer();
+      dt.items.add(new File([blob], "CV.txt", { type: "text/plain" }));
+      resumeInput.files = dt.files;
+      resumeInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   }
 
   chrome.runtime.sendMessage({ type: "APPLICATION_SUBMITTED" });

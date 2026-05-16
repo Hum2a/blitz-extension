@@ -7,8 +7,14 @@ import {
   checkLicenseStatus,
   validateLicense,
 } from "../popup/src/lib/license.js";
+import { processQueue } from "./queue-processor.js";
+
+const OFFSCREEN_URL = "offscreen/offscreen.html";
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "GENERATE_PDF_OFFSCREEN") {
+    return false;
+  }
   handleMessage(message, sender).then(sendResponse).catch((err) => {
     sendResponse({ error: err.message || "Unknown error" });
   });
@@ -25,7 +31,13 @@ async function handleMessage(message, sender) {
     case "GENERATE_APPLICATION": {
       const settings = await getAllSettings();
       const jobData = message.payload?.jobData || (await getStorage("pending_job"));
-      if (!jobData) throw new Error("No job detected. Open a Greenhouse listing first.");
+      if (!jobData) throw new Error("No job detected. Open a supported job listing first.");
+      if (jobData.externalApply) {
+        throw new Error("This job applies on the company site. Blitz cannot fill external applications.");
+      }
+      if (jobData.platform === "linkedin" && jobData.hasEasyApply === false) {
+        throw new Error("This LinkedIn job does not offer Easy Apply.");
+      }
       if (!settings.cv_text?.trim()) throw new Error("Add your CV in Settings first.");
 
       const { allowed } = await canSubmitApplication();
@@ -66,8 +78,17 @@ async function handleMessage(message, sender) {
       return { used, remaining, tier: status.tier, allowed };
     }
 
+    case "GENERATE_PDF": {
+      const base64 = await generatePdfOffscreen(
+        message.payload.cvText,
+        message.payload.template || "modern"
+      );
+      return { base64 };
+    }
+
     case "FILL_FORM": {
       const application = await getStorage("pending_application");
+      const settings = await getAllSettings();
       let tabId = sender.tab?.id || message.payload?.tabId;
 
       if (!tabId) {
@@ -78,21 +99,56 @@ async function handleMessage(message, sender) {
       if (!tabId) throw new Error("No active tab for form fill");
       if (!application) throw new Error("No application to fill. Generate one first.");
 
+      let pdfBase64 = null;
+      try {
+        pdfBase64 = await generatePdfOffscreen(
+          application.tailoredCV,
+          settings.preferences?.cvTemplate || "modern"
+        );
+      } catch {
+        pdfBase64 = null;
+      }
+
       await chrome.tabs.sendMessage(tabId, {
         type: "FILL_FORM",
         payload: {
           tailoredCV: application.tailoredCV,
           coverLetter: application.coverLetter,
           screeningAnswers: application.screeningAnswers,
-          userProfile: (await getAllSettings()).user_profile,
+          userProfile: settings.user_profile,
+          pdfBase64,
+          autoSubmit: settings.preferences?.autoSubmit ?? false,
         },
       });
 
       return { ok: true };
     }
 
-    case "APPLICATION_SUBMITTED": {
+    case "APPLICATION_SUBMITTED":
       await incrementApplicationCount();
+      return { ok: true };
+
+    case "ADD_QUEUE_URLS": {
+      const existing = (await getStorage("job_queue")) || [];
+      const incoming = message.payload?.items || [];
+      await setStorage("job_queue", [...existing, ...incoming]);
+      return { ok: true, count: existing.length + incoming.length };
+    }
+
+    case "GET_QUEUE": {
+      return {
+        queue: (await getStorage("job_queue")) || [],
+        processing: await getStorage("queue_processing"),
+      };
+    }
+
+    case "PROCESS_QUEUE": {
+      processQueue(generateApplication).catch(() => {});
+      return { ok: true, started: true };
+    }
+
+    case "CLEAR_QUEUE": {
+      await setStorage("job_queue", []);
       return { ok: true };
     }
 
@@ -111,6 +167,26 @@ async function handleMessage(message, sender) {
     default:
       throw new Error(`Unknown message type: ${message.type}`);
   }
+}
+
+async function ensureOffscreenDocument() {
+  if (await chrome.offscreen.hasDocument()) return;
+
+  await chrome.offscreen.createDocument({
+    url: OFFSCREEN_URL,
+    reasons: ["DOM_SCRAPING"],
+    justification: "Generate CV PDF for job application uploads",
+  });
+}
+
+async function generatePdfOffscreen(cvText, template) {
+  await ensureOffscreenDocument();
+  const result = await chrome.runtime.sendMessage({
+    type: "GENERATE_PDF_OFFSCREEN",
+    payload: { cvText, template },
+  });
+  if (result?.error) throw new Error(result.error);
+  return result.base64;
 }
 
 async function generateApplication(jobData, cvText, userProfile, preferences) {

@@ -1,6 +1,6 @@
-# Blitz Chrome Extension (Phase 1)
+# Blitz Chrome Extension
 
-AI-tailored job applications for Greenhouse listings.
+AI-tailored job applications for **Greenhouse**, **LinkedIn Easy Apply**, **Indeed**, and **Workday**.
 
 ## Setup
 
@@ -11,27 +11,43 @@ node scripts/generate-icons.mjs
 npm run build
 ```
 
-## Load in Chrome
+Load unpacked in `chrome://extensions` → select this folder.
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. **Load unpacked** → select the `blitz-extension` folder
-4. Open extension **Settings** and add your API key + CV + profile
-5. Visit a Greenhouse job listing and open the Blitz popup
+## Features
 
-## Phase 1 scope
+- AI-tailored CV + cover letter (BYOK: Anthropic or OpenAI)
+- Match score with visual ring + rationale
+- Human-like form filling on supported platforms
+- Application tracker with status, notes, CSV export
+- Bulk job queue — paste URLs, batch-generate applications
+- Freemium: 15 free applications, Pro via license key
 
-- Greenhouse job detection and scraping
-- AI tailoring (Anthropic / OpenAI BYOK)
-- Review panel with approve / regenerate / skip
-- Human-like form filling on Greenhouse
-- Application tracker (IndexedDB)
-- 15-application free tier counter
+## Supported platforms
+
+| Platform | Scrape | Auto-fill |
+|----------|--------|-----------|
+| Greenhouse | ✅ | ✅ |
+| LinkedIn Easy Apply | ✅ | ✅ |
+| Indeed (native) | ✅ | ✅ |
+| Indeed (company site) | ✅ | ⚠️ Warning only |
+| Workday | ✅ | ✅ (best-effort, Shadow DOM) |
+
+## License server
+
+See `license-worker/README.md`. Extension config: `popup/src/lib/config.js`.
+
+## Chrome Web Store
+
+See `chrome-store/SUBMISSION_CHECKLIST.md` and `blitz-store-listing.md`.
 
 ## Development
 
 ```bash
-npm run dev   # rebuild popup on change
+npm run dev   # watch build popup
 ```
 
-After popup changes, reload the extension in `chrome://extensions`.
+## Version history
+
+- **1.2.0** — Phase 3: Workday, match viz, bulk queue, store checklist
+- **1.1.0** — Phase 2: LinkedIn, Indeed, PDF, license worker
+- **1.0.0** — Phase 1: Greenhouse MVP

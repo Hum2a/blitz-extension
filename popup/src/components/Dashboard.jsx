@@ -1,3 +1,7 @@
+import { useMemo } from "react";
+import { useApplications } from "../hooks/useApplications.js";
+import MatchScoreRing from "./MatchScoreRing.jsx";
+
 export default function Dashboard({
   pendingJob,
   application,
@@ -6,8 +10,28 @@ export default function Dashboard({
   onGenerate,
   onReview,
 }) {
+  const { applications } = useApplications();
+
+  const stats = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const thisWeek = applications.filter(
+      (a) => new Date(a.appliedAt).getTime() >= weekAgo
+    );
+    const applied = applications.filter((a) => a.status === "applied").length;
+    const positive = applications.filter((a) =>
+      ["interview", "offer"].includes(a.status)
+    ).length;
+    const responseRate =
+      applied > 0 ? Math.round((positive / applications.length) * 100) : 0;
+    return { thisWeek: thisWeek.length, responseRate };
+  }, [applications]);
+
   const hasJob = Boolean(pendingJob?.jobTitle || pendingJob?.company);
-  const canGenerate = hasJob && !generating && license.allowed;
+  const externalApply = pendingJob?.externalApply;
+  const linkedinNoEasyApply =
+    pendingJob?.platform === "linkedin" && pendingJob?.hasEasyApply === false;
+  const canGenerate =
+    hasJob && !generating && license.allowed && !externalApply && !linkedinNoEasyApply;
 
   return (
     <div className="space-y-4">
@@ -22,29 +46,32 @@ export default function Dashboard({
             <span className="inline-block mt-2 text-xs bg-blitz-100 text-blitz-700 px-2 py-0.5 rounded capitalize">
               {pendingJob.platform}
             </span>
+            {externalApply && (
+              <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                Applies on company site — Blitz cannot auto-fill this role.
+              </p>
+            )}
+            {linkedinNoEasyApply && (
+              <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                No Easy Apply on this listing.
+              </p>
+            )}
           </div>
         ) : (
           <p className="text-sm text-slate-600">
-            Open a Greenhouse job listing to get started.
+            Open a job on Greenhouse, LinkedIn, Indeed, or Workday to get started.
           </p>
         )}
       </section>
 
       {application?.matchScore != null && (
-        <div className="flex items-center gap-3 bg-white rounded-lg border p-4">
-          <div
-            className={`text-2xl font-bold ${
-              application.matchScore >= 70
-                ? "text-green-600"
-                : application.matchScore >= 50
-                  ? "text-amber-600"
-                  : "text-red-600"
-            }`}
-          >
-            {application.matchScore}%
-          </div>
-          <p className="text-sm text-slate-600 flex-1">{application.matchRationale}</p>
-        </div>
+        <section className="bg-white rounded-lg border p-4">
+          <MatchScoreRing
+            score={application.matchScore}
+            rationale={application.matchRationale}
+            size={80}
+          />
+        </section>
       )}
 
       <div className="flex flex-col gap-2">
@@ -57,7 +84,6 @@ export default function Dashboard({
             Review application
           </button>
         ) : null}
-
         <button
           type="button"
           onClick={onGenerate}
@@ -70,8 +96,16 @@ export default function Dashboard({
 
       <section className="grid grid-cols-2 gap-3 text-center">
         <div className="bg-white rounded-lg border p-3">
+          <p className="text-2xl font-bold text-blitz-700">{stats.thisWeek}</p>
+          <p className="text-xs text-slate-500">This week</p>
+        </div>
+        <div className="bg-white rounded-lg border p-3">
+          <p className="text-2xl font-bold text-blitz-700">{stats.responseRate}%</p>
+          <p className="text-xs text-slate-500">Response rate</p>
+        </div>
+        <div className="bg-white rounded-lg border p-3">
           <p className="text-2xl font-bold text-blitz-700">{license.used ?? 0}</p>
-          <p className="text-xs text-slate-500">Applications used</p>
+          <p className="text-xs text-slate-500">Total used</p>
         </div>
         <div className="bg-white rounded-lg border p-3">
           <p className="text-2xl font-bold text-blitz-700">

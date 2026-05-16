@@ -1,6 +1,5 @@
 import { getStorage, setStorage } from "./storage.js";
-
-const LICENSE_ENDPOINT = "https://license.blitz.workers.dev/validate";
+import { LICENSE_ENDPOINT } from "./config.js";
 export const FREE_APPLICATION_LIMIT = 15;
 
 export async function validateLicense(key) {

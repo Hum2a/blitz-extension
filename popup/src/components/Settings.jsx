@@ -1,15 +1,24 @@
 import { useState, useEffect } from "react";
 import { useAllSettings } from "../hooks/useStorage.js";
-import { mergeStorage } from "../lib/storage.js";
+import { mergeStorage, getStorage, setStorage } from "../lib/storage.js";
+import { extractTextFromPdf } from "../lib/pdf-parse.js";
+import { FREE_APPLICATION_LIMIT } from "../lib/license.js";
+import { LEMONSQUEEZY } from "../lib/config.js";
 
 export default function Settings({ onSaved }) {
   const { settings, loading, refresh } = useAllSettings();
   const [form, setForm] = useState(null);
   const [testing, setTesting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [licenseKey, setLicenseKey] = useState("");
+  const [validatingLicense, setValidatingLicense] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
-    if (settings) setForm(settings);
+    if (settings) {
+      setForm(settings);
+      setLicenseKey(settings.license?.key || "");
+    }
   }, [settings]);
 
   if (loading || !form) {
@@ -59,7 +68,53 @@ export default function Settings({ onSaved }) {
     }
   };
 
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfLoading(true);
+    try {
+      const text = await extractTextFromPdf(file);
+      update("cv_text", text);
+    } catch (err) {
+      alert("Could not parse PDF. Try pasting your CV as text.");
+    } finally {
+      setPdfLoading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleActivateLicense = async () => {
+    setValidatingLicense(true);
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: "VALIDATE_LICENSE",
+        payload: { key: licenseKey },
+      });
+      if (result?.valid) {
+        const license = await getStorage("license");
+        await setStorage("license", {
+          ...license,
+          key: licenseKey,
+          tier: result.tier,
+          validatedAt: new Date().toISOString(),
+        });
+        alert("License activated.");
+        onSaved?.();
+        refresh();
+      } else {
+        alert(result?.message || "Invalid license key");
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setValidatingLicense(false);
+    }
+  };
+
   const profile = form.user_profile || {};
+  const license = form.license || {};
+  const used = license.applicationsUsed ?? 0;
+  const isPro = license.tier === "pro";
 
   return (
     <div className="space-y-4 max-h-[440px] overflow-y-auto text-sm">
@@ -97,6 +152,14 @@ export default function Settings({ onSaved }) {
       </Section>
 
       <Section title="Your CV">
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handlePdfUpload}
+          disabled={pdfLoading}
+          className="w-full text-xs mb-2"
+        />
+        {pdfLoading && <p className="text-xs text-slate-500 mb-1">Parsing PDF…</p>}
         <textarea
           value={form.cv_text || ""}
           onChange={(e) => update("cv_text", e.target.value)}
@@ -149,6 +212,73 @@ export default function Settings({ onSaved }) {
             <option value="ask">Ask</option>
           </select>
         </label>
+        <label className="flex items-center gap-2 mt-2">
+          <span>CV template</span>
+          <select
+            value={form.preferences?.cvTemplate || "modern"}
+            onChange={(e) => update("preferences.cvTemplate", e.target.value)}
+            className="border rounded p-1 flex-1"
+          >
+            <option value="modern">Modern</option>
+            <option value="minimal">Minimal</option>
+            <option value="classic">Classic</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 mt-2 text-xs">
+          <input
+            type="checkbox"
+            checked={form.preferences?.autoSubmit ?? false}
+            onChange={(e) => update("preferences.autoSubmit", e.target.checked)}
+          />
+          Auto-submit after fill (LinkedIn)
+        </label>
+      </Section>
+
+      <Section title="License">
+        <p className="text-xs text-slate-600 mb-2">
+          {isPro ? (
+            <span className="text-green-700 font-medium">Pro — unlimited applications</span>
+          ) : (
+            <>
+              Free tier — {used} / {FREE_APPLICATION_LIMIT} applications used
+            </>
+          )}
+        </p>
+        {!isPro && (
+          <div className="flex flex-col gap-2 mb-2">
+            <a
+              href={LEMONSQUEEZY.checkoutMonthly}
+              target="_blank"
+              rel="noreferrer"
+              className="text-center bg-blitz-600 text-white py-2 rounded text-xs"
+            >
+              Upgrade — £8/mo
+            </a>
+            <a
+              href={LEMONSQUEEZY.checkoutYearly}
+              target="_blank"
+              rel="noreferrer"
+              className="text-center border border-blitz-600 text-blitz-700 py-2 rounded text-xs"
+            >
+              Upgrade — £49/yr
+            </a>
+          </div>
+        )}
+        <input
+          type="text"
+          placeholder="License key"
+          value={licenseKey}
+          onChange={(e) => setLicenseKey(e.target.value)}
+          className="w-full border rounded p-2 mb-2"
+        />
+        <button
+          type="button"
+          onClick={handleActivateLicense}
+          disabled={validatingLicense || !licenseKey.trim()}
+          className="w-full border py-2 rounded text-xs disabled:opacity-50"
+        >
+          {validatingLicense ? "Validating…" : "Activate license"}
+        </button>
       </Section>
 
       <button
@@ -171,3 +301,4 @@ function Section({ title, children }) {
     </div>
   );
 }
+

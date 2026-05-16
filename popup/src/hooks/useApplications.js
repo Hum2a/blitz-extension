@@ -33,5 +33,13 @@ export function useApplications() {
     [refresh]
   );
 
-  return { applications, loading, refresh, saveApplication, updateStatus };
+  const updateNotes = useCallback(
+    async (id, notes) => {
+      await updateApplication(id, { notes });
+      return refresh();
+    },
+    [refresh]
+  );
+
+  return { applications, loading, refresh, saveApplication, updateStatus, updateNotes };
 }

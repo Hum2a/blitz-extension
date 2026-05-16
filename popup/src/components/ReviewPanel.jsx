@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { setStorage } from "../lib/storage.js";
 import { useApplications } from "../hooks/useApplications.js";
+import MatchScoreRing from "./MatchScoreRing.jsx";
 
 export default function ReviewPanel({
   application,
@@ -101,10 +102,13 @@ export default function ReviewPanel({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-2xl font-bold text-blitz-700">{application.matchScore}%</span>
-        <span className="text-sm text-slate-600">{application.matchRationale}</span>
-      </div>
+      <section className="bg-white rounded-lg border p-3">
+        <MatchScoreRing
+          score={application.matchScore}
+          rationale={application.matchRationale}
+          size={88}
+        />
+      </section>
 
       <div className="grid grid-cols-1 gap-3">
         <label className="block">
@@ -173,3 +177,4 @@ export default function ReviewPanel({
     </div>
   );
 }
+

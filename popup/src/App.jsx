@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Dashboard from "./components/Dashboard.jsx";
 import ReviewPanel from "./components/ReviewPanel.jsx";
 import ApplicationTracker from "./components/ApplicationTracker.jsx";
+import JobQueue from "./components/JobQueue.jsx";
 import Settings from "./components/Settings.jsx";
 import LicenseGate from "./components/LicenseGate.jsx";
 import { useLicense } from "./hooks/useLicense.js";
@@ -10,6 +11,7 @@ import { getStorage } from "./lib/storage.js";
 const VIEWS = {
   dashboard: "dashboard",
   review: "review",
+  queue: "queue",
   tracker: "tracker",
   settings: "settings",
 };
@@ -46,23 +48,24 @@ export default function App() {
     return <LicenseGate onSettings={() => setView(VIEWS.settings)} />;
   }
 
+  const navItems = [
+    [VIEWS.dashboard, "Home"],
+    [VIEWS.queue, "Queue"],
+    [VIEWS.tracker, "Tracker"],
+    [VIEWS.settings, "Settings"],
+  ];
+
   return (
     <div className="flex flex-col min-h-[520px]">
       <header className="bg-blitz-700 text-white px-4 py-3 flex items-center justify-between">
         <h1 className="font-bold text-lg tracking-tight">Blitz</h1>
         <nav className="flex gap-1 text-sm">
-          {[
-            [VIEWS.dashboard, "Home"],
-            [VIEWS.tracker, "Tracker"],
-            [VIEWS.settings, "Settings"],
-          ].map(([id, label]) => (
+          {navItems.map(([id, label]) => (
             <button
               key={id}
               type="button"
               onClick={() => setView(id)}
-              className={`px-2 py-1 rounded ${
-                view === id ? "bg-white/20" : "hover:bg-white/10"
-              }`}
+              className={`px-2 py-1 rounded ${view === id ? "bg-white/20" : "hover:bg-white/10"}`}
             >
               {label}
             </button>
@@ -105,15 +108,21 @@ export default function App() {
               const result = await chrome.runtime.sendMessage({
                 type: "GENERATE_APPLICATION",
               });
-              if (result?.error) {
-                alert(result.error);
-              } else {
-                setApplication(result);
-              }
+              if (result?.error) alert(result.error);
+              else setApplication(result);
               setGenerating(false);
             }}
             onApplicationUpdate={setApplication}
             license={license}
+          />
+        )}
+        {view === VIEWS.queue && (
+          <JobQueue
+            onReviewItem={(app, job) => {
+              setApplication(app);
+              setPendingJob(job);
+              setView(VIEWS.review);
+            }}
           />
         )}
         {view === VIEWS.tracker && <ApplicationTracker />}

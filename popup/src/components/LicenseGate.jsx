@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { setStorage, getStorage } from "../lib/storage.js";
+import { LEMONSQUEEZY } from "../lib/config.js";
 
 export default function LicenseGate({ onSettings }) {
   const [key, setKey] = useState("");
@@ -39,14 +40,24 @@ export default function LicenseGate({ onSettings }) {
       <p className="text-sm text-slate-600 mb-6">
         Upgrade to Pro for unlimited applications, or enter your license key.
       </p>
-      <a
-        href="https://getblitz.lemonsqueezy.com/checkout"
-        target="_blank"
-        rel="noreferrer"
-        className="block w-full bg-blitz-600 text-white py-2.5 rounded-lg font-medium mb-4 hover:bg-blitz-700"
-      >
-        Upgrade to Pro — £8/mo or £49/year
-      </a>
+      <div className="flex flex-col gap-2 mb-4">
+        <a
+          href={LEMONSQUEEZY.checkoutMonthly}
+          target="_blank"
+          rel="noreferrer"
+          className="block w-full bg-blitz-600 text-white py-2.5 rounded-lg font-medium hover:bg-blitz-700"
+        >
+          Pro — £8/month
+        </a>
+        <a
+          href={LEMONSQUEEZY.checkoutYearly}
+          target="_blank"
+          rel="noreferrer"
+          className="block w-full border border-blitz-600 text-blitz-700 py-2.5 rounded-lg font-medium hover:bg-blitz-50"
+        >
+          Pro — £49/year
+        </a>
+      </div>
       <div className="space-y-2">
         <input
           type="text"
@@ -70,3 +81,4 @@ export default function LicenseGate({ onSettings }) {
     </div>
   );
 }
+
