@@ -62,9 +62,6 @@
       "run_at": "document_idle"
     }
   ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdnjs.cloudflare.com; object-src 'self'"
-  },
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",
