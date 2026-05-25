@@ -26,8 +26,10 @@ import SettingsCard, {
 } from "./settings/SettingsCard.jsx";
 import CvTemplateEditor from "./CvTemplateEditor.jsx";
 import AppearanceSettings from "./settings/AppearanceSettings.jsx";
+import { useModal } from "../hooks/useModal.js";
 
 export default function Settings({ onSaved, fullPage = false }) {
+  const { showAlert } = useModal();
   const { settings, loading, refresh } = useAllSettings();
   const [form, setForm] = useState(null);
   const [testing, setTesting] = useState(false);
@@ -183,7 +185,7 @@ export default function Settings({ onSaved, fullPage = false }) {
       const msg =
         err instanceof StorageError ? err.message : err?.message || "Could not save settings";
       setSaveError(msg);
-      alert(msg);
+      await showAlert(msg, { title: "Could not save", variant: "error" });
     }
   };
 
@@ -195,9 +197,18 @@ export default function Settings({ onSaved, fullPage = false }) {
         payload: form.ai_config,
       });
       if (result?.error) throw new Error(result.error);
-      alert(result?.ok ? "API key works." : "Unexpected response from API.");
+      await showAlert(
+        result?.ok ? "API key works." : "Unexpected response from API.",
+        {
+          title: result?.ok ? "Connection OK" : "Unexpected response",
+          variant: result?.ok ? "success" : "warning",
+        }
+      );
     } catch (err) {
-      alert(err.message || "API test failed");
+      await showAlert(err.message || "API test failed", {
+        title: "API test failed",
+        variant: "error",
+      });
     } finally {
       setTesting(false);
     }
@@ -211,7 +222,10 @@ export default function Settings({ onSaved, fullPage = false }) {
     try {
       const text = await extractTextFromPdf(file);
       if (!text?.trim()) {
-        alert("No text found in this PDF. Try a different export or paste manually.");
+        await showAlert("No text found in this PDF. Try a different export or paste manually.", {
+          title: "PDF empty",
+          variant: "warning",
+        });
         return;
       }
       const cvText = field === "cv_text" ? text : form.cv_text ?? "";
@@ -224,7 +238,7 @@ export default function Settings({ onSaved, fullPage = false }) {
       const msg = err?.message?.includes("Storage")
         ? err.message
         : "Could not parse PDF. Try pasting the text instead.";
-      alert(msg);
+      await showAlert(msg, { title: "PDF import failed", variant: "error" });
     } finally {
       setLoading(false);
       e.target.value = "";
@@ -246,14 +260,17 @@ export default function Settings({ onSaved, fullPage = false }) {
           tier: result.tier,
           validatedAt: new Date().toISOString(),
         });
-        alert("License activated.");
+        await showAlert("License activated.", { title: "Pro activated", variant: "success" });
         onSaved?.();
         refresh();
       } else {
-        alert(result?.message || "Invalid license key");
+        await showAlert(result?.message || "Invalid license key", {
+          title: "Invalid license",
+          variant: "error",
+        });
       }
     } catch (err) {
-      alert(err.message);
+      await showAlert(err.message, { title: "License error", variant: "error" });
     } finally {
       setValidatingLicense(false);
     }

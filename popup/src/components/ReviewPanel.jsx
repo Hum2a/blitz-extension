@@ -11,6 +11,8 @@ import { scrollPanelClass } from "../lib/layout.js";
 import { getStorage } from "../lib/storage.js";
 import { buildRenderedCvHtml, downloadCvPdf } from "../lib/cv-export.js";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
+import { Modal, ModalButton } from "./Modal.jsx";
+import { useModal } from "../hooks/useModal.js";
 
 export default function ReviewPanel({
   application,
@@ -24,6 +26,7 @@ export default function ReviewPanel({
   lastGenerationCost,
   generationProgress,
 }) {
+  const { showAlert } = useModal();
   const { saveApplication } = useApplications();
   const [cv, setCv] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
@@ -62,7 +65,10 @@ export default function ReviewPanel({
         filename: `${label}.pdf`,
       });
     } catch (err) {
-      alert(err.message || "Could not generate PDF");
+      await showAlert(err.message || "Could not generate PDF", {
+        title: "PDF export failed",
+        variant: "error",
+      });
     } finally {
       setPdfLoading(false);
     }
@@ -79,7 +85,10 @@ export default function ReviewPanel({
       setCvPreviewHtml(html);
       setCvPreviewOpen(true);
     } catch (err) {
-      alert(err.message || "Could not preview CV");
+      await showAlert(err.message || "Could not preview CV", {
+        title: "Preview failed",
+        variant: "error",
+      });
     }
   };
 
@@ -106,7 +115,10 @@ export default function ReviewPanel({
 
   const handleApprove = async () => {
     if (!license.allowed) {
-      alert("Free tier limit reached (15 applications).");
+      await showAlert("Free tier limit reached (15 applications).", {
+        title: "Upgrade required",
+        variant: "warning",
+      });
       return;
     }
     setFilling(true);
@@ -148,10 +160,16 @@ export default function ReviewPanel({
       });
 
       license.refresh();
-      alert("Form filled. Review the page and submit when ready.");
+      await showAlert("Form filled. Review the page and submit when ready.", {
+        title: "Form filled",
+        variant: "success",
+      });
       onBack();
     } catch (err) {
-      alert(err.message || "Failed to fill form");
+      await showAlert(err.message || "Failed to fill form", {
+        title: "Fill failed",
+        variant: "error",
+      });
     } finally {
       setFilling(false);
     }
@@ -326,28 +344,20 @@ export default function ReviewPanel({
         </>
       )}
 
-      {cvPreviewOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <h4 className="font-semibold text-slate-900">Formatted CV (HTML)</h4>
-              <button
-                type="button"
-                onClick={() => setCvPreviewOpen(false)}
-                className="text-slate-500 hover:text-slate-800 text-lg"
-              >
-                ×
-              </button>
-            </div>
-            <iframe
-              title="CV preview"
-              srcDoc={cvPreviewHtml}
-              className="flex-1 w-full min-h-[480px] border-0 bg-slate-100"
-              sandbox="allow-same-origin"
-            />
-          </div>
-        </div>
-      )}
+      <Modal
+        open={cvPreviewOpen}
+        onClose={() => setCvPreviewOpen(false)}
+        title="Formatted CV (HTML)"
+        size="lg"
+        footer={<ModalButton onClick={() => setCvPreviewOpen(false)}>Close</ModalButton>}
+      >
+        <iframe
+          title="CV preview"
+          srcDoc={cvPreviewHtml}
+          className="w-full min-h-[480px] border-0 bg-slate-100 rounded-lg"
+          sandbox="allow-same-origin"
+        />
+      </Modal>
     </Stagger>
   );
 }

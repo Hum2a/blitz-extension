@@ -139,7 +139,7 @@ export default function Dashboard({
           </div>
 
           <AnimatePresence mode="wait">
-            {detectError && (
+            {detectError && !hasJob && (
               <motion.div
                 key="error"
                 className="mb-2"
@@ -153,6 +153,17 @@ export default function Dashboard({
                   details={detectErrorDetails}
                 />
               </motion.div>
+            )}
+            {detectError && hasJob && (
+              <motion.p
+                key="error-soft"
+                className="mb-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                Could not refresh from the job tab — showing last detected job. Open the Indeed/LinkedIn
+                tab and click Refresh, or use Open job tabs on the workspace.
+              </motion.p>
             )}
 
             {detecting && !pendingJob && (

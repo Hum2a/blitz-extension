@@ -1,15 +1,36 @@
-import { detectPlatformFromUrl } from "../popup/src/lib/queue-utils.js";
+import {
+  detectPlatformFromUrl,
+  isSupportedJobUrl,
+} from "../popup/src/lib/queue-utils.js";
 
-const JOB_URL_PATTERNS = [
-  /greenhouse\.io/i,
-  /linkedin\.com\/jobs/i,
-  /indeed\.(com|co\.uk)/i,
-  /myworkdayjobs\.com/i,
-];
+export { isSupportedJobUrl };
 
-export function isSupportedJobUrl(url) {
-  if (!url || !/^https?:/i.test(url)) return false;
-  return JOB_URL_PATTERNS.some((re) => re.test(url));
+/**
+ * Pick a job board tab to scrape when the dashboard/popup tab is focused.
+ */
+export async function findJobTabForScrape(preferredTabId) {
+  if (preferredTabId != null) {
+    try {
+      const tab = await chrome.tabs.get(preferredTabId);
+      if (isSupportedJobUrl(tab.url)) return tab;
+    } catch {
+      /* tab closed */
+    }
+  }
+
+  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (active?.id && isSupportedJobUrl(active.url)) return active;
+
+  const windowTabs = await chrome.tabs.query({ currentWindow: true });
+  const inWindow = windowTabs.filter((t) => isSupportedJobUrl(t.url));
+  if (inWindow.length) {
+    return inWindow.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+  }
+
+  const all = await chrome.tabs.query({});
+  const any = all.filter((t) => isSupportedJobUrl(t.url));
+  if (!any.length) return null;
+  return any.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
 }
 
 export async function queryTabJobInfo(tab) {

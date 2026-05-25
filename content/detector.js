@@ -9,8 +9,17 @@
     workday: () => window.blitzWorkday,
   };
 
+  function detectPlatformFromHost() {
+    const host = window.location.hostname;
+    if (host.includes("greenhouse.io")) return "greenhouse";
+    if (host.includes("linkedin.com")) return "linkedin";
+    if (host.includes("indeed.com") || host.includes("indeed.co.uk")) return "indeed";
+    if (host.includes("myworkdayjobs.com")) return "workday";
+    return null;
+  }
+
   function detectPlatform() {
-    return window.blitzPageContext?.detectPlatform?.() || null;
+    return window.blitzPageContext?.detectPlatform?.() || detectPlatformFromHost();
   }
 
   function scrapeCurrentJob(platform) {

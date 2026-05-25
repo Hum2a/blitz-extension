@@ -3,8 +3,10 @@ import { motion } from "framer-motion";
 import { setStorage, getStorage } from "../lib/storage.js";
 import { LEMONSQUEEZY } from "../lib/config.js";
 import { Btn, Stagger, FadeUp } from "./motion.jsx";
+import { useModal } from "../hooks/useModal.js";
 
 export default function LicenseGate({ onSettings }) {
+  const { showAlert } = useModal();
   const [key, setKey] = useState("");
   const [validating, setValidating] = useState(false);
 
@@ -25,10 +27,13 @@ export default function LicenseGate({ onSettings }) {
         });
         window.location.reload();
       } else {
-        alert(result?.message || "Invalid license key");
+        await showAlert(result?.message || "Invalid license key", {
+          title: "Invalid license",
+          variant: "error",
+        });
       }
     } catch (err) {
-      alert(err.message);
+      await showAlert(err.message, { title: "License error", variant: "error" });
     } finally {
       setValidating(false);
     }

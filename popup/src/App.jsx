@@ -55,11 +55,26 @@ export default function App({ fullPage = false, bridgeMode = false }) {
 
       const job = await scrapeActiveTab();
       if (job?.error) {
-        await logError("scrapeActiveTab", new Error(job.error), { ping });
-        setDetectError(job.error);
-        setDetectErrorDetails({ ping, url: job.url });
+        const stored = await getStorage("pending_job");
+        const hasStoredJob = Boolean(stored?.jobTitle || stored?.jobDescription);
+        const workspaceOnly =
+          job.code === "no_job_tab" ||
+          (job.error && /dashboard\.html|chrome:\/\/extensions/i.test(job.error));
+
+        if (hasStoredJob && workspaceOnly) {
+          setPendingJob(stored);
+          setDetectError(null);
+          setDetectErrorDetails(null);
+        } else {
+          await logError("scrapeActiveTab", new Error(job.error), { ping, url: job.url });
+          setDetectError(job.error);
+          setDetectErrorDetails({ ping, url: job.url, tabId: job.tabId });
+          if (hasStoredJob) setPendingJob(stored);
+        }
       } else if (job) {
         setPendingJob(job);
+        setDetectError(null);
+        setDetectErrorDetails(null);
         await setStorage("pending_job", job);
       }
     } catch (err) {

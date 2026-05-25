@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useModal } from "../hooks/useModal.js";
 
 export default function ErrorPanel({ title = "Error", error, details, onCopy, onDismiss }) {
+  const { showAlert } = useModal();
   const [copied, setCopied] = useState(false);
 
   if (!error) return null;
@@ -22,7 +24,11 @@ export default function ErrorPanel({ title = "Error", error, details, onCopy, on
       onCopy?.();
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      alert(text);
+      await showAlert(text, {
+        title: "Copy manually",
+        variant: "info",
+        confirmLabel: "Close",
+      });
     }
   };
 

@@ -12,6 +12,22 @@ export function detectPlatformFromUrl(url) {
   return null;
 }
 
+export function isSupportedJobUrl(url) {
+  if (!url || !/^https?:/i.test(url)) return false;
+  return PLATFORM_PATTERNS.some(({ test }) => test.test(url));
+}
+
+export function isInternalAppUrl(url) {
+  if (!url) return true;
+  return (
+    url.startsWith("chrome://") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("about:") ||
+    url.startsWith("edge://") ||
+    url.startsWith("devtools://")
+  );
+}
+
 export function parseJobUrls(text) {
   const lines = text
     .split(/\r?\n/)

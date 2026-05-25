@@ -19,7 +19,7 @@ import {
   validateLicense,
 } from "../popup/src/lib/license.js";
 import { processQueue } from "./queue-processor.js";
-import { listOpenJobTabs, queueItemsFromTabs } from "./tab-jobs.js";
+import { listOpenJobTabs, queueItemsFromTabs, findJobTabForScrape } from "./tab-jobs.js";
 import { buildRenderedCvHtml } from "../popup/src/lib/cv-export.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
@@ -358,18 +358,23 @@ async function handleMessage(message, sender) {
 
 function scriptsForUrl(url) {
   const u = (url || "").toLowerCase();
-  const base = ["content/humanise.js", "content/file-upload.js"];
+  const base = [
+    "content/page-context.js",
+    "content/humanise.js",
+    "content/file-upload.js",
+  ];
+  const tail = ["content/detector.js", "content/job-widget.js"];
   if (u.includes("greenhouse.io")) {
-    return [...base, "content/greenhouse.js", "content/detector.js"];
+    return [...base, "content/greenhouse.js", ...tail];
   }
   if (u.includes("linkedin.com") && u.includes("/jobs")) {
-    return [...base, "content/linkedin.js", "content/detector.js"];
+    return [...base, "content/linkedin.js", ...tail];
   }
   if (u.includes("indeed.com") || u.includes("indeed.co.uk")) {
-    return [...base, "content/indeed.js", "content/detector.js"];
+    return [...base, "content/indeed.js", ...tail];
   }
   if (u.includes("myworkdayjobs.com")) {
-    return [...base, "content/workday.js", "content/detector.js"];
+    return [...base, "content/workday.js", ...tail];
   }
   return null;
 }
@@ -379,21 +384,19 @@ function sleep(ms) {
 }
 
 async function scrapeActiveTabJob(tabId) {
-  let tab;
-  if (tabId) {
-    tab = await chrome.tabs.get(tabId);
-  } else {
-    const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-    tab = active;
-  }
+  const tab = await findJobTabForScrape(tabId);
 
   if (!tab?.id || !tab.url) {
-    return { error: "No active tab" };
+    return {
+      error:
+        "No job tab found. Open a job on Greenhouse, LinkedIn, Indeed, or Workday in this browser window.",
+      code: "no_job_tab",
+    };
   }
 
   const scripts = scriptsForUrl(tab.url);
   if (!scripts) {
-    return { error: "This page is not a supported job board" };
+    return { error: "This page is not a supported job board", url: tab.url };
   }
 
   let jobData;

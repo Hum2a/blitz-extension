@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import WebConnect from "./components/WebConnect.jsx";
 import { ThemeProvider } from "./components/ThemeProvider.jsx";
+import { ModalProvider } from "./components/ModalProvider.jsx";
 import { bootstrapAppearance } from "./hooks/useAppearance.js";
 import { isExtensionPage } from "./lib/extension-env.js";
 import "./styles/globals.css";
@@ -22,7 +23,9 @@ bootstrapAppearance().then(() => {
   createRoot(document.getElementById("root")).render(
     <React.StrictMode>
       <ThemeProvider>
-        <Root />
+        <ModalProvider>
+          <Root />
+        </ModalProvider>
       </ThemeProvider>
     </React.StrictMode>
   );

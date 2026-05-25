@@ -1,5 +1,7 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { TEMPLATE_VARIABLES } from "../lib/cv-template-utils.js";
+import { Modal, ModalButton } from "./Modal.jsx";
+import { useModal } from "../hooks/useModal.js";
 
 function ToolbarButton({ title, onClick, children }) {
   return (
@@ -15,6 +17,9 @@ function ToolbarButton({ title, onClick, children }) {
 }
 
 export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, fullPage }) {
+  const { showAlert } = useModal();
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("https://");
   const editorRef = useRef(null);
 
   useEffect(() => {
@@ -46,19 +51,30 @@ export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, ful
     sync();
   };
 
-  const insertLink = () => {
+  const insertLink = async () => {
     const sel = window.getSelection();
     if (!sel?.rangeCount || sel.isCollapsed) {
-      window.alert("Select the link text first (e.g. GitHub), then click Link.");
+      await showAlert("Select the link text first (e.g. GitHub), then click Link.", {
+        title: "Select text first",
+        variant: "warning",
+      });
       return;
     }
-    let url = window.prompt("Link URL", "https://");
-    if (!url) return;
-    url = url.trim();
+    setLinkUrl("https://");
+    setLinkModalOpen(true);
+  };
+
+  const applyLink = () => {
+    let url = linkUrl.trim();
+    if (!url) {
+      setLinkModalOpen(false);
+      return;
+    }
     if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url)) {
       url = `https://${url}`;
     }
     exec("createLink", url);
+    setLinkModalOpen(false);
   };
 
   const removeLink = () => {
@@ -130,6 +146,36 @@ export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, ful
         Use <strong>Link</strong> after selecting text (e.g. turn “GitHub” into a hyperlink). Dynamic rows use{" "}
         <code className="text-blitz-700">{"{{{contactLineHtml}}}"}</code> — URLs come from Settings → Your details.
       </p>
+      <Modal
+        open={linkModalOpen}
+        onClose={() => setLinkModalOpen(false)}
+        title="Insert hyperlink"
+        closeOnBackdrop={false}
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => setLinkModalOpen(false)}>
+              Cancel
+            </ModalButton>
+            <ModalButton variant="primary" onClick={applyLink}>
+              Insert link
+            </ModalButton>
+          </>
+        }
+      >
+        <p className="mb-3 text-slate-600">
+          Enter the URL for the selected text. Relative paths are prefixed with https:// automatically.
+        </p>
+        <input
+          type="url"
+          value={linkUrl}
+          onChange={(e) => setLinkUrl(e.target.value)}
+          placeholder="https://github.com/username"
+          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blitz-200 focus:border-blitz-400"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") applyLink();
+          }}
+        />
+      </Modal>
     </div>
   );
 }
