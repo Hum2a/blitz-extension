@@ -1,13 +1,17 @@
+import { sanitizeRichHtml, escapeHtmlText } from "./cv-html.js";
+
 function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return escapeHtmlText(value);
 }
 
 function renderScalar(template, data) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => escapeHtml(data[key]));
+  let out = template.replace(/\{\{\{(\w+)\}\}\}/g, (_, key) => {
+    const val = data[key];
+    if (val == null || val === "") return "";
+    return sanitizeRichHtml(String(val));
+  });
+  out = out.replace(/\{\{(\w+)\}\}/g, (_, key) => escapeHtml(data[key]));
+  return out;
 }
 
 function renderSections(template, data) {
@@ -31,14 +35,23 @@ export function normalizeCvDocument(doc) {
   if (!doc || typeof doc !== "object") return null;
 
   const bullets = (arr) =>
-    (arr || []).map((b) =>
-      typeof b === "string" ? { text: b } : { text: b?.text ?? String(b) }
-    );
+    (arr || []).map((b) => {
+      if (typeof b === "string") {
+        return { text: b, html: sanitizeRichHtml(b) };
+      }
+      const text = b?.text ?? "";
+      const html = b?.html?.trim() ? sanitizeRichHtml(b.html) : sanitizeRichHtml(text);
+      return { text, html };
+    });
 
   const education = (doc.education || []).map((e) => ({
     heading: e.heading ?? "",
     lines: (e.lines || []).map((line) => ({
       text: typeof line === "string" ? line : line?.text ?? "",
+      html:
+        typeof line === "object" && line?.html?.trim()
+          ? sanitizeRichHtml(line.html)
+          : sanitizeRichHtml(typeof line === "string" ? line : line?.text ?? ""),
     })),
   }));
 
@@ -59,8 +72,11 @@ export function normalizeCvDocument(doc) {
   return {
     fullName: doc.fullName ?? "",
     contactLine: doc.contactLine ?? "",
+    contactLineHtml: doc.contactLineHtml ?? "",
     summary: doc.summary ?? "",
+    summaryHtml: doc.summaryHtml ?? "",
     careerNote: doc.careerNote ?? "",
+    careerNoteHtml: doc.careerNoteHtml ?? "",
     education,
     skillGroups,
     jobs,

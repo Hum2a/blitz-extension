@@ -129,8 +129,10 @@ Generate a tailored application. Respond with this exact JSON structure:
   "tailoredCV": "Full tailored CV as plain text (same content as cvDocument). Sections: Professional Summary, Education, Technical Skills, Career. Use accomplishment bullets. ATS-friendly plain text.",
   "cvDocument": {
     "fullName": "string",
-    "contactLine": "location • phone • email | GitHub | Portfolio | LinkedIn",
-    "summary": "2-4 sentences tailored to this role",
+    "contactLine": "plain text fallback for contact row",
+    "contactLineHtml": "HTML contact row with real links: location • phone • <a href='mailto:EMAIL'>email</a><br><a href='GITHUB_URL'>GitHub</a> | <a href='PORTFOLIO_URL'>Portfolio</a> | <a href='LINKEDIN_URL'>LinkedIn</a> — use URLs from user profile",
+    "summary": "2-4 sentences tailored to this role (plain)",
+    "summaryHtml": "same summary as HTML <p>…</p>, may include <a href> only when relevant",
     "careerNote": "optional e.g. See Portfolio for more",
     "education": [{ "heading": "Institution – dates", "lines": ["degree lines"] }],
     "skillGroups": [{ "label": "Frontend", "value": "comma-separated skills" }],

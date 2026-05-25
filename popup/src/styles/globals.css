@@ -114,6 +114,11 @@ body:has(.blitz-site-connect) {
 .cv-rich-editor p {
   margin: 0.35rem 0;
 }
+.cv-rich-editor a {
+  color: #1a3a8c;
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 @keyframes site-fade-in {
   from {

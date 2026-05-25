@@ -26,6 +26,15 @@ export const DEFAULT_CV_HTML_TEMPLATE = `<!DOCTYPE html>
     margin-bottom: 14px;
     color: #333;
   }
+  .contact a {
+    color: #1a3a8c;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .summary a, li a {
+    color: #1a3a8c;
+    text-decoration: underline;
+  }
   h2 {
     font-size: 11pt;
     font-weight: 700;
@@ -68,10 +77,10 @@ export const DEFAULT_CV_HTML_TEMPLATE = `<!DOCTYPE html>
 <body>
 <div class="cv-page">
   <h1>{{fullName}}</h1>
-  <div class="contact">{{contactLine}}</div>
+  <div class="contact">{{{contactLineHtml}}}</div>
 
   <h2>Professional Summary</h2>
-  <div class="summary"><p>{{summary}}</p></div>
+  <div class="summary">{{{summaryHtml}}}</div>
 
   <h2>Education</h2>
   {{#education}}
@@ -87,11 +96,11 @@ export const DEFAULT_CV_HTML_TEMPLATE = `<!DOCTYPE html>
   {{/skillGroups}}
 
   <h2>Career</h2>
-  {{#careerNote}}<div class="career-note">{{careerNote}}</div>{{/careerNote}}
+  {{#careerNote}}<div class="career-note">{{{careerNoteHtml}}}</div>{{/careerNote}}
   {{#jobs}}
   <div class="job-block">
     <div class="role-line">{{company}} | {{role}} {{dates}} | {{location}}</div>
-    <ul>{{#bullets}}<li>{{text}}</li>{{/bullets}}</ul>
+    <ul>{{#bullets}}<li>{{{html}}}</li>{{/bullets}}</ul>
     {{#tech}}<div class="tech">Tech: {{tech}}</div>{{/tech}}
   </div>
   {{/jobs}}
@@ -100,13 +109,18 @@ export const DEFAULT_CV_HTML_TEMPLATE = `<!DOCTYPE html>
 </html>`;
 
 export const CV_TEMPLATE_VARIABLES_HELP = `Available fields (Mustache-style):
-  {{fullName}}  {{contactLine}}  {{summary}}  {{careerNote}}
 
-  {{#education}}  {{heading}}  {{#lines}}  {{text}}  {{/lines}}  {{/education}}
+Plain text (escaped): {{fullName}}  {{contactLine}}  {{summary}}
+
+Rich HTML (hyperlinks, bold, etc.): {{{contactLineHtml}}}  {{{summaryHtml}}}  {{{careerNoteHtml}}}
+
+  {{#education}}  {{heading}}  {{#lines}}  {{text}} or {{{html}}}  {{/lines}}  {{/education}}
 
   {{#skillGroups}}  {{label}}  {{value}}  {{/skillGroups}}
 
   {{#jobs}}  {{company}}  {{role}}  {{dates}}  {{location}}
-    {{#bullets}}  {{text}}  {{/bullets}}
+    {{#bullets}}  {{{html}}}  (supports <a href="...">links</a>)  {{/bullets}}
     {{#tech}}  {{tech}}  {{/tech}}
-  {{/jobs}}`;
+  {{/jobs}}
+
+Contact links are built from Settings → Your details (GitHub, Portfolio, LinkedIn URLs).`;

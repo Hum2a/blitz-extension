@@ -52,8 +52,18 @@ ${innerHtml}
 
 export const TEMPLATE_VARIABLES = [
   { key: "fullName", label: "Full name", snippet: "{{fullName}}" },
-  { key: "contactLine", label: "Contact line", snippet: "{{contactLine}}" },
-  { key: "summary", label: "Summary", snippet: "{{summary}}" },
+  { key: "contactLine", label: "Contact (plain)", snippet: "{{contactLine}}" },
+  {
+    key: "contactLineHtml",
+    label: "Contact (HTML + links)",
+    snippet: "{{{contactLineHtml}}}",
+  },
+  { key: "summary", label: "Summary (plain)", snippet: "{{summary}}" },
+  {
+    key: "summaryHtml",
+    label: "Summary (HTML)",
+    snippet: "{{{summaryHtml}}}",
+  },
   { key: "careerNote", label: "Career note", snippet: "{{careerNote}}" },
   {
     key: "educationBlock",
@@ -78,7 +88,7 @@ export const TEMPLATE_VARIABLES = [
     snippet: `{{#jobs}}
 <div class="job-block">
   <div class="role-line">{{company}} | {{role}} {{dates}} | {{location}}</div>
-  <ul>{{#bullets}}<li>{{text}}</li>{{/bullets}}</ul>
+  <ul>{{#bullets}}<li>{{{html}}}</li>{{/bullets}}</ul>
   {{#tech}}<div class="tech">Tech: {{tech}}</div>{{/tech}}
 </div>
 {{/jobs}}`,

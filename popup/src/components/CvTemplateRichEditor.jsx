@@ -1,17 +1,13 @@
 import { useRef, useEffect, useCallback } from "react";
 import { TEMPLATE_VARIABLES } from "../lib/cv-template-utils.js";
 
-function ToolbarButton({ title, onClick, children, active }) {
+function ToolbarButton({ title, onClick, children }) {
   return (
     <button
       type="button"
       title={title}
       onClick={onClick}
-      className={`h-8 min-w-8 px-2 rounded-md text-sm font-medium transition-colors ${
-        active
-          ? "bg-blitz-100 text-blitz-800"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-      }`}
+      className="h-8 min-w-8 px-2 rounded-md text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
     >
       {children}
     </button>
@@ -42,8 +38,31 @@ export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, ful
     const el = editorRef.current;
     if (!el) return;
     el.focus();
-    document.execCommand("insertText", false, snippet);
+    if (snippet.includes("<") && document.queryCommandSupported("insertHTML")) {
+      document.execCommand("insertHTML", false, snippet);
+    } else {
+      document.execCommand("insertText", false, snippet);
+    }
     sync();
+  };
+
+  const insertLink = () => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || sel.isCollapsed) {
+      window.alert("Select the link text first (e.g. GitHub), then click Link.");
+      return;
+    }
+    let url = window.prompt("Link URL", "https://");
+    if (!url) return;
+    url = url.trim();
+    if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url)) {
+      url = `https://${url}`;
+    }
+    exec("createLink", url);
+  };
+
+  const removeLink = () => {
+    exec("unlink");
   };
 
   return (
@@ -57,6 +76,13 @@ export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, ful
         </ToolbarButton>
         <ToolbarButton title="Underline" onClick={() => exec("underline")}>
           <span className="underline">U</span>
+        </ToolbarButton>
+        <span className="w-px h-6 bg-slate-200 mx-1" />
+        <ToolbarButton title="Insert hyperlink (select text first)" onClick={insertLink}>
+          <span className="text-blitz-700 font-semibold">Link</span>
+        </ToolbarButton>
+        <ToolbarButton title="Remove hyperlink" onClick={removeLink}>
+          Unlink
         </ToolbarButton>
         <span className="w-px h-6 bg-slate-200 mx-1" />
         <ToolbarButton title="Heading 1" onClick={() => exec("formatBlock", "h1")}>
@@ -74,7 +100,7 @@ export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, ful
         </ToolbarButton>
         <span className="w-px h-6 bg-slate-200 mx-1" />
         <select
-          className="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white max-w-[140px]"
+          className="text-xs border border-slate-300 rounded-md px-2 py-1.5 bg-white max-w-[160px]"
           defaultValue=""
           onChange={(e) => {
             const v = e.target.value;
@@ -100,9 +126,9 @@ export default function CvTemplateRichEditor({ innerHtml, onInnerHtmlChange, ful
         }`}
         style={{ lineHeight: 1.45 }}
       />
-      <p className="text-[11px] text-slate-500 px-3 py-2 border-t border-slate-100 bg-slate-50/80">
-        Visual editor changes the CV body only. Keep <code className="text-blitz-700">{"{{tags}}"}</code>{" "}
-        for dynamic fields — use HTML mode for full control.
+      <p className="text-[11px] text-slate-500 px-3 py-2 border-t border-slate-100 bg-slate-50/80 leading-relaxed">
+        Use <strong>Link</strong> after selecting text (e.g. turn “GitHub” into a hyperlink). Dynamic rows use{" "}
+        <code className="text-blitz-700">{"{{{contactLineHtml}}}"}</code> — URLs come from Settings → Your details.
       </p>
     </div>
   );

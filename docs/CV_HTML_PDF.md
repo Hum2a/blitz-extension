@@ -14,6 +14,8 @@ Blitz renders tailored CVs as **HTML** (your template + structured data), then c
 
 The default template matches a classic UK CV layout (summary, education, skills, career blocks).
 
+**Hyperlinks:** Use `{{{contactLineHtml}}}` in the template. URLs are taken from Settings → Your details (GitHub, Portfolio, LinkedIn). In the Visual editor, select text and click **Link**. Triple-brace fields `{{{…}}}` render rich HTML (anchors, bold, etc.).
+
 ## Data flow
 
 1. AI returns `cvDocument` (structured) + `tailoredCV` (plain text)

@@ -2,6 +2,13 @@
  * Build / parse structured CV data for HTML templates.
  */
 
+import {
+  buildContactLineHtml,
+  enrichCvDocumentRichFields,
+} from "./cv-html.js";
+
+export { buildContactLineHtml };
+
 const SECTION_HEADERS = [
   "professional summary",
   "summary",
@@ -13,22 +20,7 @@ const SECTION_HEADERS = [
   "work experience",
 ];
 
-function buildContactLine(profile) {
-  const parts = [];
-  if (profile?.location?.trim()) parts.push(profile.location.trim());
-  if (profile?.phone?.trim()) parts.push(profile.phone.trim());
-  const links = [];
-  if (profile?.email?.trim()) links.push(profile.email.trim());
-  if (profile?.github?.trim()) links.push("GitHub");
-  if (profile?.portfolio?.trim()) links.push("Portfolio");
-  if (profile?.linkedin?.trim()) links.push("LinkedIn");
-  const left = parts.join(" • ");
-  const right = links.join(" | ");
-  if (left && right) return `${left}\n${right}`;
-  return left || right || "";
-}
-
-export function buildContactLineInline(profile) {
+function buildContactLineInline(profile) {
   const parts = [];
   if (profile?.location?.trim()) parts.push(profile.location.trim());
   if (profile?.phone?.trim()) parts.push(profile.phone.trim());
@@ -43,19 +35,18 @@ export function buildContactLineInline(profile) {
 
 /** Prefer structured cvDocument when present; always merge profile header fields. */
 export function resolveCvDocument({ cvDocument, tailoredCV, userProfile }) {
+  let doc = null;
   if (cvDocument && typeof cvDocument === "object") {
-    const doc = { ...cvDocument };
-    if (!doc.fullName?.trim() && userProfile?.name) doc.fullName = userProfile.name;
-    if (!doc.contactLine?.trim()) doc.contactLine = buildContactLineInline(userProfile);
-    return doc;
+    doc = { ...cvDocument };
+  } else if (tailoredCV?.trim()) {
+    doc = parseTailoredCvText(tailoredCV, userProfile);
   }
-  if (tailoredCV?.trim()) {
-    const parsed = parseTailoredCvText(tailoredCV, userProfile);
-    if (!parsed.fullName?.trim() && userProfile?.name) parsed.fullName = userProfile.name;
-    if (!parsed.contactLine?.trim()) parsed.contactLine = buildContactLineInline(userProfile);
-    return parsed;
-  }
-  return null;
+  if (!doc) return null;
+
+  if (!doc.fullName?.trim() && userProfile?.name) doc.fullName = userProfile.name;
+  if (!doc.contactLine?.trim()) doc.contactLine = buildContactLineInline(userProfile);
+
+  return enrichCvDocumentRichFields(doc, userProfile);
 }
 
 export function parseTailoredCvText(text, userProfile = {}) {

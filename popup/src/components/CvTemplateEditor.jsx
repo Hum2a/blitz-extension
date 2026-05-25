@@ -5,6 +5,7 @@ import {
   CV_TEMPLATE_VARIABLES_HELP,
 } from "../lib/cv-template-default.js";
 import { renderCvHtml } from "../lib/cv-template-engine.js";
+import { enrichCvDocumentRichFields } from "../lib/cv-html.js";
 import {
   extractCvPageInner,
   extractStyleBlock,
@@ -24,9 +25,10 @@ const MODES = [
 
 const SAMPLE_CV_DOCUMENT = {
   fullName: "Your Name",
-  contactLine: "City • phone • email | GitHub | Portfolio | LinkedIn",
-  summary:
-    "Professional summary tailored to the role appears here. Edit layout visually or in HTML.",
+  contactLineHtml:
+    'London • 07400 000000 • <a href="mailto:you@example.com">you@example.com</a><br /><a href="https://github.com/username">GitHub</a> | <a href="https://yoursite.com">Portfolio</a> | <a href="https://linkedin.com/in/username">LinkedIn</a>',
+  summaryHtml:
+    "<p>Professional summary tailored to the role. You can add <a href='https://yoursite.com'>portfolio highlights</a> as links.</p>",
   education: [
     { heading: "University – 2019 – 2023", lines: ["MEng Computer Science"] },
   ],
@@ -41,7 +43,12 @@ const SAMPLE_CV_DOCUMENT = {
       role: "Software Engineer",
       dates: "Jan 2024 – Present",
       location: "London",
-      bullets: ["Reduced API latency by 40% by introducing edge caching."],
+      bullets: [
+        {
+          text: "Reduced API latency by 40% by introducing edge caching.",
+          html: "Reduced API latency by 40% by introducing edge caching.",
+        },
+      ],
       tech: "TypeScript, Node.js, AWS",
     },
   ],
@@ -89,9 +96,11 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
     setFullTemplate(mergeStyleBlock(template, css));
   };
 
+  const sampleDoc = () => enrichCvDocumentRichFields(SAMPLE_CV_DOCUMENT, {});
+
   const validateAndSave = async () => {
     try {
-      renderCvHtml(template, SAMPLE_CV_DOCUMENT);
+      renderCvHtml(template, sampleDoc());
       await persist(template);
       setError(null);
     } catch (err) {
@@ -108,7 +117,7 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
 
   const openPreview = () => {
     try {
-      const html = renderCvHtml(template, SAMPLE_CV_DOCUMENT);
+      const html = renderCvHtml(template, sampleDoc());
       setPreviewHtml(html);
       setPreviewOpen(true);
       setError(null);
