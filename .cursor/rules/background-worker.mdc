@@ -1,0 +1,33 @@
+---
+description: Background service worker, offscreen PDF, job queue
+globs: blitz-extension/{background,offscreen}/**/*
+alwaysApply: false
+---
+
+# Background worker
+
+## Files
+
+- `background/service-worker.js` — message router, AI generation, license, PDF trigger, queue
+- `background/queue-processor.js` — bulk URL queue (opens tabs, scrape, generate)
+- `offscreen/offscreen.html` + `pdf-generator.js` — jsPDF from local `jspdf.umd.min.js`
+
+## Message types (popup/content → background)
+
+`JOB_DETECTED`, `GENERATE_APPLICATION`, `FILL_FORM`, `GENERATE_PDF`, `VALIDATE_LICENSE`, `GET_APPLICATION_COUNT`, `PROCESS_QUEUE`, `TEST_API_KEY`, `APPLICATION_SUBMITTED`
+
+Return `{ error: string }` on failure. Use `return true` + `sendResponse` for async handlers.
+
+## PDF / offscreen
+
+- Check `chrome.offscreen.hasDocument()` before `createDocument`
+- `GENERATE_PDF_OFFSCREEN` must **not** be handled in service worker (`return false` so offscreen receives it)
+- Reasons: `DOM_SCRAPING` for PDF justification
+
+## Imports
+
+Shared code from `../popup/src/lib/` (storage, ai, prompts, license). Keep imports relative; no bundler for SW.
+
+## Lifecycle
+
+MV3 SW sleeps after ~30s — persist state in `chrome.storage`, not module-level variables.

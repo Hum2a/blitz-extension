@@ -1,0 +1,36 @@
+﻿# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+blitz-extension/popup/dist/
+blitz-extension/dist/
+
+# Large vendored / bundled assets
+blitz-extension/offscreen/jspdf.umd.min.js
+blitz-extension/popup/dist/assets/
+**/*.mjs.map
+
+# Lockfiles
+package-lock.json
+**/package-lock.json
+
+# Archives & temp
+**/*.zip
+**/.license-value.json
+blitz-extension/scripts/fix-div-tags.py
+
+# Git
+.git/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+*.log
+
+# Agent / local
+agent-transcripts/
+terminals/
+
+# Historical monolith spec (split rules in .cursor/rules/)
+blitz-extension/blitz-extension.cursorrules

@@ -1,0 +1,42 @@
+---
+description: Build, pack, version bump, changelog, release scripts
+globs: blitz-extension/{package.json,manifest.json,scripts/**,CHANGELOG.md,chrome-store/**}
+alwaysApply: false
+---
+
+# Build & release
+
+## Daily dev
+
+```bash
+cd blitz-extension
+npm run dev          # watch popup
+npm run build        # production popup → popup/dist/
+npm run validate     # required files exist
+```
+
+Reload extension after popup or manifest/background/content changes.
+
+## Store package
+
+```bash
+npm run pack         # build + validate + dist/blitz-extension-vX.zip
+```
+
+Zip uses `archiver` in `scripts/zip-extension.mjs` (not PowerShell — Windows-safe).
+
+## Versioning
+
+`npm run version:patch|minor|major` updates **both** `package.json` and `manifest.json`.
+
+`npm run changelog:add -- "Description"` prepends to `CHANGELOG.md`.
+
+## Required artifacts
+
+- `popup/dist/index.html` (after build)
+- `offscreen/jspdf.umd.min.js` (`npm run copy:jspdf` / postinstall)
+- `assets/icon*.png` (`npm run icons`)
+
+## CSP
+
+Never add CDN hosts to `manifest.json` `content_security_policy`. Bundle vendor JS under `offscreen/`.

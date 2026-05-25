@@ -1,0 +1,33 @@
+---
+description: Blitz project overview and global conventions
+alwaysApply: true
+---
+
+# Blitz — Overview
+
+Chrome Extension (MV3) that tailors CV/cover letter via user’s AI key (BYOK), shows a review UI, then human-like form fill on job boards.
+
+## Layout
+
+- `blitz-extension/` — extension source (load unpacked here after `npm run build`)
+- `blitz-extension/license-worker/` — Cloudflare Worker for Pro license keys
+- `blitz-extension/popup/src/lib/` — shared modules imported by background + popup
+
+## Hard rules
+
+- **Minimize diff scope** — no drive-by refactors
+- **ES modules** everywhere; React 18 functional components + hooks only
+- **AI calls only in** `background/service-worker.js` — never popup or content scripts
+- **Storage** via `popup/src/lib/storage.js` — not raw `chrome.storage` in components
+- **IndexedDB** via `popup/src/lib/db.js` — not raw IDB in components
+- **Never log** API keys, CV text, or PII
+- **No remote scripts** in extension pages (MV3 CSP = `script-src 'self'` only); jsPDF is vendored in `offscreen/`
+- Content scripts: scrape/detect on load; **fill only** after user approves (`FILL_FORM` message)
+
+## Platforms
+
+Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (Shadow DOM, best-effort). External Indeed redirects are detect-only.
+
+## Commands
+
+Run from `blitz-extension/`: `npm run build`, `npm run dev`, `npm run pack`, `npm run validate`. See `README.md` for full script list.

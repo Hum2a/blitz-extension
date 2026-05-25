@@ -1,0 +1,29 @@
+---
+description: Shared lib — storage, AI, license, DB, prompts
+globs: blitz-extension/popup/src/lib/**/*
+alwaysApply: false
+---
+
+# Shared lib (`popup/src/lib/`)
+
+Used by **popup** and **background** (imported via relative paths).
+
+| Module | Purpose |
+|--------|---------|
+| `storage.js` | `getStorage`, `setStorage`, `mergeStorage`, defaults (`cv_text`, `user_profile`, `license`, `job_queue`) |
+| `ai.js` | `callAI`, `parseApplicationResponse` — Anthropic + OpenAI |
+| `prompts.js` | `PROMPTS.system`, `PROMPTS.generateApplication` — JSON-only responses |
+| `license.js` | Free tier (15), `validateLicense`, `canSubmitApplication` |
+| `db.js` | IndexedDB `blitz_db` / `applications` store |
+| `config.js` | `LICENSE_ENDPOINT`, LemonSqueezy URLs |
+| `pdf.js` | Popup helper to request PDF via background |
+| `pdf-parse.js` | PDF → text in Settings (pdfjs-dist) |
+| `queue-utils.js` | Parse bulk job URLs |
+
+## Config
+
+License URL: `config.js` → `LICENSE_ENDPOINT`. Update when worker URL changes.
+
+## Security
+
+Never log `apiKey` or `cv_text`. API key only in `ai.js` fetch headers.

@@ -1,0 +1,33 @@
+---
+description: Blitz popup UI — React, Vite, Tailwind
+globs: blitz-extension/popup/**/*
+alwaysApply: false
+---
+
+# Popup UI
+
+## Stack
+
+React 18 + Vite. Built output: `popup/dist/` (manifest points here). Tailwind in `popup/src/styles/globals.css`.
+
+## Structure
+
+- `App.jsx` — views: dashboard, review, queue, tracker, settings
+- `components/` — UI only; no direct AI fetch
+- `hooks/` — `useStorage`, `useApplications`, `useLicense`, `useJobQueue`
+
+## Patterns
+
+- Talk to background via `chrome.runtime.sendMessage` (e.g. `GENERATE_APPLICATION`, `FILL_FORM`, `PROCESS_QUEUE`)
+- Use `getStorage` / `setStorage` / `mergeStorage` from `lib/storage.js`
+- License paywall: `LicenseGate.jsx` when free tier exhausted
+
+## Do not
+
+- Call Anthropic/OpenAI from popup (CSP + architecture)
+- Use class components or inline `chrome.storage` in components
+- Reference `popup/src/` paths in manifest — only `popup/dist/` after build
+
+## After UI changes
+
+`npm run build` (or `npm run dev`) then reload extension on `chrome://extensions`.

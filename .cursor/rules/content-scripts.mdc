@@ -1,0 +1,36 @@
+---
+description: Content scripts — detection, scraping, human-like form fill
+globs: blitz-extension/content/**/*
+alwaysApply: false
+---
+
+# Content scripts
+
+## Load order (manifest)
+
+Per platform: `humanise.js` → `file-upload.js` → platform script → `detector.js` (Greenhouse/Workday/LinkedIn/Indeed vary — see `manifest.json`).
+
+## Modules
+
+| File | Role |
+|------|------|
+| `detector.js` | Platform detect, `JOB_DETECTED`, route `FILL_FORM` / `SCRAPE_JOB` |
+| `humanise.js` | `window.blitzHumanise` — typing, clicks, native value setter for React |
+| `file-upload.js` | Attach PDF/base64 to file inputs |
+| `greenhouse.js` / `linkedin.js` / `indeed.js` / `workday.js` | `scrapeJob()`, `fillForm(payload)` on `window.blitz*` |
+
+## Fill payload
+
+`{ tailoredCV, coverLetter, screeningAnswers, userProfile, pdfBase64?, autoSubmit? }`
+
+## Platform notes
+
+- **LinkedIn**: multi-step Easy Apply modal; click Apply on fill; optional `autoSubmit`
+- **Indeed**: block `externalApply` redirects
+- **Workday**: `queryDeep()` for Shadow DOM
+- **Greenhouse**: `DataTransfer` for resume upload
+
+## Do not
+
+- Call AI APIs from content scripts
+- Auto-fill without `FILL_FORM` message (detect/scrape only on page load)

@@ -1,0 +1,35 @@
+---
+description: Cloudflare license worker — Wrangler, KV
+globs: blitz-extension/license-worker/**/*
+alwaysApply: false
+---
+
+# License worker
+
+Deploy from `blitz-extension/license-worker/`.
+
+## API
+
+`POST /` with `{ "key": "..." }` → `{ valid, tier, message }`
+
+`GET /` returns health JSON. CORS enabled for extension origin.
+
+## KV
+
+Namespace binding: `LICENSE_KEYS`. Value shape: `{ tier: "pro", active: true, email, createdAt }`
+
+## Commands (from extension root)
+
+```bash
+npm run worker:deploy
+npm run worker:license:add -- YOUR-KEY
+npm run worker:test
+```
+
+Or `cd license-worker && npx wrangler ...`
+
+## Do not
+
+Put secrets in repo. `wrangler.toml` namespace id is environment-specific.
+
+PowerShell: use `npm run worker:license:add` — not inline JSON with `wrangler kv key put`.
