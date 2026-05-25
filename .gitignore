@@ -1,4 +1,31 @@
+# Dependencies
 node_modules/
+license-worker/node_modules/
+
+# Build outputs
 popup/dist/
 dist/
+
+# Cloudflare / secrets
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
 .license-value.json
+
+# OS & editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs & coverage
+*.log
+npm-debug.log*
+coverage/
+
+# Pack artifacts (CI uploads these; keep local zips untracked)
+dist/*.zip
