@@ -40,3 +40,7 @@ Shared code from `../popup/src/lib/` (storage, ai, prompts, license). Keep impor
 ## Lifecycle
 
 MV3 SW sleeps after ~30s — persist state in `chrome.storage`, not module-level variables.
+
+## No dynamic `import()`
+
+Service workers must use **static** top-level `import` only — `await import(...)` throws in `ServiceWorkerGlobalScope`. Import shared modules at the top of `service-worker.js` (e.g. `models.js`, `cost-estimate.js`).

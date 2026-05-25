@@ -6,7 +6,12 @@ import {
 } from "../popup/src/lib/storage.js";
 import { PROMPTS, formatApplicationTitle } from "../popup/src/lib/prompts.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
-import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
+import { costFromUsage, estimateCostFromPrompts } from "../popup/src/lib/cost-estimate.js";
+import {
+  fetchAnthropicModels,
+  ANTHROPIC_MODEL_SUGGESTIONS,
+  remapAnthropicModel,
+} from "../popup/src/lib/models.js";
 import {
   createProgressReporter,
   progressComplete,
@@ -172,8 +177,6 @@ async function handleMessage(message, sender) {
       if (!jobData?.jobTitle && !jobData?.jobDescription) {
         return { error: "No job detected on this page." };
       }
-      const { estimateCostFromPrompts } = await import("../popup/src/lib/cost-estimate.js");
-      const { PROMPTS } = await import("../popup/src/lib/prompts.js");
       const systemPrompt = PROMPTS.system(settings.user_profile);
       const userPrompt = PROMPTS.generateApplication(
         settings.cv_text,
@@ -348,9 +351,6 @@ async function handleMessage(message, sender) {
     }
 
     case "LIST_ANTHROPIC_MODELS": {
-      const { fetchAnthropicModels, ANTHROPIC_MODEL_SUGGESTIONS } = await import(
-        "../popup/src/lib/models.js"
-      );
       const config = await getStorage("ai_config");
       const apiKey = message.payload?.apiKey || config?.apiKey;
       const models = await fetchAnthropicModels(apiKey);
@@ -535,7 +535,7 @@ async function generateApplication(
 
   const resolvedModel =
     aiConfig.provider === "anthropic"
-      ? (await import("../popup/src/lib/models.js")).remapAnthropicModel(aiConfig.model)
+      ? remapAnthropicModel(aiConfig.model)
       : aiConfig.model || "gpt-4o";
   report(
     "model",
