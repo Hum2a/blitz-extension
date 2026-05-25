@@ -11,7 +11,9 @@ import {
   computeHistorySummary,
   filterApplications,
   displayApplicationLabel,
+  historyDisplayDate,
 } from "../lib/application-history-utils.js";
+import { formatHistoryEvent } from "../lib/application-store.js";
 import { scrollPanelClass } from "../lib/layout.js";
 
 function SummaryPill({ label, value, highlight }) {
@@ -27,16 +29,45 @@ function SummaryPill({ label, value, highlight }) {
   );
 }
 
-function ApplicationDetail({ app, updateNotes }) {
+function ApplicationDetail({ app, updateNotes, onOpenReview }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-2"
     >
-      <a href={app.url} target="_blank" rel="noreferrer" className="text-blitz-600 underline">
-        View original listing
-      </a>
+      <div className="flex flex-wrap gap-3">
+        <a href={app.url} target="_blank" rel="noreferrer" className="text-blitz-600 underline">
+          View original listing
+        </a>
+        {onOpenReview && (app.cvSnapshot || app.coverLetterSnapshot) && (
+          <button
+            type="button"
+            onClick={() => onOpenReview(app)}
+            className="text-blitz-600 underline font-medium"
+          >
+            Open in review
+          </button>
+        )}
+      </div>
+      {app.events?.length > 0 && (
+        <div>
+          <p className="font-semibold text-slate-700 mb-1">Activity</p>
+          <ul className="space-y-1 max-h-32 overflow-y-auto">
+            {app.events.map((ev, i) => (
+              <li key={`${ev.type}-${ev.at}-${i}`} className="flex justify-between gap-2 text-[11px]">
+                <span className="text-slate-700">{formatHistoryEvent(ev.type)}</span>
+                <span className="text-slate-400 shrink-0">
+                  {new Date(ev.at).toLocaleString(undefined, {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <label className="block">
         <span className="font-semibold text-slate-700">Notes</span>
         <textarea
@@ -81,7 +112,7 @@ function ApplicationDetail({ app, updateNotes }) {
   );
 }
 
-export default function ApplicationHistory({ fullPage = false }) {
+export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
   const { applications, loading, refresh, updateStatus, updateNotes } = useApplications();
   const [expandedId, setExpandedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -114,7 +145,7 @@ export default function ApplicationHistory({ fullPage = false }) {
           <div>
             <h2 className="text-base font-bold text-slate-900">Application history</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Every role you applied to through Blitz — CV snapshots, cover letters, and status.
+              Generated and filled applications — CV snapshots, cover letters, activity log, and status.
             </p>
           </div>
         )}
@@ -183,8 +214,8 @@ export default function ApplicationHistory({ fullPage = false }) {
       {applications.length === 0 ? (
         <Card className="bg-white border rounded-lg p-8 text-center" hover={false}>
           <p className="text-sm text-slate-600">
-            No applications logged yet. Generate and approve an application on a job page to
-            start your history.
+            No applications logged yet. Generate tailored content on a job page — each generation
+            is saved here automatically.
           </p>
         </Card>
       ) : filtered.length === 0 ? (
@@ -228,10 +259,7 @@ export default function ApplicationHistory({ fullPage = false }) {
                         </p>
                       )}
                       <p className="text-xs text-slate-400 mt-1">
-                        {new Date(app.appliedAt).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
+                        {historyDisplayDate(app)}
                         {" · "}
                         <span className="capitalize">{app.platform}</span>
                       </p>
@@ -259,7 +287,11 @@ export default function ApplicationHistory({ fullPage = false }) {
                 </div>
                 <AnimatePresence>
                   {expandedId === app.id && (
-                    <ApplicationDetail app={app} updateNotes={updateNotes} />
+                    <ApplicationDetail
+                      app={app}
+                      updateNotes={updateNotes}
+                      onOpenReview={onOpenReview}
+                    />
                   )}
                 </AnimatePresence>
               </motion.li>

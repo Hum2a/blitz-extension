@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { setStorage } from "../lib/storage.js";
 import { useApplications } from "../hooks/useApplications.js";
+import { persistFilledApplication } from "../lib/application-store.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
 import CostEstimate from "./CostEstimate.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
@@ -27,7 +28,7 @@ export default function ReviewPanel({
   generationProgress,
 }) {
   const { showAlert } = useModal();
-  const { saveApplication } = useApplications();
+  const { refresh: refreshApplications } = useApplications();
   const [cv, setCv] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
   const [answers, setAnswers] = useState([]);
@@ -139,25 +140,8 @@ export default function ReviewPanel({
       });
       if (result?.error) throw new Error(result.error);
 
-      await saveApplication({
-        id: crypto.randomUUID(),
-        applicationTitle: displayApplicationLabel({
-          applicationTitle: application.applicationTitle,
-          role: pendingJob?.jobTitle || application.jobData?.jobTitle,
-          company: pendingJob?.company || application.jobData?.company,
-        }),
-        company: pendingJob?.company || application.jobData?.company || "",
-        role: pendingJob?.jobTitle || application.jobData?.jobTitle || "",
-        url: pendingJob?.url || application.jobData?.url || "",
-        platform: pendingJob?.platform || "greenhouse",
-        appliedAt: new Date().toISOString(),
-        status: "applied",
-        matchScore: application.matchScore,
-        cvSnapshot: cv,
-        coverLetterSnapshot: coverLetter,
-        screeningAnswers: answers,
-        notes: "",
-      });
+      await persistFilledApplication(updated, pendingJob, answers);
+      await refreshApplications();
 
       license.refresh();
       await showAlert("Form filled. Review the page and submit when ready.", {

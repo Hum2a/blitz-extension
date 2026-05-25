@@ -2,6 +2,8 @@ import {
   detectPlatformFromUrl,
   isSupportedJobUrl,
 } from "../popup/src/lib/queue-utils.js";
+import { listingKey } from "../popup/src/lib/job-listing.js";
+import { getAllApplications } from "../popup/src/lib/db.js";
 
 export { isSupportedJobUrl };
 
@@ -86,10 +88,35 @@ export async function queryTabJobInfo(tab) {
   }
 }
 
+function historyForJob(jobData, url, historyByKey) {
+  const key = listingKey(jobData || { url });
+  if (!key || !historyByKey) return null;
+  const record = historyByKey.get(key);
+  if (!record) return null;
+  return {
+    id: record.id,
+    status: record.status,
+    matchScore: record.matchScore,
+    generatedAt: record.generatedAt,
+    updatedAt: record.updatedAt,
+    applicationTitle: record.applicationTitle,
+  };
+}
+
 export async function listOpenJobTabs() {
   const tabs = await chrome.tabs.query({});
   const candidates = tabs.filter((t) => isSupportedJobUrl(t.url));
-  const results = await Promise.all(candidates.map((tab) => queryTabJobInfo(tab)));
+  const historyRecords = await getAllApplications();
+  const historyByKey = new Map(
+    historyRecords.filter((r) => r.listingKey).map((r) => [r.listingKey, r])
+  );
+  const results = await Promise.all(
+    candidates.map(async (tab) => {
+      const info = await queryTabJobInfo(tab);
+      const history = historyForJob(info.jobData, tab.url, historyByKey);
+      return { ...info, history };
+    })
+  );
   return results.sort((a, b) => {
     if (a.capturable !== b.capturable) return a.capturable ? -1 : 1;
     if (a.active !== b.active) return a.active ? -1 : 1;

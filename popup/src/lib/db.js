@@ -1,5 +1,5 @@
 const DB_NAME = "blitz_db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "applications";
 
 async function notifyApplicationsChanged() {
@@ -16,10 +16,20 @@ function openDB() {
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
+      let store;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+        store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      } else {
+        store = event.target.transaction.objectStore(STORE_NAME);
+      }
+      if (!store.indexNames.contains("appliedAt")) {
         store.createIndex("appliedAt", "appliedAt", { unique: false });
+      }
+      if (!store.indexNames.contains("company")) {
         store.createIndex("company", "company", { unique: false });
+      }
+      if (!store.indexNames.contains("listingKey")) {
+        store.createIndex("listingKey", "listingKey", { unique: false });
       }
     };
 
@@ -50,10 +60,31 @@ export async function getAllApplications() {
     const request = store.getAll();
     request.onsuccess = () => {
       const apps = request.result.sort(
-        (a, b) => new Date(b.appliedAt) - new Date(a.appliedAt)
+        (a, b) =>
+          new Date(b.updatedAt || b.generatedAt || b.appliedAt) -
+          new Date(a.updatedAt || a.generatedAt || a.appliedAt)
       );
       resolve(apps);
     };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getApplicationByListingKey(listingKeyValue) {
+  if (!listingKeyValue) return null;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const store = tx.objectStore(STORE_NAME);
+    if (!store.indexNames.contains("listingKey")) {
+      getAllApplications().then((apps) => {
+        resolve(apps.find((a) => a.listingKey === listingKeyValue) || null);
+      });
+      return;
+    }
+    const index = store.index("listingKey");
+    const request = index.get(listingKeyValue);
+    request.onsuccess = () => resolve(request.result || null);
     request.onerror = () => reject(request.error);
   });
 }
@@ -70,7 +101,7 @@ export async function updateApplication(id, updates) {
         reject(new Error("Application not found"));
         return;
       }
-      const updated = { ...existing, ...updates };
+      const updated = { ...existing, ...updates, id: existing.id };
       const putReq = store.put(updated);
       putReq.onsuccess = () => {
         notifyApplicationsChanged();
@@ -85,5 +116,8 @@ export async function updateApplication(id, updates) {
 export async function getApplicationsThisWeek() {
   const apps = await getAllApplications();
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  return apps.filter((a) => new Date(a.appliedAt).getTime() >= weekAgo);
+  return apps.filter((a) => {
+    const t = new Date(a.updatedAt || a.generatedAt || a.appliedAt).getTime();
+    return t >= weekAgo;
+  });
 }

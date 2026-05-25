@@ -20,6 +20,7 @@ Canonical detail: `docs/ARCHITECTURE.md`, `docs/CV_HTML_PDF.md`, `DASHBOARD.md`.
 | Bulk URL queue | `JobQueue.jsx` | `ADD_QUEUE_URLS`, `PROCESS_QUEUE`, `queue-processor.js` | `job_queue`, `queue_processing` |
 | CV HTML → PDF | `CvTemplateEditor.jsx`, Review download | `GENERATE_PDF` → offscreen `html2canvas` + jsPDF | `cv_html_template` |
 | AI generation | Dashboard / Review / widget | `GENERATE_APPLICATION`, `WIDGET_GENERATE` | `pending_application`, `pending_job` |
+| Application history | `ApplicationHistory.jsx`, `ExistingApplicationNotice.jsx` | `persistGeneratedApplication` on generate (SW + queue); `LOAD_HISTORY_APPLICATION` | IndexedDB by `listingKey`; events (`generated`, `form_filled`, …) |
 | Application naming | History / Review labels | `formatApplicationTitle` in prompts | IndexedDB + `applicationTitle` on records |
 | Web ↔ extension bridge | `WebConnect.jsx`, `extension-env.js` | `sendExtensionMessage()` → extension ID | `localStorage` key `blitz_extension_id` |
 
@@ -32,7 +33,7 @@ Canonical detail: `docs/ARCHITECTURE.md`, `docs/CV_HTML_PDF.md`, `DASHBOARD.md`.
 
 ## Key background messages
 
-`JOB_DETECTED`, `GENERATE_APPLICATION`, `FILL_FORM`, `GENERATE_PDF`, `PROCESS_QUEUE`, `LIST_JOB_TABS`, `ADD_TABS_TO_QUEUE`, `ADD_QUEUE_URLS`, `WIDGET_GENERATE`, `OPEN_BLITZ`, `SCRAPE_ACTIVE_TAB`, `ESTIMATE_GENERATION_COST`, license/API test handlers.
+`JOB_DETECTED`, `GENERATE_APPLICATION`, `FILL_FORM`, `GENERATE_PDF`, `PROCESS_QUEUE`, `LIST_JOB_TABS`, `ADD_TABS_TO_QUEUE`, `ADD_QUEUE_URLS`, `WIDGET_GENERATE`, `OPEN_BLITZ`, `SCRAPE_ACTIVE_TAB`, `ESTIMATE_GENERATION_COST`, `LOAD_HISTORY_APPLICATION`, license/API test handlers.
 
 ## Tab queue flow
 

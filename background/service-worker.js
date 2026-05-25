@@ -31,6 +31,12 @@ import {
   applicationMatchesJob,
   withListingKey,
 } from "../popup/src/lib/job-listing.js";
+import {
+  persistGeneratedApplication,
+  appendHistoryEventForJob,
+  loadApplicationIntoPending,
+  HISTORY_EVENT_TYPES,
+} from "../popup/src/lib/application-store.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -159,6 +165,7 @@ async function handleMessage(message, sender) {
           payload: progressComplete("Application ready — open Blitz to review"),
         }).catch(() => {});
         const application = await savePendingApplication(result, job);
+        await persistGeneratedApplication(application, job);
         chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
         return { ok: true, matchScore: result.matchScore };
       } catch (err) {
@@ -237,8 +244,21 @@ async function handleMessage(message, sender) {
       }).catch(() => {});
 
       const application = await savePendingApplication(result, jobData);
+      await persistGeneratedApplication(application, jobData);
       chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
       return application;
+    }
+
+    case "LOAD_HISTORY_APPLICATION": {
+      const record = message.payload?.record;
+      if (!record?.id) return { error: "No history record" };
+      const loaded = await loadApplicationIntoPending(record);
+      await setStorage("pending_job", loaded.job);
+      await savePendingApplication(
+        { ...loaded.application, jobData: loaded.job },
+        loaded.job
+      );
+      return { ok: true, application: loaded.application, job: loaded.job };
     }
 
     case "VALIDATE_LICENSE": {
@@ -307,6 +327,10 @@ async function handleMessage(message, sender) {
 
     case "APPLICATION_SUBMITTED":
       await incrementApplicationCount();
+      const pendingJob = await getStorage("pending_job");
+      if (pendingJob) {
+        await appendHistoryEventForJob(pendingJob, HISTORY_EVENT_TYPES.SUBMITTED);
+      }
       await setStorage("pending_application", null);
       chrome.runtime.sendMessage({ type: "APPLICATION_SUBMITTED" }).catch(() => {});
       return { ok: true };

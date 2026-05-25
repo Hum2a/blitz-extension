@@ -85,6 +85,11 @@ function TabRow({ tab, selected, inQueue, onToggle, onActivate }) {
               In queue
             </span>
           )}
+          {tab.history && (
+            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-violet-100 text-violet-800">
+              {tab.history.status === "applied" ? "Applied" : "Generated"}
+            </span>
+          )}
         </div>
         {tab.scrapeError && !tab.capturable && (
           <p className="text-[11px] text-slate-500 mt-1">{tab.scrapeError}</p>

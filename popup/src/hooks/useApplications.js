@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAllApplications, addApplication, updateApplication } from "../lib/db.js";
+import { HISTORY_EVENT_TYPES } from "../lib/application-store.js";
 
 export function useApplications() {
   const [applications, setApplications] = useState([]);
@@ -35,7 +36,21 @@ export function useApplications() {
 
   const updateStatus = useCallback(
     async (id, status) => {
-      await updateApplication(id, { status });
+      const apps = await getAllApplications();
+      const existing = apps.find((a) => a.id === id);
+      const events = [
+        {
+          type: HISTORY_EVENT_TYPES.STATUS_CHANGED,
+          at: new Date().toISOString(),
+          detail: existing?.status ? `${existing.status} → ${status}` : status,
+        },
+        ...(existing?.events || []),
+      ].slice(0, 50);
+      await updateApplication(id, {
+        status,
+        events,
+        updatedAt: new Date().toISOString(),
+      });
       return refresh();
     },
     [refresh]

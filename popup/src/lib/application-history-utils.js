@@ -1,4 +1,5 @@
 export const APPLICATION_STATUSES = [
+  "generated",
   "applied",
   "interview",
   "rejected",
@@ -7,6 +8,7 @@ export const APPLICATION_STATUSES = [
 ];
 
 export const STATUS_LABELS = {
+  generated: "Generated",
   applied: "Applied",
   interview: "Interview",
   rejected: "Rejected",
@@ -23,12 +25,22 @@ export function displayApplicationLabel(app) {
 }
 
 export const STATUS_STYLES = {
+  generated: "bg-violet-100 text-violet-800 border-violet-200",
   applied: "bg-blue-100 text-blue-800 border-blue-200",
   interview: "bg-amber-100 text-amber-800 border-amber-200",
   rejected: "bg-red-100 text-red-800 border-red-200",
   offer: "bg-green-100 text-green-800 border-green-200",
   withdrawn: "bg-slate-100 text-slate-600 border-slate-200",
 };
+
+export function historyDisplayDate(app) {
+  const raw = app?.updatedAt || app?.generatedAt || app?.appliedAt;
+  if (!raw) return "";
+  return new Date(raw).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 export function exportApplicationsToCsv(applications) {
   const headers = [
@@ -46,7 +58,7 @@ export function exportApplicationsToCsv(applications) {
     displayApplicationLabel(a),
     a.company,
     a.role,
-    new Date(a.appliedAt).toISOString().slice(0, 10),
+    new Date(a.updatedAt || a.generatedAt || a.appliedAt).toISOString().slice(0, 10),
     a.platform,
     a.matchScore,
     a.status,
@@ -67,9 +79,10 @@ export function exportApplicationsToCsv(applications) {
 
 export function computeHistorySummary(applications) {
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const thisWeek = applications.filter(
-    (a) => new Date(a.appliedAt).getTime() >= weekAgo
-  ).length;
+  const thisWeek = applications.filter((a) => {
+    const t = new Date(a.updatedAt || a.generatedAt || a.appliedAt).getTime();
+    return t >= weekAgo;
+  }).length;
   const interviews = applications.filter((a) => a.status === "interview").length;
   const offers = applications.filter((a) => a.status === "offer").length;
   const applied = applications.filter((a) => a.status === "applied").length;
@@ -102,5 +115,9 @@ export function filterApplications(applications, { statusFilter, search }) {
         a.platform?.toLowerCase().includes(q)
     );
   }
-  return list.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+  return list.sort(
+    (a, b) =>
+      new Date(b.updatedAt || b.generatedAt || b.appliedAt) -
+      new Date(a.updatedAt || a.generatedAt || a.appliedAt)
+  );
 }

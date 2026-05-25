@@ -15,7 +15,8 @@ Used by **popup** and **background** (imported via relative paths).
 | `prompts.js` | `buildApplicationPrompts`, `PROMPTS.*` — JSON-only responses |
 | `prompt-parts.js` | `preferences.promptParts` toggles for cost control |
 | `license.js` | Free tier (15), `validateLicense`, `canSubmitApplication` |
-| `db.js` | IndexedDB `blitz_db` / `applications` store |
+| `db.js` | IndexedDB `blitz_db` / `applications` store (`listingKey` index, v2) |
+| `application-store.js` | `persistGeneratedApplication`, `persistFilledApplication`, events, `loadApplicationIntoPending` |
 | `config.js` | `LICENSE_ENDPOINT`, LemonSqueezy URLs |
 | `pdf.js` / `cv-export.js` | Request PDF; `buildRenderedCvHtml` for offscreen |
 | `cv-template-engine.js`, `cv-template-default.js`, `cv-document.js`, `cv-html.js` | HTML CV template + sanitised rich fields |

@@ -53,6 +53,27 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     setApplication(stored);
   };
 
+  const loadFromHistory = async (record) => {
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: "LOAD_HISTORY_APPLICATION",
+        payload: { record },
+      });
+      if (chrome.runtime.lastError) {
+        throw new Error(chrome.runtime.lastError.message);
+      }
+      if (result?.error) throw new Error(result.error);
+      setPendingJob(result.job);
+      setApplication(result.application);
+      await setStorage("pending_job", result.job);
+      await setStorage("pending_application", result.application);
+      setView(VIEWS.review);
+    } catch (err) {
+      setGenerateError(err.message || "Could not load application");
+      setView(VIEWS.dashboard);
+    }
+  };
+
   const applyPendingJob = async (job, { persist = true } = {}) => {
     setPendingJob(job ?? null);
     if (persist && job) await setStorage("pending_job", job);
@@ -263,6 +284,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         onReview={() => setView(VIEWS.review)}
         onViewHistory={() => setView(VIEWS.history)}
         onViewQueue={() => setView(VIEWS.queue)}
+        onLoadFromHistory={loadFromHistory}
         fullPage={fullPage}
       />
     ),
@@ -307,7 +329,9 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         }}
       />
     ),
-    [VIEWS.history]: <ApplicationHistory fullPage={fullPage} />,
+    [VIEWS.history]: (
+      <ApplicationHistory fullPage={fullPage} onOpenReview={loadFromHistory} />
+    ),
     [VIEWS.settings]: (
       <Settings fullPage={fullPage} onSaved={() => license.refresh()} />
     ),

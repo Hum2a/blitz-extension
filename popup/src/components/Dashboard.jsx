@@ -12,6 +12,8 @@ import RecentApplications from "./RecentApplications.jsx";
 import WorkspaceTabJobs from "./WorkspaceTabJobs.jsx";
 import { scrollPanelClass } from "../lib/layout.js";
 import { applicationMatchesJob } from "../lib/job-listing.js";
+import { findApplicationInList } from "../lib/application-store.js";
+import ExistingApplicationNotice from "./ExistingApplicationNotice.jsx";
 
 function formatCompany(company) {
   if (company == null || company === "") return null;
@@ -57,6 +59,7 @@ export default function Dashboard({
   onReview,
   onViewHistory,
   onViewQueue,
+  onLoadFromHistory,
   fullPage = false,
 }) {
   const { applications } = useApplications();
@@ -69,6 +72,9 @@ export default function Dashboard({
     application && pendingJob && applicationMatchesJob(application, pendingJob)
       ? application
       : null;
+  const historyForJob = pendingJob
+    ? findApplicationInList(applications, pendingJob)
+    : null;
 
   const fetchCostEstimate = useCallback(() => {
     if (!hasJob) {
@@ -99,9 +105,10 @@ export default function Dashboard({
 
   const stats = useMemo(() => {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const thisWeek = applications.filter(
-      (a) => new Date(a.appliedAt).getTime() >= weekAgo
-    );
+    const thisWeek = applications.filter((a) => {
+      const t = new Date(a.updatedAt || a.generatedAt || a.appliedAt).getTime();
+      return t >= weekAgo;
+    });
     const applied = applications.filter((a) => a.status === "applied").length;
     const positive = applications.filter((a) =>
       ["interview", "offer"].includes(a.status)
@@ -254,6 +261,15 @@ export default function Dashboard({
                     </motion.p>
                   )}
                 </AnimatePresence>
+                {historyForJob && (
+                  <ExistingApplicationNotice
+                    record={historyForJob}
+                    hasPendingMatch={Boolean(matchedApplication)}
+                    onReview={onReview}
+                    onViewHistory={onViewHistory}
+                    onLoadFromHistory={onLoadFromHistory}
+                  />
+                )}
               </motion.div>
             ) : !detecting && !detectError ? (
               <motion.p
@@ -354,6 +370,8 @@ export default function Dashboard({
                     Generating…{" "}
                     {generationProgress?.percent != null ? `${generationProgress.percent}%` : ""}
                   </>
+                ) : historyForJob && !matchedApplication ? (
+                  "Regenerate application"
                 ) : (
                   "Generate tailored application"
                 )}

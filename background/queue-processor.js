@@ -1,5 +1,6 @@
 import { getStorage, setStorage, getAllSettings } from "../popup/src/lib/storage.js";
 import { canSubmitApplication } from "../popup/src/lib/license.js";
+import { persistGeneratedApplication } from "../popup/src/lib/application-store.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -100,6 +101,8 @@ export async function processQueue(generateApplication) {
           settings.preferences,
           settings.linkedin_profile_text
         );
+
+        await persistGeneratedApplication({ ...application, jobData }, jobData);
 
         queue = (await getStorage("job_queue")) || [];
         queue[i] = {
