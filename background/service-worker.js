@@ -37,6 +37,7 @@ import {
   loadApplicationIntoPending,
   HISTORY_EVENT_TYPES,
 } from "../popup/src/lib/application-store.js";
+import { recordApiUsage, API_USAGE_TYPES } from "../popup/src/lib/api-usage-log.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -45,6 +46,23 @@ async function setPendingJobAndReconcile(jobData) {
   const app = await getStorage("pending_application");
   if (app && jobData && !applicationMatchesJob(app, jobData)) {
     await setStorage("pending_application", null);
+  }
+}
+
+async function logGenerateApiCall(settings, jobData, result, error) {
+  try {
+    await recordApiUsage({
+      type: API_USAGE_TYPES.GENERATE_APPLICATION,
+      provider: settings?.ai_config?.provider,
+      model: result?.cost?.model || settings?.ai_config?.model,
+      usage: result?.usage,
+      cost: result?.cost,
+      jobData,
+      success: !error,
+      errorMessage: error?.message,
+    });
+  } catch {
+    /* never block generation on log failure */
   }
 }
 
@@ -155,6 +173,7 @@ async function handleMessage(message, sender) {
           settings.linkedin_profile_text,
           report
         );
+        await logGenerateApiCall(settings, job, result, null);
         report(
           "save",
           `Match score ${result.matchScore}%`,
@@ -169,6 +188,7 @@ async function handleMessage(message, sender) {
         chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
         return { ok: true, matchScore: result.matchScore };
       } catch (err) {
+        await logGenerateApiCall(settings, job, null, err);
         return { error: err.message || "Generation failed" };
       }
     }
@@ -228,14 +248,21 @@ async function handleMessage(message, sender) {
       }
 
       const report = createProgressReporter();
-      const result = await generateApplication(
-        jobData,
-        settings.cv_text,
-        settings.user_profile,
-        settings.preferences,
-        settings.linkedin_profile_text,
-        report
-      );
+      let result;
+      try {
+        result = await generateApplication(
+          jobData,
+          settings.cv_text,
+          settings.user_profile,
+          settings.preferences,
+          settings.linkedin_profile_text,
+          report
+        );
+        await logGenerateApiCall(settings, jobData, result, null);
+      } catch (err) {
+        await logGenerateApiCall(settings, jobData, null, err);
+        throw err;
+      }
 
       report(
         "save",
@@ -399,14 +426,34 @@ async function handleMessage(message, sender) {
 
     case "TEST_API_KEY": {
       const { provider, apiKey, model } = message.payload;
-      const { text } = await callAI({
-        provider,
-        apiKey,
-        model,
-        systemPrompt: "Reply with exactly: OK",
-        userPrompt: "Test",
-      });
-      return { ok: text.includes("OK") || text.length > 0 };
+      try {
+        const { text, usage, model: usedModel } = await callAI({
+          provider,
+          apiKey,
+          model,
+          systemPrompt: "Reply with exactly: OK",
+          userPrompt: "Test",
+        });
+        const cost = costFromUsage(usage, provider, usedModel || model);
+        await recordApiUsage({
+          type: API_USAGE_TYPES.API_TEST,
+          provider,
+          model: usedModel || model,
+          usage,
+          cost,
+          success: true,
+        });
+        return { ok: text.includes("OK") || text.length > 0 };
+      } catch (err) {
+        await recordApiUsage({
+          type: API_USAGE_TYPES.API_TEST,
+          provider,
+          model,
+          success: false,
+          errorMessage: err.message,
+        });
+        throw err;
+      }
     }
 
     default:

@@ -1,6 +1,7 @@
 import { getStorage, setStorage, getAllSettings } from "../popup/src/lib/storage.js";
 import { canSubmitApplication } from "../popup/src/lib/license.js";
 import { persistGeneratedApplication } from "../popup/src/lib/application-store.js";
+import { recordApiUsage, API_USAGE_TYPES } from "../popup/src/lib/api-usage-log.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -102,6 +103,16 @@ export async function processQueue(generateApplication) {
           settings.linkedin_profile_text
         );
 
+        await recordApiUsage({
+          type: API_USAGE_TYPES.GENERATE_APPLICATION,
+          provider: settings.ai_config?.provider,
+          model: application?.cost?.model || settings.ai_config?.model,
+          usage: application?.usage,
+          cost: application?.cost,
+          jobData,
+          success: true,
+        }).catch(() => {});
+
         await persistGeneratedApplication({ ...application, jobData }, jobData);
 
         queue = (await getStorage("job_queue")) || [];
@@ -113,6 +124,19 @@ export async function processQueue(generateApplication) {
           error: null,
         };
       } catch (err) {
+        try {
+          const failSettings = await getAllSettings();
+          await recordApiUsage({
+            type: API_USAGE_TYPES.GENERATE_APPLICATION,
+            provider: failSettings.ai_config?.provider,
+            model: failSettings.ai_config?.model,
+            jobData: jobData || item.jobData,
+            success: false,
+            errorMessage: err.message,
+          });
+        } catch {
+          /* ignore */
+        }
         queue = (await getStorage("job_queue")) || [];
         queue[i] = { ...item, status: "error", error: err.message };
       } finally {

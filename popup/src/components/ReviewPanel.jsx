@@ -274,6 +274,11 @@ export default function ReviewPanel({
       </div>
       {answers.length > 0 && (
         <FadeUp delay={0.15}>
+          <p className="text-[11px] text-slate-500 mb-2 leading-snug">
+            These answers were generated in one AI call when you tailored the application (not when
+            you opened Review). Edit them before Approve &amp; fill, or turn off Screening Q&amp;A
+            under Prompt content (cost) before regenerating.
+          </p>
           <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Screening Q&A</h3>
           <div className="space-y-2">
             {answers.map((a, i) => (

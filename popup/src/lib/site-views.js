@@ -23,6 +23,13 @@ export const SITE_VIEWS = {
     title: "Application history",
     subtitle: "Every role you applied to through Blitz — snapshots, status, and notes.",
   },
+  usage: {
+    id: "usage",
+    label: "API usage",
+    title: "API usage",
+    subtitle:
+      "Log of every AI API call from this extension — tokens and estimated cost, stored only on your device.",
+  },
   settings: {
     id: "settings",
     label: "Settings",
@@ -31,4 +38,4 @@ export const SITE_VIEWS = {
   },
 };
 
-export const SITE_NAV_ORDER = ["dashboard", "queue", "history", "settings"];
+export const SITE_NAV_ORDER = ["dashboard", "queue", "history", "usage", "settings"];

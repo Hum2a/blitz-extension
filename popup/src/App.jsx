@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Dashboard from "./components/Dashboard.jsx";
 import ReviewPanel from "./components/ReviewPanel.jsx";
 import ApplicationHistory from "./components/ApplicationHistory.jsx";
+import ApiUsageHistory from "./components/ApiUsageHistory.jsx";
 import JobQueue from "./components/JobQueue.jsx";
 import Settings from "./components/Settings.jsx";
 import LicenseGate from "./components/LicenseGate.jsx";
@@ -23,6 +24,7 @@ const VIEWS = {
   review: "review",
   queue: "queue",
   history: "history",
+  usage: "usage",
   settings: "settings",
 };
 
@@ -234,6 +236,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     [VIEWS.dashboard, "Home"],
     [VIEWS.queue, "Queue"],
     [VIEWS.history, "History"],
+    [VIEWS.usage, "API usage"],
     [VIEWS.settings, "Settings"],
   ];
 
@@ -332,6 +335,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     [VIEWS.history]: (
       <ApplicationHistory fullPage={fullPage} onOpenReview={loadFromHistory} />
     ),
+    [VIEWS.usage]: <ApiUsageHistory fullPage={fullPage} />,
     [VIEWS.settings]: (
       <Settings fullPage={fullPage} onSaved={() => license.refresh()} />
     ),

@@ -1,12 +1,21 @@
 const DB_NAME = "blitz_db";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = "applications";
+export const API_USAGE_STORE = "api_usage";
 
 async function notifyApplicationsChanged() {
   try {
     await chrome.storage.local.set({ applications_updated_at: Date.now() });
   } catch {
     /* popup / dashboard may be unavailable */
+  }
+}
+
+async function notifyApiUsageChanged() {
+  try {
+    await chrome.storage.local.set({ api_usage_updated_at: Date.now() });
+  } catch {
+    /* ignore */
   }
 }
 
@@ -30,6 +39,10 @@ function openDB() {
       }
       if (!store.indexNames.contains("listingKey")) {
         store.createIndex("listingKey", "listingKey", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(API_USAGE_STORE)) {
+        const usageStore = db.createObjectStore(API_USAGE_STORE, { keyPath: "id" });
+        usageStore.createIndex("at", "at", { unique: false });
       }
     };
 
@@ -119,5 +132,54 @@ export async function getApplicationsThisWeek() {
   return apps.filter((a) => {
     const t = new Date(a.updatedAt || a.generatedAt || a.appliedAt).getTime();
     return t >= weekAgo;
+  });
+}
+
+export async function addApiUsageRecord(record) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(API_USAGE_STORE, "readwrite");
+    const store = tx.objectStore(API_USAGE_STORE);
+    const request = store.add(record);
+    request.onsuccess = () => {
+      notifyApiUsageChanged();
+      resolve(record);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getAllApiUsageRecords() {
+  const db = await openDB();
+  if (!db.objectStoreNames.contains(API_USAGE_STORE)) {
+    return [];
+  }
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(API_USAGE_STORE, "readonly");
+    const store = tx.objectStore(API_USAGE_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const rows = request.result.sort((a, b) => new Date(b.at) - new Date(a.at));
+      resolve(rows);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function clearApiUsageRecords() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    if (!db.objectStoreNames.contains(API_USAGE_STORE)) {
+      resolve();
+      return;
+    }
+    const tx = db.transaction(API_USAGE_STORE, "readwrite");
+    const store = tx.objectStore(API_USAGE_STORE);
+    const request = store.clear();
+    request.onsuccess = () => {
+      notifyApiUsageChanged();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
   });
 }
