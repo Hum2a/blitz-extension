@@ -52,7 +52,42 @@ const DEFAULTS = {
   generation_status: { active: false },
   job_queue: [],
   queue_processing: false,
+  auth_session: null,
+  sync_enabled: false,
+  sync_unlocked: false,
+  sync_crypto_meta: null,
+  sync_state: {
+    deviceId: null,
+    lastPulledAt: null,
+    lastSyncAt: null,
+    lastError: null,
+    documents: {},
+    pendingDocKeys: [],
+    pendingApplicationIds: [],
+    pendingOps: [],
+  },
 };
+
+let syncApplyDepth = 0;
+
+export function runWithoutSyncHooks(fn) {
+  syncApplyDepth += 1;
+  try {
+    return fn();
+  } finally {
+    syncApplyDepth -= 1;
+  }
+}
+
+async function maybeQueueSync(key) {
+  if (syncApplyDepth > 0) return;
+  try {
+    const { markStorageKeyPending } = await import("./sync-markers.js");
+    await markStorageKeyPending(key);
+  } catch {
+    /* sync optional */
+  }
+}
 
 import { remapAnthropicModel, ANTHROPIC_DEFAULT_MODEL, OPENAI_DEFAULT_MODEL } from "./models.js";
 
@@ -143,14 +178,19 @@ export async function getStorage(key) {
   return value;
 }
 
-export async function setStorage(key, value) {
+export async function setStorage(key, value, options = {}) {
   await storageSet({ [key]: value });
+  if (!options.skipSync) await maybeQueueSync(key);
 }
 
 /** Write only the keys provided (does not load/rewrite entire storage). */
-export async function mergeStorage(updates) {
+export async function mergeStorage(updates, options = {}) {
   if (!updates || typeof updates !== "object") return;
   await storageSet(updates);
+  if (options.skipSync || syncApplyDepth > 0) return;
+  for (const key of Object.keys(updates)) {
+    await maybeQueueSync(key);
+  }
 }
 
 /** Persist CV / LinkedIn text immediately (survives popup close). */
@@ -160,6 +200,11 @@ export async function saveProfileTexts({ cv_text, linkedin_profile_text }) {
   if (linkedin_profile_text !== undefined) payload.linkedin_profile_text = linkedin_profile_text ?? "";
   if (Object.keys(payload).length === 0) return;
   await storageSet(payload);
+  if (syncApplyDepth === 0) {
+    for (const key of Object.keys(payload)) {
+      await maybeQueueSync(key);
+    }
+  }
 }
 
 export async function getProfileTexts() {

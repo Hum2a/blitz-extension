@@ -165,13 +165,16 @@ function buildSummarySectionHtml(data, template) {
       template,
       /<p class=MsoNormal style='text-align:justify'><span style='font-family:"Calibri Light"[\s\S]*?<\/p>/i,
       null
-    ) || `<p class=MsoNormal style='text-align:justify'><span style='font-family:"Calibri Light",sans-serif;color:windowtext'>{{TEXT}}<o:p></o:p></span></p>`;
+    ) || `<p class=MsoNormal style='text-align:justify'><span style='font-family:"Calibri Light",sans-serif;mso-fareast-font-family:"Times New Roman";color:windowtext;mso-fareast-language:EN-GB'>{{TEXT}}<o:p></o:p></span></p>`;
 
   if (proto.includes("{{TEXT}}")) {
     return proto.replace("{{TEXT}}", text);
   }
 
-  return proto.replace(/>([^<]*)<o:p>/i, `>${text}<o:p>`);
+  return proto.replace(
+    /<span[^>]*>[\s\S]*?<o:p><\/o:p><\/span>/i,
+    `<span style='font-family:"Calibri Light",sans-serif;color:windowtext;mso-fareast-language:EN-GB'>${text}<o:p></o:p></span>`
+  );
 }
 
 function buildEducationSectionHtml(data, template) {
@@ -273,22 +276,20 @@ function injectHumzaWordCvTemplateRegex(template, data, userProfile) {
   const ranges = findHumzaSectionRanges(template);
   if (!ranges.summary) return template;
 
+  // Replace from end → start so indices from the original template stay valid.
   let html = template;
+  const replacements = [
+    ["career", () => buildCareerSectionHtml(data, template)],
+    ["skills", () => buildSkillsSectionHtml(data)],
+    ["education", () => buildEducationSectionHtml(data, template)],
+    ["summary", () => buildSummarySectionHtml(data, template)],
+    ["header", () => buildHeaderHtml(data, userProfile, template)],
+  ];
 
-  if (ranges.header) {
-    html = replaceRange(html, ranges.header, buildHeaderHtml(data, userProfile, template));
-  }
-  if (ranges.summary) {
-    html = replaceRange(html, ranges.summary, buildSummarySectionHtml(data, template));
-  }
-  if (ranges.education) {
-    html = replaceRange(html, ranges.education, buildEducationSectionHtml(data, template));
-  }
-  if (ranges.skills) {
-    html = replaceRange(html, ranges.skills, buildSkillsSectionHtml(data));
-  }
-  if (ranges.career) {
-    html = replaceRange(html, ranges.career, buildCareerSectionHtml(data, template));
+  for (const [key, build] of replacements) {
+    if (ranges[key]) {
+      html = replaceRange(html, ranges[key], build());
+    }
   }
 
   return html;
@@ -398,6 +399,20 @@ function injectHumzaWordCvTemplateDom(template, data, userProfile) {
  * Inject structured / parsed CV data into Humza's Word HTML template.
  * @returns {{ html: string, changed: boolean }}
  */
+function verifyTailoredContentInHtml(html, doc) {
+  const summary = (doc.summary || "").replace(/\s+/g, " ").trim();
+  if (summary.length >= 24) {
+    const snippet = summary.slice(0, 24);
+    if (!html.includes(snippet)) return false;
+  }
+  const firstJob = doc.jobs?.[0];
+  if (firstJob?.company?.trim()) {
+    const co = firstJob.company.trim().slice(0, 12);
+    if (!html.includes(co)) return false;
+  }
+  return true;
+}
+
 export function injectHumzaWordCvTemplate(template, cvDocument, userProfile = {}) {
   const normalized = normalizeCvDocument(cvDocument);
   if (!normalized) {
@@ -406,11 +421,16 @@ export function injectHumzaWordCvTemplate(template, cvDocument, userProfile = {}
 
   const data = enrichCvDocumentRichFields(normalized, userProfile);
   let html = injectHumzaWordCvTemplateRegex(template, data, userProfile);
-  let changed = normalizeForCompare(html) !== normalizeForCompare(template);
+  let changed =
+    normalizeForCompare(html) !== normalizeForCompare(template) &&
+    verifyTailoredContentInHtml(html, data);
 
   if (!changed) {
     const domHtml = injectHumzaWordCvTemplateDom(template, data, userProfile);
-    if (normalizeForCompare(domHtml) !== normalizeForCompare(template)) {
+    if (
+      normalizeForCompare(domHtml) !== normalizeForCompare(template) &&
+      verifyTailoredContentInHtml(domHtml, data)
+    ) {
       html = domHtml;
       changed = true;
     }

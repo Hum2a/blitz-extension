@@ -120,19 +120,35 @@ export async function persistFilledApplication(application, pendingJob, answers)
     existing,
   });
 
+  let saved;
   if (existing) {
-    return updateApplication(existing.id, record);
+    saved = await updateApplication(existing.id, record);
+  } else {
+    saved = await addApplication(record);
   }
-  return addApplication(record);
+  try {
+    const { onApplicationWritten } = await import("./sync-engine.js");
+    await onApplicationWritten(saved?.id || record.id);
+  } catch {
+    /* sync optional */
+  }
+  return saved;
 }
 
 export async function appendHistoryEventForJob(job, type, detail) {
   const existing = await findApplicationByJob(job);
   if (!existing) return null;
-  return updateApplication(existing.id, {
+  const saved = await updateApplication(existing.id, {
     events: appendEvent(existing.events, type, detail),
     updatedAt: new Date().toISOString(),
   });
+  try {
+    const { onApplicationWritten } = await import("./sync-engine.js");
+    await onApplicationWritten(saved?.id || existing.id);
+  } catch {
+    /* sync optional */
+  }
+  return saved;
 }
 
 export async function loadApplicationIntoPending(record) {

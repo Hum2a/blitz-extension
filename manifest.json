@@ -3,7 +3,16 @@
   "name": "Blitz",
   "version": "1.2.0",
   "description": "Apply faster. Land sooner. Blitz tailors your CV and cover letter to every job in seconds.",
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting", "tabs", "offscreen"],
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "offscreen",
+    "identity",
+    "alarms"
+  ],
   "host_permissions": [
     "https://*.greenhouse.io/*",
     "https://www.linkedin.com/*",
@@ -12,7 +21,8 @@
     "https://*.myworkdayjobs.com/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
-    "https://blitz-license.humzab1711.workers.dev/*"
+    "https://blitz-license.humzab1711.workers.dev/*",
+    "https://*.supabase.co/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js",

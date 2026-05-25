@@ -15,6 +15,7 @@
 - **Application tracker** — status, notes, CSV export
 - **Bulk job queue** — paste URLs, batch-generate applications
 - **Freemium** — 15 free applications; Pro via license key
+- **Optional cloud sync** — encrypted backup across devices (Supabase); API keys stay local ([docs/SYNC_AND_AUTH.md](docs/SYNC_AND_AUTH.md))
 - **Dashboard** — full-tab workspace ([DASHBOARD.md](DASHBOARD.md))
 
 ## Supported platforms

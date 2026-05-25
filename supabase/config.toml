@@ -1,0 +1,8 @@
+# Supabase local dev (optional). See docs/SYNC_AND_AUTH.md for cloud setup.
+project_id = "blitz-extension"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15

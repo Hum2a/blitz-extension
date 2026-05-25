@@ -19,7 +19,11 @@ Used by **popup** and **background** (imported via relative paths).
 | `application-store.js` | `persistGeneratedApplication`, `persistFilledApplication`, events, `loadApplicationIntoPending` |
 | `api-usage-log.js` | `recordApiUsage`, IndexedDB `api_usage` store (v3) — local API transaction log |
 | `word-html-sanitize.js` | `decodeWordHtmlBytes`, `normalizeWordListsInHtml`, `sanitizeWordImportedHtml` |
-| `config.js` | `LICENSE_ENDPOINT`, LemonSqueezy URLs |
+| `config.js` | `LICENSE_ENDPOINT`, LemonSqueezy, `SUPABASE_*` (anon only) |
+| `auth.js` | PKCE sign-in, session refresh (background) |
+| `sync-engine.js` | E2EE push/pull, offline queue (background) |
+| `e2ee-crypto.js` | AES-GCM encrypt/decrypt for cloud blobs |
+| `sync-allowlist.js` | Keys that may sync (excludes `ai_config.apiKey`) |
 | `pdf.js` / `cv-export.js` | Request PDF; `buildRenderedCvHtml` for offscreen |
 | `humza-word-cv-inject.js` | Word `.htm` without `{{tags}}` → inject tailored sections |
 | `cv-template-engine.js`, `cv-template-default.js`, `cv-document.js`, `cv-html.js` | HTML CV template + sanitised rich fields |

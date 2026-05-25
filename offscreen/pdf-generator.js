@@ -1,28 +1,50 @@
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 
+function waitForIframeLoad(iframe) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("PDF layout load timeout")), 15000);
+    iframe.onload = () => {
+      clearTimeout(timeout);
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    };
+    iframe.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error("Could not load CV HTML for PDF"));
+    };
+  });
+}
+
 async function htmlToPdfBase64(html) {
   if (typeof html2canvas !== "function") {
     throw new Error(
       "html2canvas missing. Run: npm install && npm run copy:offscreen — then reload the extension."
     );
   }
-  const wrap = document.createElement("div");
-  wrap.style.cssText =
-    "position:fixed;left:-10000px;top:0;width:210mm;background:#fff;overflow:visible;";
-  wrap.innerHTML = html;
-  document.body.appendChild(wrap);
 
-  const page = wrap.querySelector(".cv-page") || wrap;
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("sandbox", "allow-same-origin");
+  iframe.style.cssText =
+    "position:fixed;left:-12000px;top:0;width:210mm;min-height:297mm;border:0;background:#fff;";
+  document.body.appendChild(iframe);
 
   try {
+    iframe.srcdoc = html;
+    await waitForIframeLoad(iframe);
+
+    const doc = iframe.contentDocument;
+    const body = doc?.body;
+    if (!body) throw new Error("CV HTML produced an empty document");
+
+    const page = body.querySelector(".cv-page") || body;
+
     const canvas = await html2canvas(page, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
-      windowWidth: page.scrollWidth,
-      windowHeight: page.scrollHeight,
+      windowWidth: page.scrollWidth || 794,
+      windowHeight: page.scrollHeight || 1123,
     });
 
     const { jsPDF } = window.jspdf;
@@ -47,7 +69,7 @@ async function htmlToPdfBase64(html) {
     const dataUri = pdf.output("datauristring");
     return dataUri.split(",")[1];
   } finally {
-    document.body.removeChild(wrap);
+    iframe.remove();
   }
 }
 

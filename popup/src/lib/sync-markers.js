@@ -1,0 +1,87 @@
+import { getStorage, mergeStorage } from "./storage.js";
+import { isSyncableStorageKey } from "./sync-allowlist.js";
+
+const DEFAULT_SYNC_STATE = {
+  deviceId: null,
+  lastPulledAt: null,
+  lastSyncAt: null,
+  lastError: null,
+  documents: {},
+  pendingDocKeys: [],
+  pendingApplicationIds: [],
+  pendingOps: [],
+};
+
+export async function ensureDeviceId() {
+  const state = (await getStorage("sync_state")) || {};
+  if (state.deviceId) return state.deviceId;
+  const deviceId = crypto.randomUUID();
+  await mergeStorage(
+    {
+      sync_state: { ...DEFAULT_SYNC_STATE, ...state, deviceId },
+    },
+    { skipSync: true }
+  );
+  return deviceId;
+}
+
+export async function markStorageKeyPending(key) {
+  if (!isSyncableStorageKey(key)) return;
+  const syncEnabled = await getStorage("sync_enabled");
+  if (!syncEnabled) return;
+
+  const state = { ...DEFAULT_SYNC_STATE, ...((await getStorage("sync_state")) || {}) };
+  const pending = new Set(state.pendingDocKeys || []);
+  pending.add(key);
+  state.pendingDocKeys = [...pending];
+  state.documents = state.documents || {};
+  state.documents[key] = {
+    ...(state.documents[key] || {}),
+    pendingPush: true,
+    localUpdatedAt: new Date().toISOString(),
+  };
+
+  await mergeStorage({ sync_state: state }, { skipSync: true });
+
+  try {
+    chrome.runtime.sendMessage({ type: "SYNC_SCHEDULE_PUSH" }).catch(() => {});
+  } catch {
+    /* non-extension context */
+  }
+}
+
+export async function markApplicationPending(id) {
+  const syncEnabled = await getStorage("sync_enabled");
+  if (!syncEnabled || !id) return;
+
+  const state = { ...DEFAULT_SYNC_STATE, ...((await getStorage("sync_state")) || {}) };
+  const pending = new Set(state.pendingApplicationIds || []);
+  pending.add(id);
+  state.pendingApplicationIds = [...pending];
+
+  await mergeStorage({ sync_state: state }, { skipSync: true });
+
+  try {
+    chrome.runtime.sendMessage({ type: "SYNC_SCHEDULE_PUSH" }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function markApplicationDeleted(id) {
+  const syncEnabled = await getStorage("sync_enabled");
+  if (!syncEnabled || !id) return;
+
+  const state = { ...DEFAULT_SYNC_STATE, ...((await getStorage("sync_state")) || {}) };
+  state.pendingOps = [
+    ...(state.pendingOps || []),
+    { type: "delete_application", id, at: new Date().toISOString() },
+  ];
+  await mergeStorage({ sync_state: state }, { skipSync: true });
+
+  try {
+    chrome.runtime.sendMessage({ type: "SYNC_SCHEDULE_PUSH" }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}

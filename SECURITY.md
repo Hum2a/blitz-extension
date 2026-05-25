@@ -32,6 +32,7 @@ In scope:
 
 - Blitz Chrome extension (this repository)
 - The Cloudflare license worker in `license-worker/` when deployed by the project maintainer
+- Supabase Edge Functions in `supabase/functions/` when deployed by the project maintainer (account delete, license linking)
 
 Out of scope:
 
@@ -42,5 +43,9 @@ Out of scope:
 ## Safe development practices
 
 - Never commit API keys, license keys, `.env`, or `.dev.vars`
-- Never log `apiKey`, `cv_text`, or other PII in extension code
+- Never embed the Supabase **service role** key in the extension — anon key + user JWT only
+- Never log `apiKey`, `cv_text`, sync passphrases, auth tokens, or decrypted sync payloads
 - Run `npm run build:check` before shipping; review `host_permissions` in `manifest.json` when adding new integrations
+- Cloud sync uses client-side encryption (E2EE); treat lost sync passphrases as unrecoverable by design
+
+See [docs/SYNC_AND_AUTH.md](docs/SYNC_AND_AUTH.md) for operator setup.

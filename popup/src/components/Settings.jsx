@@ -27,6 +27,7 @@ import SettingsCard, {
 import CvTemplateEditor from "./CvTemplateEditor.jsx";
 import AppearanceSettings from "./settings/AppearanceSettings.jsx";
 import PromptPartsSettings from "./settings/PromptPartsSettings.jsx";
+import AccountSettings from "./settings/AccountSettings.jsx";
 import { useModal } from "../hooks/useModal.js";
 
 export default function Settings({ onSaved, fullPage = false }) {
@@ -339,6 +340,8 @@ export default function Settings({ onSaved, fullPage = false }) {
     >
       <SettingsLayout fullPage={fullPage} footer={footer}>
         {statusBanner}
+
+        <AccountSettings />
 
         <AppearanceSettings fullPage={fullPage} />
 

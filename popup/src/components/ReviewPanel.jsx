@@ -134,13 +134,20 @@ export default function ReviewPanel({
         company: pendingJob?.company || application.jobData?.company,
       });
       const { cvDocument, tailoredCV } = exportCvPayload();
-      await downloadCvPdf({
+      const { html: pdfHtml } = await resolvePdfHtmlForExport({
         cvDocument,
         tailoredCV,
         userProfile,
         pdfLayoutHtml,
         htmlOverride: pdfHtmlOverride,
         useManualOverride: useManualPdfHtml,
+        autoApplyIfMissing: true,
+      });
+      await downloadCvPdf({
+        cvDocument,
+        tailoredCV,
+        userProfile,
+        html: pdfHtml,
         filename: `${label}.pdf`,
       });
     } catch (err) {

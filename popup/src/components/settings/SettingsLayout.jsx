@@ -1,4 +1,5 @@
 const SECTIONS = [
+  { id: "settings-account", label: "Account & sync" },
   { id: "settings-appearance", label: "Appearance" },
   { id: "settings-ai", label: "AI & API" },
   { id: "settings-profile", label: "Profile & CV" },

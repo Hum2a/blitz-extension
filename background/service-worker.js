@@ -35,8 +35,14 @@ import {
   HISTORY_EVENT_TYPES,
 } from "../popup/src/lib/application-store.js";
 import { recordApiUsage, API_USAGE_TYPES } from "../popup/src/lib/api-usage-log.js";
+import {
+  handleSyncAuthMessage,
+  initSyncBackground,
+} from "./sync-messages.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
+
+initSyncBackground();
 
 async function setPendingJobAndReconcile(jobData) {
   await setStorage("pending_job", jobData);
@@ -111,6 +117,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 });
 
 async function handleMessage(message, sender) {
+  const syncResult = await handleSyncAuthMessage(message);
+  if (syncResult !== null) return syncResult;
+
   switch (message.type) {
     case "PING":
       return {
@@ -239,6 +248,18 @@ async function handleMessage(message, sender) {
           tier: result.tier,
           validatedAt: new Date().toISOString(),
         });
+        try {
+          const { linkLicenseToAccount, pullLicenseEntitlement } = await import(
+            "../popup/src/lib/sync-engine.js"
+          );
+          const { getValidAccessToken } = await import("../popup/src/lib/auth.js");
+          if (await getValidAccessToken()) {
+            await linkLicenseToAccount(message.payload.key);
+            await pullLicenseEntitlement(await getValidAccessToken());
+          }
+        } catch {
+          /* account link optional */
+        }
       }
       return result;
     }

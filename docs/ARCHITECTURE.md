@@ -18,6 +18,7 @@ flowchart TB
   subgraph External["External services"]
     AI[Anthropic / OpenAI<br/>user API key]
     LW[License worker<br/>Cloudflare]
+    SB[Supabase<br/>Auth + Postgres optional]
   end
 
   POP <-->|messages| BG
@@ -27,8 +28,11 @@ flowchart TB
   BG --> STORE
   POP --> IDB
   BG --> AI
-  POP --> LW
+  BG -->|E2EE sync optional| SB
+  BG --> LW
 ```
+
+Optional **account & sync** (see [SYNC_AND_AUTH.md](SYNC_AND_AUTH.md)): popup sends `AUTH_*` / `SYNC_*` messages; background runs `auth.js`, `sync-engine.js`, `e2ee-crypto.js`. API keys are not synced.
 
 ## Message flow (application generation)
 
@@ -56,6 +60,8 @@ Shared logic lives in `popup/src/lib/` and is imported by background via relativ
 |------|----------|
 | CV text, profile, API key, settings, queue | `chrome.storage.local` via `storage.js` |
 | Application history snapshots | IndexedDB `blitz_db` via `db.js` |
+| Auth session, sync state (local) | `chrome.storage.local` — `auth_session`, `sync_state`, `sync_crypto_meta` |
+| Cloud backup (opt-in) | Supabase `sync_documents`, `synced_applications` (ciphertext only) |
 
 ## PDF pipeline
 

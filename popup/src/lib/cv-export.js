@@ -90,7 +90,11 @@ export async function resolvePdfHtmlForExport({
     return { html: htmlOverride.trim(), source: "manual" };
   }
   if (pdfLayoutHtml?.trim()) {
-    return { html: pdfLayoutHtml.trim(), source: "applied" };
+    const doc = resolveCvDocument({ cvDocument, tailoredCV, userProfile });
+    const snippet = (doc?.summary || tailoredCV || "").replace(/\s+/g, " ").trim().slice(0, 24);
+    if (snippet && pdfLayoutHtml.includes(snippet)) {
+      return { html: pdfLayoutHtml.trim(), source: "applied" };
+    }
   }
   if (autoApplyIfMissing) {
     const applied = await applyTailoredCvToPdfLayout({

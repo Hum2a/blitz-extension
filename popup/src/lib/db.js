@@ -57,8 +57,14 @@ export async function addApplication(record) {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const request = store.add(record);
-    request.onsuccess = () => {
+    request.onsuccess = async () => {
       notifyApplicationsChanged();
+      try {
+        const { onApplicationWritten } = await import("./sync-engine.js");
+        await onApplicationWritten(record.id);
+      } catch {
+        /* sync optional */
+      }
       resolve(record);
     };
     request.onerror = () => reject(request.error);
@@ -108,8 +114,14 @@ export async function deleteApplication(id) {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const request = store.delete(id);
-    request.onsuccess = () => {
+    request.onsuccess = async () => {
       notifyApplicationsChanged();
+      try {
+        const { markApplicationDeleted } = await import("./sync-markers.js");
+        await markApplicationDeleted(id);
+      } catch {
+        /* sync optional */
+      }
       resolve();
     };
     request.onerror = () => reject(request.error);
@@ -130,8 +142,14 @@ export async function updateApplication(id, updates) {
       }
       const updated = { ...existing, ...updates, id: existing.id };
       const putReq = store.put(updated);
-      putReq.onsuccess = () => {
+      putReq.onsuccess = async () => {
         notifyApplicationsChanged();
+        try {
+          const { onApplicationWritten } = await import("./sync-engine.js");
+          await onApplicationWritten(updated.id);
+        } catch {
+          /* sync optional */
+        }
         resolve(updated);
       };
       putReq.onerror = () => reject(putReq.error);

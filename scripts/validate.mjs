@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
@@ -35,6 +35,17 @@ for (const file of required) {
   } else {
     console.log(`  ✗ ${file} — MISSING`);
     failed = true;
+  }
+}
+
+const configPath = join(root, "popup/src/lib/config.js");
+if (existsSync(configPath)) {
+  const configSrc = readFileSync(configPath, "utf8");
+  if (/service_role|SERVICE_ROLE/i.test(configSrc)) {
+    console.log("  ✗ config.js — must not contain Supabase service role key");
+    failed = true;
+  } else {
+    console.log("  ✓ config.js — no service role key");
   }
 }
 
