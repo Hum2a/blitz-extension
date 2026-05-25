@@ -7,48 +7,38 @@
   "scripts": {
     "setup": "npm install && npm run icons && npm run build",
     "postinstall": "npm run copy:jspdf",
-
     "copy:jspdf": "node scripts/copy-jspdf.mjs",
     "icons": "node scripts/generate-icons.mjs",
-
     "dev": "npm run copy:jspdf && vite build --watch",
     "build": "npm run copy:jspdf && vite build",
     "build:check": "npm run build && npm run validate",
     "clean": "node scripts/clean.mjs",
     "rebuild": "npm run clean && npm run build",
-
     "validate": "node scripts/validate.mjs",
     "test": "node scripts/test-all.mjs",
     "test:validate": "node scripts/validate.mjs",
     "test:license": "npm run test --prefix license-worker",
-
     "pack": "npm run build:check && node scripts/zip-extension.mjs",
     "pack:zip": "node scripts/zip-extension.mjs",
-
     "version:sync": "node scripts/sync-version.mjs",
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",
     "version:major": "node scripts/bump-version.mjs major",
     "version:set": "node scripts/bump-version.mjs",
-
     "changelog": "node scripts/changelog.mjs",
     "changelog:add": "node scripts/changelog.mjs add",
-
     "release:patch": "node scripts/bump-version.mjs patch",
     "release:minor": "node scripts/bump-version.mjs minor",
     "release:major": "node scripts/bump-version.mjs major",
     "release:pack": "npm run version:patch && npm run pack",
-
     "worker:install": "npm install --prefix license-worker",
     "worker:dev": "npm run dev --prefix license-worker",
     "worker:deploy": "npm run deploy --prefix license-worker",
     "worker:kv:create": "npm run kv:create --prefix license-worker",
     "worker:license:add": "npm run license:add --prefix license-worker",
     "worker:test": "npm run test --prefix license-worker",
-
     "deploy:worker": "npm run worker:deploy",
     "deploy:all": "npm run build:check && npm run worker:deploy",
-
     "load": "echo Open chrome://extensions → Developer mode → Load unpacked → select this folder"
   },
   "dependencies": {
@@ -59,6 +49,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "archiver": "^7.0.1",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
