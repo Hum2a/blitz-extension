@@ -1,3 +1,8 @@
+import {
+  normalizePromptParts,
+  estimateOutputTokens,
+} from "./prompt-parts.js";
+
 const LINKEDIN_MAX_CHARS = 12000;
 
 const CV_WRITING_PRINCIPLES = `
@@ -75,12 +80,17 @@ export function formatApplicationTitle(jobData, aiTitle) {
   return `${role} — ${company}`;
 }
 
-export const PROMPTS = {
-  system: (profile) => `
-You are an expert career coach and CV writer. You help job seekers tailor CVs and cover letters to specific job descriptions.
+function buildSystemPrompt(profile, parts) {
+  const blocks = [
+    "You are an expert career coach and CV writer. You help job seekers tailor CVs and cover letters to specific job descriptions.",
+  ];
 
-${CV_WRITING_PRINCIPLES}
+  if (parts.includeCvPrinciples) {
+    blocks.push(CV_WRITING_PRINCIPLES);
+  }
 
+  if (parts.includeSystemProfile) {
+    blocks.push(`
 User profile for screening questions:
 - Name: ${profile.name || "Not set"}
 - Right to work: ${profile.rightToWork || "Not set"}
@@ -91,39 +101,26 @@ User profile for screening questions:
 - LinkedIn: ${profile.linkedin || "Not set"}
 - Portfolio: ${profile.portfolio || "Not set"}
 - Willing to relocate: ${profile.willingToRelocate ?? false}
-- Skills and experience: ${JSON.stringify(profile.skills || {})}
+- Skills and experience: ${JSON.stringify(profile.skills || {})}`);
+  }
 
-Always respond with valid JSON only. No markdown, no preamble.
-`,
+  blocks.push("\nAlways respond with valid JSON only. No markdown, no preamble.");
+  return blocks.join("\n");
+}
 
-  generateApplication: (cvText, jobData, preferences, linkedinProfileText = "") => {
-    const coverLetterInstruction =
-      preferences.coverLetterMode === "never"
-        ? '"" (empty string, not required)'
-        : '"Professional cover letter, 3 paragraphs, specific to this role and company. Do not use generic filler phrases."';
+function buildResponseSchema(jobData, parts) {
+  const titleHint = formatApplicationTitle(jobData);
+  const coverLetterInstruction = parts.includeCoverLetter
+    ? '"Professional cover letter, 3 paragraphs, specific to this role and company. Do not use generic filler phrases."'
+    : '"" (empty string — cover letter disabled)';
 
-    const questions =
-      jobData.screeningQuestions?.length > 0
-        ? jobData.screeningQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")
-        : "None";
+  const screeningBlock = parts.includeScreeningQuestions
+    ? `"screeningAnswers": [
+    { "question": "original question text", "answer": "honest answer based on user profile" }
+  ],`
+    : `"screeningAnswers": [],`;
 
-    const titleHint = formatApplicationTitle(jobData);
-
-    return `
-Base CV:
-${cvText}${formatLinkedInSection(linkedinProfileText)}
-
-Job Title: ${jobData.jobTitle}
-Company: ${jobData.company}
-Job Description:
-${jobData.jobDescription}
-
-Screening questions (answer each honestly based on the user profile):
-${questions}
-
-Apply all CV writing rules above when tailoring. Do not fabricate experience, metrics, or employers.
-
-Generate a tailored application. Respond with this exact JSON structure:
+  return `Generate a tailored application. Respond with this exact JSON structure:
 {
   "applicationTitle": "Short label for finding this later — use format: {Job Title} — {Company Name} (e.g. ${JSON.stringify(titleHint)})",
   "tailoredCV": "Full tailored CV as plain text (same content as cvDocument). Sections: Professional Summary, Education, Technical Skills, Career. Use accomplishment bullets. ATS-friendly plain text.",
@@ -146,12 +143,102 @@ Generate a tailored application. Respond with this exact JSON structure:
     }]
   },
   "coverLetter": ${coverLetterInstruction},
-  "screeningAnswers": [
-    { "question": "original question text", "answer": "honest answer based on user profile" }
-  ],
+  ${screeningBlock}
   "matchScore": <integer 0-100 representing how well the base CV matches this role>,
   "matchRationale": "2 sentence explanation of the match score"
+}`;
 }
-`;
-  },
+
+/**
+ * Build system + user prompts and per-part breakdown for cost estimates.
+ */
+export function buildApplicationPrompts({
+  cvText = "",
+  jobData = {},
+  preferences = {},
+  linkedinProfileText = "",
+  userProfile = {},
+}) {
+  const parts = normalizePromptParts(preferences);
+  const inputParts = [];
+  const excludedParts = [];
+
+  const systemPrompt = buildSystemPrompt(userProfile, parts);
+
+  if (parts.includeBaseCv && cvText?.trim()) {
+    inputParts.push({ key: "cv", label: "Base CV", text: `Base CV:\n${cvText.trim()}` });
+  } else if (cvText?.trim()) {
+    excludedParts.push("Base CV");
+  }
+
+  const linkedInBlock = formatLinkedInSection(
+    parts.includeLinkedIn ? linkedinProfileText : ""
+  );
+  if (parts.includeLinkedIn && linkedInBlock.trim()) {
+    inputParts.push({ key: "linkedin", label: "LinkedIn export", text: linkedInBlock.trim() });
+  } else if (linkedinProfileText?.trim()) {
+    excludedParts.push("LinkedIn export");
+  }
+
+  if (parts.includeJobDescription) {
+    const jobBlock = [
+      `Job Title: ${jobData.jobTitle || ""}`,
+      `Company: ${jobData.company || ""}`,
+      `Job Description:\n${jobData.jobDescription || ""}`,
+    ].join("\n");
+    inputParts.push({ key: "job", label: "Job listing", text: jobBlock });
+  } else {
+    excludedParts.push("Job listing");
+  }
+
+  if (parts.includeScreeningQuestions) {
+    const questions =
+      jobData.screeningQuestions?.length > 0
+        ? jobData.screeningQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n")
+        : "None";
+    inputParts.push({
+      key: "screening",
+      label: "Screening questions",
+      text: `Screening questions (answer each honestly based on the user profile):\n${questions}`,
+    });
+  } else {
+    excludedParts.push("Screening Q&A");
+  }
+
+  const tailoringNote = parts.includeCvPrinciples
+    ? "Apply all CV writing rules above when tailoring."
+    : "Tailor the CV to the job listing.";
+
+  const userPrompt = [
+    ...inputParts.map((p) => p.text),
+    "",
+    `${tailoringNote} Do not fabricate experience, metrics, or employers.`,
+    "",
+    buildResponseSchema(jobData, parts),
+  ].join("\n");
+
+  if (!parts.includeCoverLetter) excludedParts.push("Cover letter");
+
+  return {
+    parts,
+    systemPrompt,
+    userPrompt,
+    inputParts,
+    excludedParts,
+    outputTokensEstimate: estimateOutputTokens(parts, jobData),
+  };
+}
+
+export const PROMPTS = {
+  system: (profile, preferences = {}) =>
+    buildSystemPrompt(profile, normalizePromptParts(preferences)),
+
+  generateApplication: (cvText, jobData, preferences, linkedinProfileText = "", userProfile = {}) =>
+    buildApplicationPrompts({
+      cvText,
+      jobData,
+      preferences,
+      linkedinProfileText,
+      userProfile,
+    }).userPrompt,
 };

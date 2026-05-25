@@ -26,6 +26,7 @@ import SettingsCard, {
 } from "./settings/SettingsCard.jsx";
 import CvTemplateEditor from "./CvTemplateEditor.jsx";
 import AppearanceSettings from "./settings/AppearanceSettings.jsx";
+import PromptPartsSettings from "./settings/PromptPartsSettings.jsx";
 import { useModal } from "../hooks/useModal.js";
 
 export default function Settings({ onSaved, fullPage = false }) {
@@ -579,6 +580,15 @@ export default function Settings({ onSaved, fullPage = false }) {
               Auto-submit after fill on LinkedIn (review the page first if unsure)
             </span>
           </label>
+          <div className="pt-4 border-t border-slate-100">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+              Prompt content (API cost)
+            </p>
+            <PromptPartsSettings
+              preferences={form.preferences}
+              onChange={(next) => update("preferences", next)}
+            />
+          </div>
         </SettingsCard>
 
         <SettingsCard

@@ -1,5 +1,6 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useState, useCallback } from "react";
 import CostEstimate from "./CostEstimate.jsx";
+import PromptPartsCostPanel from "./PromptPartsCostPanel.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
 import { progressFromStage } from "../lib/generation-progress.js";
 import { AnimatePresence, motion } from "framer-motion";
@@ -69,17 +70,15 @@ export default function Dashboard({
       ? application
       : null;
 
-  useEffect(() => {
+  const fetchCostEstimate = useCallback(() => {
     if (!hasJob) {
       setCostEstimate(null);
       return;
     }
-    let cancelled = false;
     setCostLoading(true);
     chrome.runtime
       .sendMessage({ type: "ESTIMATE_GENERATION_COST" })
       .then((result) => {
-        if (cancelled) return;
         if (chrome.runtime.lastError) {
           setCostEstimate({ error: chrome.runtime.lastError.message });
           return;
@@ -87,15 +86,16 @@ export default function Dashboard({
         setCostEstimate(result?.error ? { error: result.error } : result);
       })
       .catch((err) => {
-        if (!cancelled) setCostEstimate({ error: err.message });
+        setCostEstimate({ error: err.message });
       })
       .finally(() => {
-        if (!cancelled) setCostLoading(false);
+        setCostLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [hasJob, pendingJob?.url, pendingJob?.jobTitle, pendingJob?.jobDescription]);
+
+  useEffect(() => {
+    fetchCostEstimate();
+  }, [fetchCostEstimate]);
 
   const stats = useMemo(() => {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -306,6 +306,7 @@ export default function Dashboard({
             actualCost={lastGenerationCost}
             loading={costLoading && hasJob}
           />
+          <PromptPartsCostPanel fullPage={fullPage} onPartsChange={fetchCostEstimate} />
           <AnimatePresence>
             {matchedApplication && (
               <motion.div

@@ -4,9 +4,10 @@ import {
   getAllSettings,
   normalizeAiConfig,
 } from "../popup/src/lib/storage.js";
-import { PROMPTS, formatApplicationTitle } from "../popup/src/lib/prompts.js";
+import { PROMPTS, formatApplicationTitle, buildApplicationPrompts } from "../popup/src/lib/prompts.js";
+import { estimateCostFromPromptBundle } from "../popup/src/lib/cost-estimate.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
-import { costFromUsage, estimateCostFromPrompts } from "../popup/src/lib/cost-estimate.js";
+import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
 import {
   fetchAnthropicModels,
   ANTHROPIC_MODEL_SUGGESTIONS,
@@ -177,18 +178,16 @@ async function handleMessage(message, sender) {
       if (!jobData?.jobTitle && !jobData?.jobDescription) {
         return { error: "No job detected on this page." };
       }
-      const systemPrompt = PROMPTS.system(settings.user_profile);
-      const userPrompt = PROMPTS.generateApplication(
-        settings.cv_text,
+      const bundle = buildApplicationPrompts({
+        cvText: settings.cv_text,
         jobData,
-        settings.preferences,
-        settings.linkedin_profile_text
-      );
-      return estimateCostFromPrompts({
+        preferences: settings.preferences,
+        linkedinProfileText: settings.linkedin_profile_text,
+        userProfile: settings.user_profile,
+      });
+      return estimateCostFromPromptBundle(bundle, {
         provider: settings.ai_config.provider,
         model: settings.ai_config.model,
-        systemPrompt,
-        userPrompt,
       });
     }
 
@@ -203,6 +202,19 @@ async function handleMessage(message, sender) {
         throw new Error("This LinkedIn job does not offer Easy Apply.");
       }
       if (!settings.cv_text?.trim()) throw new Error("Add your CV in Settings first.");
+
+      const preflight = buildApplicationPrompts({
+        cvText: settings.cv_text,
+        jobData,
+        preferences: settings.preferences,
+        linkedinProfileText: settings.linkedin_profile_text,
+        userProfile: settings.user_profile,
+      });
+      if (!preflight.parts.includeBaseCv && !preflight.parts.includeJobDescription) {
+        throw new Error(
+          "Enable at least Base CV or Job listing under Settings → Prompt content (API cost)."
+        );
+      }
 
       const report = createProgressReporter();
       const result = await generateApplication(
@@ -511,13 +523,15 @@ async function generateApplication(
     throw new Error("Free tier limit reached (15 applications). Upgrade to Pro.");
   }
 
-  const systemPrompt = PROMPTS.system(userProfile);
-  const userPrompt = PROMPTS.generateApplication(
+  const promptBundle = buildApplicationPrompts({
     cvText,
     jobData,
     preferences,
-    linkedinProfileText
-  );
+    linkedinProfileText,
+    userProfile,
+  });
+  const systemPrompt = promptBundle.systemPrompt;
+  const userPrompt = promptBundle.userPrompt;
 
   const stats = formatPromptStats({
     cvText,

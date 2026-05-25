@@ -95,10 +95,15 @@ export default function CostEstimate({ estimate, actualCost, loading }) {
                 </tr>
               </tbody>
             </table>
+            {!isActual && data.excludedParts?.length > 0 && (
+              <p className="text-slate-500 mt-2 leading-snug">
+                Excluded from this estimate: {data.excludedParts.join(", ")}.
+              </p>
+            )}
             {!isActual && (
               <p className="text-slate-400 mt-2 leading-snug">
-                Larger CVs and job descriptions increase input cost. Output is estimated ~6.5k tokens;
-                actual may vary.
+                Toggle parts under Prompt content (cost) to change the breakdown. Output size
+                depends on cover letter and screening questions.
               </p>
             )}
           </motion.div>

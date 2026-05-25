@@ -12,7 +12,8 @@ Used by **popup** and **background** (imported via relative paths).
 |--------|---------|
 | `storage.js` | `getStorage`, `setStorage`, `mergeStorage`, defaults (`cv_text`, `user_profile`, `license`, `job_queue`) |
 | `ai.js` | `callAI`, `parseApplicationResponse` — Anthropic + OpenAI |
-| `prompts.js` | `PROMPTS.system`, `PROMPTS.generateApplication` — JSON-only responses |
+| `prompts.js` | `buildApplicationPrompts`, `PROMPTS.*` — JSON-only responses |
+| `prompt-parts.js` | `preferences.promptParts` toggles for cost control |
 | `license.js` | Free tier (15), `validateLicense`, `canSubmitApplication` |
 | `db.js` | IndexedDB `blitz_db` / `applications` store |
 | `config.js` | `LICENSE_ENDPOINT`, LemonSqueezy URLs |

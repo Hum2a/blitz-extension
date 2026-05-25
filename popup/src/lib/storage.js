@@ -32,6 +32,15 @@ const DEFAULTS = {
     autoSubmit: false,
     dailyLimit: 25,
     cvTemplate: "modern",
+    promptParts: {
+      includeCvPrinciples: true,
+      includeSystemProfile: true,
+      includeBaseCv: true,
+      includeLinkedIn: true,
+      includeJobDescription: true,
+      includeScreeningQuestions: true,
+      includeCoverLetter: true,
+    },
   },
   appearance: {
     mode: "system",

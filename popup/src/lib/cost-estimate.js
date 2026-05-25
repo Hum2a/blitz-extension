@@ -1,4 +1,4 @@
-import { PROMPTS } from "./prompts.js";
+import { buildApplicationPrompts } from "./prompts.js";
 import { getAllSettings, getStorage } from "./storage.js";
 
 /** Rough token count (~4 chars per token for English). */
@@ -47,20 +47,37 @@ export function costFromUsage(usage, provider, model) {
   };
 }
 
-export function estimateCostFromPrompts({
-  provider,
-  model,
-  systemPrompt,
-  userPrompt,
-  outputTokensEstimate = 6500,
-}) {
+export function estimateCostFromPromptBundle(bundle, { provider, model }) {
   const pricing = getModelPricing(provider, model);
-  const systemTokens = estimateTokens(systemPrompt);
-  const userTokens = estimateTokens(userPrompt);
-  const inputTokens = systemTokens + userTokens;
+  const systemTokens = estimateTokens(bundle.systemPrompt);
+  const inputPartTokens = bundle.inputParts.reduce(
+    (sum, part) => sum + estimateTokens(part.text),
+    0
+  );
+  const inputTokens = systemTokens + inputPartTokens;
+  const outputTokensEstimate = bundle.outputTokensEstimate;
+
   const inputCostUsd = (inputTokens / 1_000_000) * pricing.input;
   const outputCostUsd = (outputTokensEstimate / 1_000_000) * pricing.output;
   const totalCostUsd = inputCostUsd + outputCostUsd;
+
+  const breakdown = [
+    {
+      label: "System prompt",
+      tokens: systemTokens,
+      costUsd: (systemTokens / 1_000_000) * pricing.input,
+    },
+    ...bundle.inputParts.map((part) => ({
+      label: part.label,
+      tokens: estimateTokens(part.text),
+      costUsd: (estimateTokens(part.text) / 1_000_000) * pricing.input,
+    })),
+    {
+      label: "Generated application (est.)",
+      tokens: outputTokensEstimate,
+      costUsd: outputCostUsd,
+    },
+  ];
 
   return {
     provider,
@@ -69,21 +86,34 @@ export function estimateCostFromPrompts({
     outputTokens: outputTokensEstimate,
     outputTokensEstimate,
     systemTokens,
-    userTokens,
+    userTokens: inputPartTokens,
     inputCostUsd,
     outputCostUsd,
     totalCostUsd,
     isEstimate: true,
-    breakdown: [
-      { label: "System prompt", tokens: systemTokens, costUsd: (systemTokens / 1_000_000) * pricing.input },
-      { label: "Job + CV + profile", tokens: userTokens, costUsd: (userTokens / 1_000_000) * pricing.input },
-      {
-        label: "Generated application (est.)",
-        tokens: outputTokensEstimate,
-        costUsd: outputCostUsd,
-      },
-    ],
+    breakdown,
+    excludedParts: bundle.excludedParts,
   };
+}
+
+/** @deprecated Use estimateCostFromPromptBundle */
+export function estimateCostFromPrompts({
+  provider,
+  model,
+  systemPrompt,
+  userPrompt,
+  outputTokensEstimate = 6500,
+}) {
+  return estimateCostFromPromptBundle(
+    {
+      systemPrompt,
+      userPrompt,
+      inputParts: [{ key: "user", label: "Job + CV + profile", text: userPrompt }],
+      outputTokensEstimate,
+      excludedParts: [],
+    },
+    { provider, model }
+  );
 }
 
 export async function estimateCurrentApplicationCost() {
@@ -101,15 +131,15 @@ export async function estimateCurrentApplicationCost() {
     return { error: "Detect a job on this page first." };
   }
 
-  const systemPrompt = PROMPTS.system(settings.user_profile || {});
-  const userPrompt = PROMPTS.generateApplication(
-    settings.cv_text,
-    job,
-    settings.preferences || {},
-    settings.linkedin_profile_text
-  );
+  const bundle = buildApplicationPrompts({
+    cvText: settings.cv_text,
+    jobData: job,
+    preferences: settings.preferences || {},
+    linkedinProfileText: settings.linkedin_profile_text,
+    userProfile: settings.user_profile || {},
+  });
 
-  return estimateCostFromPrompts({ provider, model, systemPrompt, userPrompt });
+  return estimateCostFromPromptBundle(bundle, { provider, model });
 }
 
 export function formatUsd(amount) {
