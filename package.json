@@ -4,6 +4,27 @@
   "private": true,
   "type": "module",
   "description": "Blitz — AI job application Chrome extension",
+  "license": "MIT",
+  "author": "Hum2a",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hum2a/blitz-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hum2a/blitz-extension/issues"
+  },
+  "homepage": "https://github.com/Hum2a/blitz-extension#readme",
+  "keywords": [
+    "chrome-extension",
+    "job-applications",
+    "resume",
+    "cv",
+    "ai",
+    "greenhouse",
+    "linkedin",
+    "indeed",
+    "workday"
+  ],
   "scripts": {
     "setup": "npm install && npm run icons && npm run build",
     "postinstall": "npm run copy:offscreen",
