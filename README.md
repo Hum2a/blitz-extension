@@ -62,8 +62,8 @@ See `chrome-store/SUBMISSION_CHECKLIST.md` and `blitz-store-listing.md`.
 | `npm run changelog:add -- "Fixed X"` | Add entry to `CHANGELOG.md` |
 | `npm run release:pack` | Bump patch + create store zip |
 | `npm run deploy:worker` | Deploy Cloudflare license worker |
-| `npm run worker:license:add -- KEY` | Add license key to KV |
-| `npm run worker:test` | Hit license API (GET + POST) |
+| `npm run license:add -- KEY` | Add license key to KV (alias: `worker:license:add`) |
+| `npm run license:test` | Hit license API (alias: `worker:test`) |
 
 ## Development
 

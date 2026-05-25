@@ -31,8 +31,14 @@ That's normal if you opened the URL in a tab — the API only accepts **POST**. 
 Test validation:
 
 ```bash
-npm run test -- https://YOUR-WORKER.workers.dev YOUR-LICENSE-KEY
+npm run test
+# Or test a specific key:
+npm run test -- BLITZ-TEST-PRO-001
+# Or URL + key:
+npm run test -- https://blitz-license.humzab1711.workers.dev YOUR-KEY
 ```
+
+Default test key is `BLITZ-TEST-PRO-001`. Add keys with `npm run license:add -- YOUR-KEY`.
 5. Route `license.blitz.workers.dev` to this worker (or update `LICENSE_ENDPOINT` in `popup/src/lib/config.js`)
 
 ## API

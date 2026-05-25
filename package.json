@@ -37,6 +37,8 @@
     "worker:kv:create": "npm run kv:create --prefix license-worker",
     "worker:license:add": "npm run license:add --prefix license-worker",
     "worker:test": "npm run test --prefix license-worker",
+    "license:add": "npm run license:add --prefix license-worker",
+    "license:test": "npm run test --prefix license-worker",
     "deploy:worker": "npm run worker:deploy",
     "deploy:all": "npm run build:check && npm run worker:deploy",
     "load": "echo Open chrome://extensions → Developer mode → Load unpacked → select this folder"
