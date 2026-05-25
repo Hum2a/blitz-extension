@@ -39,6 +39,7 @@ Language & Tone:
 - Use strong action verbs: built, shipped, architected, optimised, led.
 - Avoid filler phrases: responsible for, worked on, helped with.
 - Be confident but factual. No hype, no buzzword soup.
+- Never use the em dash character (—). Use commas, full stops, colons, or parentheses instead. Date ranges may use a simple hyphen (e.g. Jan 2020 - Present).
 
 Role Tailoring:
 - Mirror the job description language and priorities.
@@ -69,20 +70,28 @@ function formatLinkedInSection(linkedinProfileText) {
       : text;
   return `
 
-LinkedIn profile export (skills, experience, education, certifications — use for screening answers and to enrich the tailored CV; do not invent details not present in Base CV or LinkedIn profile):
+LinkedIn profile export (skills, experience, education, certifications; use for screening answers and to enrich the tailored CV; do not invent details not present in Base CV or LinkedIn profile):
 ${truncated}`;
 }
 
 export function formatApplicationTitle(jobData, aiTitle) {
-  if (aiTitle?.trim()) return aiTitle.trim();
+  if (aiTitle?.trim()) return aiTitle.trim().replace(/\u2014/g, " - ");
   const role = jobData?.jobTitle?.trim() || "Role";
   const company = jobData?.company?.trim() || "Company";
-  return `${role} — ${company}`;
+  return `${role} - ${company}`;
 }
+
+const HUMAN_PUNCTUATION_RULE = `
+Human writing (all generated text: tailoredCV, coverLetter, screeningAnswers, summaries, bullets):
+- Do NOT use the em dash (—) anywhere in candidate-facing copy.
+- Prefer commas, periods, semicolons, or short separate sentences.
+- For date ranges use a hyphen with spaces: "Jan 2020 - Present", not an em dash.
+`;
 
 function buildSystemPrompt(profile, parts) {
   const blocks = [
     "You are an expert career coach and CV writer. You help job seekers tailor CVs and cover letters to specific job descriptions.",
+    HUMAN_PUNCTUATION_RULE,
   ];
 
   if (parts.includeCvPrinciples) {
@@ -112,7 +121,7 @@ function buildResponseSchema(jobData, parts) {
   const titleHint = formatApplicationTitle(jobData);
   const coverLetterInstruction = parts.includeCoverLetter
     ? '"Professional cover letter, 3 paragraphs, specific to this role and company. Do not use generic filler phrases."'
-    : '"" (empty string — cover letter disabled)';
+    : '"" (empty string, cover letter disabled)';
 
   const screeningBlock = parts.includeScreeningQuestions
     ? `"screeningAnswers": [
@@ -120,14 +129,14 @@ function buildResponseSchema(jobData, parts) {
   ],`
     : `"screeningAnswers": [],`;
 
-  return `Generate a tailored application. Respond with this exact JSON structure:
+  return `Generate a tailored application. All prose must follow the no-em-dash rule above. Respond with this exact JSON structure:
 {
-  "applicationTitle": "Short label for finding this later — use format: {Job Title} — {Company Name} (e.g. ${JSON.stringify(titleHint)})",
+  "applicationTitle": "Short label for finding this later, format: {Job Title} - {Company Name} (e.g. ${JSON.stringify(titleHint.replace(/\u2014/g, " - "))})",
   "tailoredCV": "Full tailored CV as plain text (same content as cvDocument). Sections: Professional Summary, Education, Technical Skills, Career. Use accomplishment bullets. ATS-friendly plain text.",
   "cvDocument": {
     "fullName": "string",
     "contactLine": "plain text fallback for contact row",
-    "contactLineHtml": "HTML contact row with real links: location • phone • <a href='mailto:EMAIL'>email</a><br><a href='GITHUB_URL'>GitHub</a> | <a href='PORTFOLIO_URL'>Portfolio</a> | <a href='LINKEDIN_URL'>LinkedIn</a> — use URLs from user profile",
+    "contactLineHtml": "HTML contact row with real links: location • phone • <a href='mailto:EMAIL'>email</a><br><a href='GITHUB_URL'>GitHub</a> | <a href='PORTFOLIO_URL'>Portfolio</a> | <a href='LINKEDIN_URL'>LinkedIn</a> (use URLs from user profile)",
     "summary": "2-4 sentences tailored to this role (plain)",
     "summaryHtml": "same summary as HTML <p>…</p>, may include <a href> only when relevant",
     "careerNote": "optional e.g. See Portfolio for more",
@@ -212,7 +221,7 @@ export function buildApplicationPrompts({
   const userPrompt = [
     ...inputParts.map((p) => p.text),
     "",
-    `${tailoringNote} Do not fabricate experience, metrics, or employers.`,
+    `${tailoringNote} Do not fabricate experience, metrics, or employers. Do not use em dashes (—) in any field.`,
     "",
     buildResponseSchema(jobData, parts),
   ].join("\n");

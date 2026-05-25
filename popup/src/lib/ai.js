@@ -6,6 +6,7 @@ import {
   uniqueModels,
   isModelErrorMessage,
 } from "./models.js";
+import { humanizeGeneratedText, stripEmDashes } from "./humanize-text.js";
 
 export function resolveModel(provider, model) {
   if (provider === "anthropic") {
@@ -169,13 +170,26 @@ export function parseApplicationResponse(raw) {
       `AI returned invalid JSON. Try again or switch model (e.g. ${ANTHROPIC_DEFAULT_MODEL}).`
     );
   }
+  const cvDocument =
+    parsed.cvDocument && typeof parsed.cvDocument === "object"
+      ? humanizeGeneratedText(parsed.cvDocument)
+      : null;
+
   return {
-    applicationTitle: parsed.applicationTitle || "",
-    tailoredCV: parsed.tailoredCV || "",
-    cvDocument: parsed.cvDocument && typeof parsed.cvDocument === "object" ? parsed.cvDocument : null,
-    coverLetter: parsed.coverLetter || "",
-    screeningAnswers: parsed.screeningAnswers || [],
+    applicationTitle: stripEmDashes(parsed.applicationTitle || ""),
+    tailoredCV: stripEmDashes(parsed.tailoredCV || ""),
+    cvDocument,
+    coverLetter: stripEmDashes(parsed.coverLetter || ""),
+    screeningAnswers: (parsed.screeningAnswers || []).map((item) =>
+      item && typeof item === "object"
+        ? {
+            ...item,
+            question: stripEmDashes(item.question || ""),
+            answer: stripEmDashes(item.answer || ""),
+          }
+        : item
+    ),
     matchScore: Number(parsed.matchScore) || 0,
-    matchRationale: parsed.matchRationale || "",
+    matchRationale: stripEmDashes(parsed.matchRationale || ""),
   };
 }

@@ -18,7 +18,7 @@ export function displayApplicationLabel(app) {
   if (app?.applicationTitle?.trim()) return app.applicationTitle.trim();
   const role = app?.role?.trim() || app?.jobData?.jobTitle?.trim();
   const company = app?.company?.trim() || app?.jobData?.company?.trim();
-  if (role && company) return `${role} — ${company}`;
+  if (role && company) return `${role} - ${company}`;
   return role || company || "Application";
 }
 
