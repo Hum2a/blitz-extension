@@ -18,6 +18,8 @@ import {
   htmlFileToCvTemplate,
   rawHtmlToCvTemplate,
   WORD_HTML_IMPORT_GUIDE,
+  sanitizeWordImportedHtml,
+  countWordHtmlSanitizeFixes,
 } from "../lib/word-html-import.js";
 import CvTemplateRichEditor from "./CvTemplateRichEditor.jsx";
 import { Btn } from "./motion.jsx";
@@ -72,6 +74,12 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
   const [wordSubMode, setWordSubMode] = useState("guide");
   const [preserveWordLayout, setPreserveWordLayout] = useState(true);
   const [pasteHtml, setPasteHtml] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [pasteLoading, setPasteLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [sanitizing, setSanitizing] = useState(false);
+  const [sanitizeNote, setSanitizeNote] = useState(null);
 
   useEffect(() => {
     getStorage("cv_html_template").then((stored) => {
@@ -107,23 +115,33 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
   const sampleDoc = () => enrichCvDocumentRichFields(SAMPLE_CV_DOCUMENT, {});
 
   const validateAndSave = async () => {
+    setSaving(true);
     try {
       renderCvHtml(template, sampleDoc());
       await persist(template);
       setError(null);
     } catch (err) {
       setError(err.message || "Template error");
+    } finally {
+      setSaving(false);
     }
   };
 
   const resetDefault = async () => {
-    setFullTemplate(DEFAULT_CV_HTML_TEMPLATE);
-    await persist(DEFAULT_CV_HTML_TEMPLATE);
-    setImportNotes(null);
-    setError(null);
+    setResetting(true);
+    try {
+      setFullTemplate(DEFAULT_CV_HTML_TEMPLATE);
+      await persist(DEFAULT_CV_HTML_TEMPLATE);
+      setImportNotes(null);
+      setSanitizeNote(null);
+      setError(null);
+    } finally {
+      setResetting(false);
+    }
   };
 
-  const openPreview = () => {
+  const openPreview = async () => {
+    setPreviewLoading(true);
     try {
       const html = renderCvHtml(template, sampleDoc());
       setPreviewHtml(html);
@@ -131,6 +149,29 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
       setError(null);
     } catch (err) {
       setError(err.message || "Could not render preview");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const runSanitize = async () => {
+    setSanitizing(true);
+    setError(null);
+    try {
+      const before = countWordHtmlSanitizeFixes(template);
+      const cleaned = sanitizeWordImportedHtml(template);
+      setFullTemplate(cleaned);
+      setSaved(false);
+      const after = countWordHtmlSanitizeFixes(cleaned);
+      setSanitizeNote(
+        before > 0
+          ? `Replaced ${before} broken character${before === 1 ? "" : "s"} with full stops.`
+          : after === 0
+            ? "No broken characters found."
+            : "Sanitized — preview again to confirm."
+      );
+    } finally {
+      setSanitizing(false);
     }
   };
 
@@ -195,6 +236,19 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
           </span>
         </div>
       )}
+
+      <div className="flex flex-wrap gap-2 items-center pb-1">
+        <Btn
+          type="button"
+          onClick={runSanitize}
+          loading={sanitizing}
+          disabled={sanitizing || !template.trim()}
+          className="text-xs border border-amber-300 bg-amber-50 text-amber-900 px-3 py-1.5 rounded-lg hover:bg-amber-100"
+        >
+          {sanitizing ? "Fixing…" : "Fix Word characters ( → . )"}
+        </Btn>
+        {sanitizeNote && <span className="text-xs text-amber-800">{sanitizeNote}</span>}
+      </div>
 
       <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-lg w-fit">
         {MODES.map((m) => (
@@ -302,7 +356,14 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
                 <code className="text-blitz-700">{"{{variables}}"}</code> in HTML mode.
               </p>
               <label className="inline-block mt-4">
-                <span className="cursor-pointer bg-blitz-600 hover:bg-blitz-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg">
+                <span
+                  className={`cursor-pointer text-white text-sm font-medium px-5 py-2.5 rounded-lg inline-flex items-center gap-2 ${
+                    wordLoading ? "bg-blitz-500 cursor-wait" : "bg-blitz-600 hover:bg-blitz-700"
+                  }`}
+                >
+                  {wordLoading && (
+                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  )}
                   {wordLoading ? "Importing…" : "Choose .htm / .html file"}
                 </span>
                 <input
@@ -351,7 +412,14 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
                 Minimal Blitz styling (preserve Word structure)
               </label>
               <label className="inline-block mt-4">
-                <span className="cursor-pointer bg-blitz-600 hover:bg-blitz-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg">
+                <span
+                  className={`cursor-pointer text-white text-sm font-medium px-5 py-2.5 rounded-lg inline-flex items-center gap-2 ${
+                    wordLoading ? "bg-blitz-500 cursor-wait" : "bg-blitz-600 hover:bg-blitz-700"
+                  }`}
+                >
+                  {wordLoading && (
+                    <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  )}
                   {wordLoading ? "Converting…" : "Choose .docx file"}
                 </span>
                 <input
@@ -382,21 +450,31 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
               />
               <Btn
                 type="button"
-                onClick={() => {
+                loading={pasteLoading}
+                disabled={pasteLoading || !pasteHtml.trim()}
+                onClick={async () => {
+                  setPasteLoading(true);
+                  setError(null);
                   try {
                     const html = rawHtmlToCvTemplate(pasteHtml);
                     setFullTemplate(html);
                     setMode("html");
-                    setImportNotes("Pasted HTML imported. Add {{variables}} for dynamic fields.");
+                    const fixes = countWordHtmlSanitizeFixes(pasteHtml);
+                    setImportNotes(
+                      fixes > 0
+                        ? `Imported and fixed ${fixes} broken character${fixes === 1 ? "" : "s"}. Add {{variables}}.`
+                        : "Pasted HTML imported. Add {{variables}} for dynamic fields."
+                    );
                     setSaved(false);
-                    setError(null);
                   } catch (err) {
                     setError(err.message || "Could not import pasted HTML");
+                  } finally {
+                    setPasteLoading(false);
                   }
                 }}
                 className="text-sm bg-blitz-600 text-white px-4 py-2 rounded-lg hover:bg-blitz-700"
               >
-                Import pasted HTML
+                {pasteLoading ? "Importing…" : "Import pasted HTML"}
               </Btn>
             </div>
           )}
@@ -425,21 +503,27 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
       <div className="flex flex-wrap gap-2 pt-1">
         <Btn
           onClick={validateAndSave}
+          loading={saving}
+          disabled={saving}
           className="text-sm bg-blitz-600 text-white px-4 py-2 rounded-lg hover:bg-blitz-700"
         >
-          Save template
+          {saving ? "Saving…" : "Save template"}
         </Btn>
         <Btn
           onClick={openPreview}
+          loading={previewLoading}
+          disabled={previewLoading}
           className="text-sm border border-slate-300 px-4 py-2 rounded-lg bg-white hover:bg-slate-50"
         >
-          Preview with sample data
+          {previewLoading ? "Rendering…" : "Preview with sample data"}
         </Btn>
         <Btn
           onClick={resetDefault}
+          loading={resetting}
+          disabled={resetting}
           className="text-sm border border-slate-300 px-4 py-2 rounded-lg bg-white hover:bg-slate-50"
         >
-          Reset to default
+          {resetting ? "Resetting…" : "Reset to default"}
         </Btn>
       </div>
 

@@ -96,18 +96,30 @@ export function Card({ children, className = "", delay = 0, hover = true }) {
   );
 }
 
-export function Btn({ children, className = "", disabled, ...rest }) {
+export function Btn({ children, className = "", disabled, loading, ...rest }) {
+  const busy = Boolean(loading || disabled);
   return (
     <motion.button
       type="button"
-      disabled={disabled}
-      whileHover={disabled ? undefined : { scale: 1.02, y: -1 }}
-      whileTap={disabled ? undefined : { scale: 0.97 }}
+      disabled={busy}
+      whileHover={busy ? undefined : { scale: 1.02, y: -1 }}
+      whileTap={busy ? undefined : { scale: 0.97 }}
       transition={{ type: "spring", stiffness: 500, damping: 28 }}
-      className={className}
+      className={`${className} ${busy ? "opacity-70 cursor-wait" : ""}`.trim()}
+      aria-busy={loading || undefined}
       {...rest}
     >
-      {children}
+      {loading ? (
+        <span className="inline-flex items-center justify-center gap-2">
+          <span
+            className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0"
+            aria-hidden
+          />
+          {children}
+        </span>
+      ) : (
+        children
+      )}
     </motion.button>
   );
 }

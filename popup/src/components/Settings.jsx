@@ -45,6 +45,7 @@ export default function Settings({ onSaved, fullPage = false }) {
   const saveTimerRef = useRef(null);
   const [availableModels, setAvailableModels] = useState(ANTHROPIC_MODEL_SUGGESTIONS);
   const [modelsLoading, setModelsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const refreshModels = useCallback(async () => {
     if (form?.ai_config?.provider !== "anthropic") return;
@@ -165,6 +166,7 @@ export default function Settings({ onSaved, fullPage = false }) {
       saveTimerRef.current = null;
     }
     setSaveError(null);
+    setSettingsSaving(true);
     try {
       await mergeStorage({
         cv_text: form.cv_text ?? "",
@@ -187,6 +189,8 @@ export default function Settings({ onSaved, fullPage = false }) {
         err instanceof StorageError ? err.message : err?.message || "Could not save settings";
       setSaveError(msg);
       await showAlert(msg, { title: "Could not save", variant: "error" });
+    } finally {
+      setSettingsSaving(false);
     }
   };
 
@@ -306,9 +310,11 @@ export default function Settings({ onSaved, fullPage = false }) {
       <div className="flex flex-wrap items-center gap-3 pt-2 pb-1 border-t border-slate-200">
         <Btn
           onClick={handleSave}
+          loading={settingsSaving}
+          disabled={settingsSaving}
           className="bg-blitz-600 text-white px-6 py-2.5 rounded-lg font-medium btn-shine"
         >
-          Save all settings
+          {settingsSaving ? "Saving…" : "Save all settings"}
         </Btn>
         <p className="text-xs text-slate-500">CV template saves with its own button above.</p>
         <AnimatePresence>

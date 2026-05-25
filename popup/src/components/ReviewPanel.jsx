@@ -90,6 +90,7 @@ export default function ReviewPanel({
   };
 
   const handlePreviewCv = async () => {
+    setPdfLoading(true);
     try {
       const userProfile = (await getStorage("user_profile")) || {};
       const html = await buildRenderedCvHtml({
@@ -105,6 +106,8 @@ export default function ReviewPanel({
         title: "Preview failed",
         variant: "error",
       });
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -236,14 +239,17 @@ export default function ReviewPanel({
         <div className="flex gap-2">
           <Btn
             onClick={handlePreviewCv}
+            loading={pdfLoading}
+            disabled={pdfLoading}
             className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white"
           >
-            Preview PDF layout
+            {pdfLoading ? "Building…" : "Preview PDF layout"}
           </Btn>
           <Btn
             onClick={handleDownloadPdf}
+            loading={pdfLoading}
             disabled={pdfLoading}
-            className="flex-1 border border-blitz-300 text-blitz-700 py-2 rounded-lg text-sm hover:bg-blitz-50 bg-white disabled:opacity-50"
+            className="flex-1 border border-blitz-300 text-blitz-700 py-2 rounded-lg text-sm hover:bg-blitz-50 bg-white"
           >
             {pdfLoading ? "Building PDF…" : "Download PDF"}
           </Btn>

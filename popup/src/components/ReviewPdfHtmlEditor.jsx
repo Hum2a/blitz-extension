@@ -1,6 +1,10 @@
 import { useState, useCallback } from "react";
 import { getStorage } from "../lib/storage.js";
 import { buildRenderedCvHtml } from "../lib/cv-export.js";
+import {
+  sanitizeWordImportedHtml,
+  countWordHtmlSanitizeFixes,
+} from "../lib/word-html-import.js";
 import { FadeUp, Btn } from "./motion.jsx";
 
 /**
@@ -18,6 +22,8 @@ export default function ReviewPdfHtmlEditor({
   const [html, setHtml] = useState(pdfHtmlOverride || "");
   const [useCustom, setUseCustom] = useState(Boolean(pdfHtmlOverride));
   const [loading, setLoading] = useState(false);
+  const [sanitizing, setSanitizing] = useState(false);
+  const [sanitizeNote, setSanitizeNote] = useState(null);
 
   const syncOverride = useCallback(
     (nextHtml, enabled) => {
@@ -91,15 +97,43 @@ export default function ReviewPdfHtmlEditor({
 
             {useCustom && (
               <>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   <Btn
                     type="button"
                     onClick={loadRendered}
+                    loading={loading}
                     disabled={loading}
                     className="text-xs border border-slate-300 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50"
                   >
                     {loading ? "Loading…" : "Reload from template + data"}
                   </Btn>
+                  <Btn
+                    type="button"
+                    onClick={async () => {
+                      setSanitizing(true);
+                      try {
+                        const before = countWordHtmlSanitizeFixes(html);
+                        const cleaned = sanitizeWordImportedHtml(html);
+                        setHtml(cleaned);
+                        syncOverride(cleaned, true);
+                        setSanitizeNote(
+                          before > 0
+                            ? `Fixed ${before} character${before === 1 ? "" : "s"}.`
+                            : "No broken characters found."
+                        );
+                      } finally {
+                        setSanitizing(false);
+                      }
+                    }}
+                    loading={sanitizing}
+                    disabled={sanitizing || !html.trim()}
+                    className="text-xs border border-amber-300 bg-amber-50 text-amber-900 px-3 py-1.5 rounded-lg hover:bg-amber-100"
+                  >
+                    {sanitizing ? "Fixing…" : "Fix Word characters"}
+                  </Btn>
+                  {sanitizeNote && (
+                    <span className="text-[11px] text-amber-800">{sanitizeNote}</span>
+                  )}
                   <Btn
                     type="button"
                     onClick={() => {

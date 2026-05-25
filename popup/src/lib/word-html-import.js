@@ -1,5 +1,15 @@
 import { wrapCvPageShell, extractStyleBlock } from "./cv-template-utils.js";
 import { DEFAULT_CV_HTML_TEMPLATE } from "./cv-template-default.js";
+import {
+  sanitizeWordImportedHtml,
+  readWordHtmlFileText,
+  countWordHtmlSanitizeFixes,
+} from "./word-html-sanitize.js";
+
+export {
+  sanitizeWordImportedHtml,
+  countWordHtmlSanitizeFixes,
+} from "./word-html-sanitize.js";
 
 /** Minimal A4 shell — keeps Word/Mammoth layout instead of Blitz default typography. */
 export const MINIMAL_CV_PAGE_CSS = `
@@ -33,9 +43,10 @@ Why: Filtered HTML keeps Word fonts, spacing, and tables much closer than .docx 
 /**
  * Build a full CV template document from raw HTML (e.g. Word Save As web page).
  */
-export function rawHtmlToCvTemplate(rawHtml, { preserveLayout = true } = {}) {
-  const input = String(rawHtml || "").trim();
+export function rawHtmlToCvTemplate(rawHtml, { preserveLayout = true, autoSanitize = true } = {}) {
+  let input = String(rawHtml || "").trim();
   if (!input) throw new Error("No HTML to import");
+  if (autoSanitize) input = sanitizeWordImportedHtml(input);
 
   const styleBlocks = [];
   for (const m of input.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) {
@@ -78,9 +89,14 @@ export async function htmlFileToCvTemplate(file, options = {}) {
   if (!/\.(htm|html)$/.test(name)) {
     throw new Error("Upload a .htm or .html file (Word “Web Page, Filtered”).");
   }
-  const text = await file.text();
-  return {
-    html: rawHtmlToCvTemplate(text, options),
-    warnings: [],
-  };
+  const text = await readWordHtmlFileText(file);
+  const fixes = countWordHtmlSanitizeFixes(text);
+  const html = rawHtmlToCvTemplate(text, { ...options, autoSanitize: true });
+  const warnings = [];
+  if (fixes > 0) {
+    warnings.push(
+      `Replaced ${fixes} broken Word character${fixes === 1 ? "" : "s"} with full stops. Use “Fix Word characters” again if needed.`
+    );
+  }
+  return { html, warnings };
 }
