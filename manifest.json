@@ -33,6 +33,18 @@
       "128": "assets/icon128.png"
     }
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["content/job-widget.css"],
+      "matches": [
+        "https://*.greenhouse.io/*",
+        "https://www.linkedin.com/*",
+        "https://*.indeed.com/*",
+        "https://*.indeed.co.uk/*",
+        "https://*.myworkdayjobs.com/*"
+      ]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -40,7 +52,13 @@
         "https://*.indeed.com/*",
         "https://*.indeed.co.uk/*"
       ],
-      "js": ["content/humanise.js", "content/file-upload.js", "content/detector.js"],
+      "js": [
+        "content/page-context.js",
+        "content/humanise.js",
+        "content/file-upload.js",
+        "content/detector.js",
+        "content/job-widget.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -56,20 +74,24 @@
     {
       "matches": ["https://*.myworkdayjobs.com/*"],
       "js": [
+        "content/page-context.js",
         "content/humanise.js",
         "content/file-upload.js",
         "content/workday.js",
-        "content/detector.js"
+        "content/detector.js",
+        "content/job-widget.js"
       ],
       "run_at": "document_idle"
     },
     {
       "matches": ["https://*.greenhouse.io/*"],
       "js": [
+        "content/page-context.js",
         "content/humanise.js",
         "content/file-upload.js",
         "content/greenhouse.js",
-        "content/detector.js"
+        "content/detector.js",
+        "content/job-widget.js"
       ],
       "run_at": "document_idle"
     }
