@@ -13,6 +13,13 @@ export function isWebDashboard() {
   return typeof chrome !== "undefined" && !isExtensionPage() && Boolean(getExtensionId());
 }
 
+export function isLocalWeb() {
+  if (typeof location === "undefined") return false;
+  if (isExtensionPage()) return false;
+  const host = location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
 export function getExtensionId() {
   if (isExtensionPage()) return chrome.runtime.id;
   try {

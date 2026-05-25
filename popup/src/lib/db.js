@@ -2,6 +2,14 @@ const DB_NAME = "blitz_db";
 const DB_VERSION = 1;
 const STORE_NAME = "applications";
 
+async function notifyApplicationsChanged() {
+  try {
+    await chrome.storage.local.set({ applications_updated_at: Date.now() });
+  } catch {
+    /* popup / dashboard may be unavailable */
+  }
+}
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -26,7 +34,10 @@ export async function addApplication(record) {
     const tx = db.transaction(STORE_NAME, "readwrite");
     const store = tx.objectStore(STORE_NAME);
     const request = store.add(record);
-    request.onsuccess = () => resolve(record);
+    request.onsuccess = () => {
+      notifyApplicationsChanged();
+      resolve(record);
+    };
     request.onerror = () => reject(request.error);
   });
 }
@@ -61,7 +72,10 @@ export async function updateApplication(id, updates) {
       }
       const updated = { ...existing, ...updates };
       const putReq = store.put(updated);
-      putReq.onsuccess = () => resolve(updated);
+      putReq.onsuccess = () => {
+        notifyApplicationsChanged();
+        resolve(updated);
+      };
       putReq.onerror = () => reject(putReq.error);
     };
     getReq.onerror = () => reject(getReq.error);

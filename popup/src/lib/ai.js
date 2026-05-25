@@ -170,6 +170,7 @@ export function parseApplicationResponse(raw) {
     );
   }
   return {
+    applicationTitle: parsed.applicationTitle || "",
     tailoredCV: parsed.tailoredCV || "",
     coverLetter: parsed.coverLetter || "",
     screeningAnswers: parsed.screeningAnswers || [],

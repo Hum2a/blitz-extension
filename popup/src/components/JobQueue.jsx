@@ -4,6 +4,8 @@ import { useJobQueue } from "../hooks/useJobQueue.js";
 import { parseJobUrls } from "../lib/queue-utils.js";
 import { getStorage, setStorage } from "../lib/storage.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
+import { displayApplicationLabel } from "../lib/application-history-utils.js";
+import { scrollPanelClass } from "../lib/layout.js";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 
 const STATUS_LABELS = {
@@ -13,7 +15,7 @@ const STATUS_LABELS = {
   error: "Error",
 };
 
-export default function JobQueue({ onReviewItem }) {
+export default function JobQueue({ onReviewItem, fullPage = false }) {
   const { queue, processing, refresh } = useJobQueue();
   const [urlText, setUrlText] = useState("");
   const [invalid, setInvalid] = useState([]);
@@ -60,10 +62,15 @@ export default function JobQueue({ onReviewItem }) {
   const readyCount = queue.filter((i) => i.status === "ready").length;
 
   return (
-    <Stagger className="space-y-3 max-h-[440px] overflow-y-auto">
+    <Stagger className={`space-y-3 ${scrollPanelClass(fullPage)}`}>
       <FadeUp>
-        <Card className="bg-white border rounded-lg p-3" delay={0}>
-          <h2 className="text-xs font-semibold text-slate-500 uppercase mb-2">Bulk job queue</h2>
+        <Card
+          className={`bg-white border rounded-xl p-5 ${fullPage ? "shadow-sm lg:max-w-2xl" : "rounded-lg p-3"}`}
+          delay={0}
+        >
+          {!fullPage && (
+            <h2 className="text-xs font-semibold text-slate-500 uppercase mb-2">Bulk job queue</h2>
+          )}
           <p className="text-xs text-slate-600 mb-2">
             Paste job URLs (one per line). Blitz opens each in the background, scrapes, and generates
             tailored applications for you to review.
@@ -141,7 +148,7 @@ export default function JobQueue({ onReviewItem }) {
         )}
       </AnimatePresence>
 
-      <ul className="space-y-2">
+      <ul className={fullPage ? "grid sm:grid-cols-2 gap-3" : "space-y-2"}>
         <AnimatePresence initial={false}>
           {queue.map((item, index) => (
             <motion.li
@@ -151,7 +158,7 @@ export default function JobQueue({ onReviewItem }) {
               animate={{ opacity: 1, x: 0, height: "auto" }}
               exit={{ opacity: 0, x: 24, height: 0, marginBottom: 0 }}
               transition={{ type: "spring", stiffness: 400, damping: 30, delay: index * 0.03 }}
-              className="bg-white border rounded-lg p-3 text-xs overflow-hidden"
+              className={`bg-white border rounded-xl p-4 text-xs overflow-hidden ${fullPage ? "shadow-sm" : "rounded-lg p-3"}`}
               whileHover={{
                 boxShadow: "0 8px 20px -6px rgba(47, 74, 196, 0.12)",
                 borderColor: "#3b5bdb",
@@ -192,9 +199,17 @@ export default function JobQueue({ onReviewItem }) {
                 </motion.button>
               </div>
               <p className="truncate text-slate-800 font-medium">
-                {item.jobData?.jobTitle || item.url}
+                {item.application
+                  ? displayApplicationLabel({
+                      applicationTitle: item.application.applicationTitle,
+                      role: item.jobData?.jobTitle,
+                      company: item.jobData?.company,
+                    })
+                  : item.jobData?.jobTitle || item.url}
               </p>
-              <p className="text-slate-500 truncate">{item.jobData?.company || item.platform}</p>
+              {!item.application && (
+                <p className="text-slate-500 truncate">{item.jobData?.company || item.platform}</p>
+              )}
               {item.error && (
                 <motion.p
                   className="text-red-600 mt-1"

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Dashboard from "./components/Dashboard.jsx";
 import ReviewPanel from "./components/ReviewPanel.jsx";
-import ApplicationTracker from "./components/ApplicationTracker.jsx";
+import ApplicationHistory from "./components/ApplicationHistory.jsx";
 import JobQueue from "./components/JobQueue.jsx";
 import Settings from "./components/Settings.jsx";
 import LicenseGate from "./components/LicenseGate.jsx";
@@ -14,17 +14,18 @@ import DebugLog from "./components/DebugLog.jsx";
 import { Page, NavTab } from "./components/motion.jsx";
 import { progressFromStage } from "./lib/generation-progress.js";
 import { openDashboard } from "./lib/open-dashboard.js";
-import { isExtensionPage } from "./lib/extension-env.js";
+import { isExtensionPage, isLocalWeb } from "./lib/extension-env.js";
+import SiteShell from "./components/site/SiteShell.jsx";
 
 const VIEWS = {
   dashboard: "dashboard",
   review: "review",
   queue: "queue",
-  tracker: "tracker",
+  history: "history",
   settings: "settings",
 };
 
-export default function App({ fullPage = false }) {
+export default function App({ fullPage = false, bridgeMode = false }) {
   const [view, setView] = useState(VIEWS.dashboard);
   const [pendingJob, setPendingJob] = useState(null);
   const [application, setApplication] = useState(null);
@@ -125,7 +126,7 @@ export default function App({ fullPage = false }) {
   const navItems = [
     [VIEWS.dashboard, "Home"],
     [VIEWS.queue, "Queue"],
-    [VIEWS.tracker, "Tracker"],
+    [VIEWS.history, "History"],
     [VIEWS.settings, "Settings"],
   ];
 
@@ -174,12 +175,15 @@ export default function App({ fullPage = false }) {
               }
             }}
         onReview={() => setView(VIEWS.review)}
+        onViewHistory={() => setView(VIEWS.history)}
+        fullPage={fullPage}
       />
     ),
     [VIEWS.review]: (
       <ReviewPanel
         application={application}
         pendingJob={pendingJob}
+        fullPage={fullPage}
         onBack={() => setView(VIEWS.dashboard)}
         generating={generating}
         lastGenerationCost={lastGenerationCost}
@@ -208,6 +212,7 @@ export default function App({ fullPage = false }) {
     ),
     [VIEWS.queue]: (
       <JobQueue
+        fullPage={fullPage}
         onReviewItem={(app, job) => {
           setApplication(app);
           setPendingJob(job);
@@ -215,27 +220,41 @@ export default function App({ fullPage = false }) {
         }}
       />
     ),
-    [VIEWS.tracker]: <ApplicationTracker />,
-    [VIEWS.settings]: <Settings onSaved={() => license.refresh()} />,
+    [VIEWS.history]: <ApplicationHistory fullPage={fullPage} />,
+    [VIEWS.settings]: (
+      <Settings fullPage={fullPage} onSaved={() => license.refresh()} />
+    ),
   };
+
+  const mainContent = (
+    <AnimatePresence mode="wait">
+      <Page key={view} className="w-full">
+        {viewContent[view]}
+      </Page>
+    </AnimatePresence>
+  );
+
+  if (fullPage) {
+    return (
+      <SiteShell
+        view={view}
+        onNavigate={setView}
+        license={license}
+        bridgeMode={bridgeMode || isLocalWeb()}
+        reviewBack={() => setView(VIEWS.dashboard)}
+      >
+        {mainContent}
+      </SiteShell>
+    );
+  }
 
   return (
     <motion.div
-      className={`flex flex-col overflow-hidden bg-slate-50 ${
-        fullPage
-          ? "blitz-dashboard min-h-screen w-full max-w-5xl mx-auto shadow-xl"
-          : "blitz-popup min-h-[520px] w-[420px]"
-      }`}
+      className="blitz-popup flex flex-col overflow-hidden bg-slate-50 min-h-[520px] w-[420px]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.35 }}
     >
-      {fullPage && (
-        <p className="text-center text-xs text-slate-500 py-1 bg-slate-100 border-b">
-          Blitz dashboard · stays in sync with the extension ·{" "}
-          <span className="text-green-700">live</span>
-        </p>
-      )}
       <motion.header
         className="header-shine text-white px-4 py-3 flex items-center justify-between shadow-lg gap-2"
         initial={{ y: -24, opacity: 0 }}
@@ -247,7 +266,7 @@ export default function App({ fullPage = false }) {
           animate={fullPage ? undefined : { scale: [1, 1.03, 1] }}
           transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
         >
-          {fullPage ? "Blitz Dashboard" : "Blitz"}
+          Blitz
         </motion.h1>
         <nav className="flex gap-1 text-sm items-center flex-wrap justify-end">
           {navItems.map(([id, label]) => (
@@ -255,7 +274,7 @@ export default function App({ fullPage = false }) {
               {label}
             </NavTab>
           ))}
-          {isExtensionPage() && !fullPage && (
+          {isExtensionPage() && (
             <button
               type="button"
               onClick={openDashboard}
@@ -268,13 +287,7 @@ export default function App({ fullPage = false }) {
         </nav>
       </motion.header>
 
-      <main className={`flex-1 p-4 relative ${fullPage ? "min-h-[calc(100vh-8rem)]" : ""}`}>
-        <AnimatePresence mode="wait">
-          <Page key={view} className="w-full">
-            {viewContent[view]}
-          </Page>
-        </AnimatePresence>
-      </main>
+      <main className="flex-1 p-4 relative">{mainContent}</main>
 
       <motion.footer
         className="px-4 py-2 border-t bg-white space-y-1"

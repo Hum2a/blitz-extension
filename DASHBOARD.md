@@ -1,6 +1,8 @@
-# Blitz dashboard (full tab + local website)
+# Blitz workspace (full tab + local website)
 
-Use a **persistent dashboard** instead of reopening the small popup. It reads and writes the same `chrome.storage.local` data as the extension (CV, settings, pending job, queue, license).
+Use a **full website-style workspace** instead of reopening the small popup. Sidebar navigation, page headers, and multi-column layouts on desktop. Same `chrome.storage.local` data as the extension (CV, settings, pending job, queue, license).
+
+The **420px popup** stays unchanged for quick actions on job pages.
 
 ## Option A — Extension dashboard (recommended)
 
@@ -32,7 +34,9 @@ Keep the extension installed; the site is only a window into the same background
 | CV, LinkedIn PDF text, profile, API key, preferences | `chrome.storage.local` | Yes |
 | Pending job / application | `chrome.storage.local` | Yes |
 | Job queue | `chrome.storage.local` | Yes |
-| Application tracker history | IndexedDB (per origin) | Same on extension popup + extension dashboard; **not** on localhost web |
+| Application history (History tab) | IndexedDB (per origin) | Same on extension popup + extension dashboard; **not** on localhost web |
+
+**Home** shows stats + a short recent-applications list. **History** is the full log with search, filters, and CV/cover letter snapshots.
 
 ## Development
 

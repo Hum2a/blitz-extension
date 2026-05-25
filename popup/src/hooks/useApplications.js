@@ -17,6 +17,14 @@ export function useApplications() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const onChanged = (changes, area) => {
+      if (area === "local" && changes.applications_updated_at) refresh();
+    };
+    chrome.storage?.onChanged?.addListener(onChanged);
+    return () => chrome.storage?.onChanged?.removeListener(onChanged);
+  }, [refresh]);
+
   const saveApplication = useCallback(
     async (record) => {
       await addApplication(record);

@@ -4,7 +4,7 @@ import {
   getAllSettings,
   normalizeAiConfig,
 } from "../popup/src/lib/storage.js";
-import { PROMPTS } from "../popup/src/lib/prompts.js";
+import { PROMPTS, formatApplicationTitle } from "../popup/src/lib/prompts.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
 import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
 import {
@@ -467,5 +467,10 @@ async function generateApplication(
 
   const parsed = parseApplicationResponse(text);
   const cost = costFromUsage(usage, aiConfig.provider, usedModel || aiConfig.model);
-  return { ...parsed, usage, cost };
+  return {
+    ...parsed,
+    applicationTitle: formatApplicationTitle(jobData, parsed.applicationTitle),
+    usage,
+    cost,
+  };
 }

@@ -7,6 +7,8 @@ import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
 import ErrorPanel from "./ErrorPanel.jsx";
 import { Stagger, FadeUp, Card, Btn, PulseDots } from "./motion.jsx";
+import RecentApplications from "./RecentApplications.jsx";
+import { scrollPanelClass } from "../lib/layout.js";
 
 function formatCompany(company) {
   if (company == null || company === "") return null;
@@ -15,11 +17,11 @@ function formatCompany(company) {
   return s;
 }
 
-function StatCard({ value, label, delay }) {
+function StatCard({ value, label, delay, large }) {
   return (
     <Card
       delay={delay}
-      className="bg-white rounded-lg border p-3 text-center"
+      className={`bg-white border p-3 text-center ${large ? "rounded-xl shadow-sm p-4" : "rounded-lg"}`}
       hover
     >
       <motion.p
@@ -50,6 +52,8 @@ export default function Dashboard({
   onRefresh,
   onGenerate,
   onReview,
+  onViewHistory,
+  fullPage = false,
 }) {
   const { applications } = useApplications();
   const [costEstimate, setCostEstimate] = useState(null);
@@ -106,13 +110,19 @@ export default function Dashboard({
   const canGenerate =
     hasJob && !generating && !detecting && license.allowed && !externalApply && !linkedinNoEasyApply;
 
-  return (
-    <Stagger className="space-y-4">
-      <FadeUp>
-        <Card className="bg-white rounded-lg border border-slate-200 p-4" delay={0}>
+  const jobCard = (
+    <FadeUp>
+      <Card
+        className={`bg-white rounded-xl border border-slate-200 p-5 ${fullPage ? "shadow-sm" : "rounded-lg p-4"}`}
+        delay={0}
+      >
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
-              Current page
+            <h2
+              className={`font-semibold text-slate-500 uppercase tracking-wide ${
+                fullPage ? "text-xs" : "text-sm"
+              }`}
+            >
+              {fullPage ? "Active job tab" : "Current page"}
             </h2>
             <motion.button
               type="button"
@@ -234,28 +244,33 @@ export default function Dashboard({
             ) : null}
           </AnimatePresence>
         </Card>
-      </FadeUp>
+    </FadeUp>
+  );
 
-      <AnimatePresence>
-        {application?.matchScore != null && (
-          <motion.div
-            key="match"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 300, damping: 24 }}
-          >
-            <Card className="bg-white rounded-lg border p-4" delay={0.08}>
-              <MatchScoreRing
-                score={application.matchScore}
-                rationale={application.matchRationale}
-                size={80}
-              />
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+  const matchCard = (
+    <AnimatePresence>
+      {application?.matchScore != null && (
+        <motion.div
+          key="match"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 300, damping: 24 }}
+        >
+          <Card className="bg-white rounded-xl border p-4 shadow-sm" delay={0.08}>
+            <MatchScoreRing
+              score={application.matchScore}
+              rationale={application.matchRationale}
+              size={fullPage ? 96 : 80}
+            />
+          </Card>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
+  const actionsBlock = (
+    <>
       {generateError && (
         <ErrorPanel
           title="Generation failed"
@@ -263,9 +278,11 @@ export default function Dashboard({
           onDismiss={onDismissGenerateError}
         />
       )}
-
       <FadeUp delay={0.12}>
-        <div className="flex flex-col gap-2">
+        <Card className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3" delay={0.1} hover={false}>
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Generate
+          </h3>
           <CostEstimate
             estimate={costEstimate}
             actualCost={lastGenerationCost}
@@ -281,7 +298,7 @@ export default function Dashboard({
               >
                 <Btn
                   onClick={onReview}
-                  className="w-full bg-blitz-600 hover:bg-blitz-700 text-white font-medium py-2.5 rounded-lg transition btn-shine"
+                  className="w-full bg-blitz-600 hover:bg-blitz-700 text-white font-medium py-3 rounded-lg transition btn-shine"
                 >
                   Review application
                 </Btn>
@@ -292,7 +309,7 @@ export default function Dashboard({
             <Btn
               onClick={onGenerate}
               disabled={!canGenerate || generating}
-              className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition btn-shine relative overflow-hidden"
+              className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-3 rounded-lg transition btn-shine relative overflow-hidden"
             >
               {generating && (
                 <motion.div
@@ -310,7 +327,8 @@ export default function Dashboard({
                       animate={{ rotate: 360 }}
                       transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
                     />
-                    Generating… {generationProgress?.percent != null ? `${generationProgress.percent}%` : ""}
+                    Generating…{" "}
+                    {generationProgress?.percent != null ? `${generationProgress.percent}%` : ""}
                   </>
                 ) : (
                   "Generate tailored application"
@@ -318,7 +336,6 @@ export default function Dashboard({
               </span>
             </Btn>
           </div>
-
           <AnimatePresence>
             {generating && (
               <motion.div
@@ -333,19 +350,53 @@ export default function Dashboard({
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </Card>
       </FadeUp>
+    </>
+  );
 
-      <section className="grid grid-cols-2 gap-3">
-        <StatCard value={stats.thisWeek} label="This week" delay={0.14} />
-        <StatCard value={`${stats.responseRate}%`} label="Response rate" delay={0.18} />
-        <StatCard value={license.used ?? 0} label="Total used" delay={0.22} />
-        <StatCard
-          value={license.remaining === Infinity ? "∞" : license.remaining}
-          label="Remaining (free)"
-          delay={0.26}
-        />
-      </section>
+  const statsSection = (
+    <section className={`grid gap-3 ${fullPage ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
+      <StatCard value={stats.thisWeek} label="This week" delay={0.14} large={fullPage} />
+      <StatCard value={`${stats.responseRate}%`} label="Response rate" delay={0.18} large={fullPage} />
+      <StatCard value={license.used ?? 0} label="Total used" delay={0.22} large={fullPage} />
+      <StatCard
+        value={license.remaining === Infinity ? "∞" : license.remaining}
+        label="Remaining (free)"
+        delay={0.26}
+        large={fullPage}
+      />
+    </section>
+  );
+
+  const recentSection =
+    onViewHistory && (
+      <RecentApplications onViewHistory={onViewHistory} limit={fullPage ? 8 : 4} />
+    );
+
+  if (fullPage) {
+    return (
+      <div className="grid lg:grid-cols-12 gap-8 -mt-2">
+        <div className="lg:col-span-5 space-y-6">
+          {jobCard}
+          {matchCard}
+          {actionsBlock}
+        </div>
+        <div className="lg:col-span-7 space-y-6">
+          {statsSection}
+          {recentSection}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Stagger className={`space-y-4 ${scrollPanelClass(false)}`}>
+      {jobCard}
+      {matchCard}
+      {actionsBlock}
+      {statsSection}
+      {recentSection}
     </Stagger>
   );
 }

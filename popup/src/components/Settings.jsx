@@ -18,7 +18,9 @@ import {
   ANTHROPIC_DEFAULT_MODEL,
 } from "../lib/models.js";
 
-export default function Settings({ onSaved }) {
+import { scrollPanelClass } from "../lib/layout.js";
+
+export default function Settings({ onSaved, fullPage = false }) {
   const { settings, loading, refresh } = useAllSettings();
   const [form, setForm] = useState(null);
   const [testing, setTesting] = useState(false);
@@ -255,7 +257,9 @@ export default function Settings({ onSaved }) {
   const isPro = license.tier === "pro";
 
   return (
-    <Stagger className="space-y-4 max-h-[480px] overflow-y-auto overflow-x-hidden text-sm pr-1">
+    <Stagger
+      className={`space-y-4 text-sm pr-1 ${scrollPanelClass(fullPage, "max-h-[480px] overflow-y-auto overflow-x-hidden")} ${fullPage ? "max-w-3xl" : ""}`}
+    >
       <Section title="AI provider" index={0}>
         <select
           value={form.ai_config?.provider || "anthropic"}

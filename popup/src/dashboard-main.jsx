@@ -5,7 +5,9 @@ import WebConnect from "./components/WebConnect.jsx";
 import { isExtensionPage } from "./lib/extension-env.js";
 import "./styles/globals.css";
 
-document.body.classList.add("blitz-dashboard");
+if (isExtensionPage()) {
+  document.body.classList.add("blitz-site");
+}
 
 function Root() {
   if (isExtensionPage()) {
