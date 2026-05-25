@@ -1,30 +1,28 @@
 /**
- * Word "Web Page" exports often use windows-1252. Reading as UTF-8 yields U+FFFD ().
+ * Word "Web Page" (.htm) cleanup: windows-1252 decoding + real HTML lists.
  */
 
 const REPLACEMENT_CHAR = "\uFFFD";
 const MOJIBAKE_SEQ = "ï¿½";
 
-/** Characters Word uses that we normalize to a full stop when sanitising. */
-const WORD_PUNCT_TO_STOP = [
-  REPLACEMENT_CHAR,
-  MOJIBAKE_SEQ,
-  "\u00b7", // middle dot ·
-  "\u2022", // bullet •
-  "\u2023",
-  "\u2219",
-  "\u25aa",
-  "\u25cf",
-];
+const MSO_LIST_PARA_RE = /<p([^>]*\bMsoListParagraph\b[^>]*)>([\s\S]*?)<\/p>/gi;
+
+const LIST_MARKER_BLOCK_RE =
+  /<!\[if\s*!supportLists\][\s\S]*?<!\[endif]>/gi;
+const MSO_LIST_IGNORE_RE = /<span[^>]*\bmso-list:Ignore\b[^>]*>[\s\S]*?<\/span>/gi;
+const OOXML_TAG_RE = /<\/?o:p[^>]*>/gi;
+
+/** Only count broken encoding artefacts (not list bullets). */
+const ENCODING_ARTIFACTS = [REPLACEMENT_CHAR, MOJIBAKE_SEQ];
 
 /**
- * Count how many sanitise replacements would be made (for UI feedback).
+ * Count encoding fixes only (not list normalisation).
  */
 export function countWordHtmlSanitizeFixes(html) {
   if (!html) return 0;
   const s = String(html);
   let n = 0;
-  for (const ch of WORD_PUNCT_TO_STOP) {
+  for (const ch of ENCODING_ARTIFACTS) {
     const parts = s.split(ch);
     if (parts.length > 1) n += parts.length - 1;
   }
@@ -32,22 +30,64 @@ export function countWordHtmlSanitizeFixes(html) {
 }
 
 /**
- * Replace Word/encoding artefacts with ASCII full stops (or custom replacement).
- * Collapses repeated replacements and trims " ." spacing slightly.
+ * Map broken characters in visible text — bullets stay as list markers via <ul>/<li>.
  */
-export function sanitizeWordImportedHtml(html, { replacement = "." } = {}) {
+function fixReplacementCharInText(text) {
+  return String(text)
+    .replace(/\uFFFD/g, (_m, idx, full) => {
+      const prev = full[idx - 1];
+      const next = full[idx + 1];
+      if (/\d/.test(prev) && /\d/.test(next)) return "–";
+      if (/\s/.test(prev) && /\s/.test(next)) return "·";
+      return "";
+    })
+    .replace(/ï¿½/g, "·");
+}
+
+function fixEncodingBetweenTags(html) {
+  return html.replace(/>([^<]+)</g, (_match, text) => {
+    if (!text.trim()) return `>${text}<`;
+    return `>${fixReplacementCharInText(text)}<`;
+  });
+}
+
+function cleanListParagraphInner(inner) {
+  let c = inner;
+  c = c.replace(LIST_MARKER_BLOCK_RE, "");
+  c = c.replace(MSO_LIST_IGNORE_RE, "");
+  c = c.replace(OOXML_TAG_RE, "");
+  c = c.replace(/<span[^>]*>\s*<\/span>/gi, "");
+  c = c.replace(/^[\s\u2022\u00b7\u2219\u25aa\u25cf\uFFFD•·–—\-]+/u, "");
+  c = fixEncodingBetweenTags(c);
+  return c.trim();
+}
+
+/**
+ * Word uses MsoListParagraph + conditional bullets, not <li>. Convert to semantic lists.
+ */
+export function normalizeWordListsInHtml(html) {
+  if (!html) return html;
+
+  let out = String(html).replace(MSO_LIST_PARA_RE, (_full, _attrs, inner) => {
+    const body = cleanListParagraphInner(inner);
+    if (!body) return "";
+    return `<li class="word-cv-li">${body}</li>`;
+  });
+
+  out = out.replace(/(?:<li class="word-cv-li">[\s\S]*?<\/li>\s*)+/gi, (block) => {
+    return `<ul class="word-cv-ul">\n${block}</ul>\n`;
+  });
+
+  return out;
+}
+
+/**
+ * Full Word HTML cleanup: lists first, then encoding in text nodes only.
+ */
+export function sanitizeWordImportedHtml(html) {
   if (html == null) return html;
-  let out = String(html);
-
-  for (const ch of WORD_PUNCT_TO_STOP) {
-    if (!ch) continue;
-    out = out.split(ch).join(replacement);
-  }
-
-  const rep = replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  out = out.replace(new RegExp(`${rep}{2,}`, "g"), replacement);
-  out = out.replace(new RegExp(`\\s+${rep}\\s+`, "g"), ` ${replacement} `);
-
+  let out = normalizeWordListsInHtml(String(html));
+  out = fixEncodingBetweenTags(out);
   return out;
 }
 

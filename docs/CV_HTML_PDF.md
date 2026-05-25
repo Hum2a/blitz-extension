@@ -19,7 +19,8 @@ Word **.docx** import is convenient but layout often differs from the desktop do
 
 1. Word → **File → Save As → Web Page, Filtered (*.htm)**
 2. Blitz → Settings → Import Word → **Upload .htm** (or copy/paste the file contents)
-3. Replace your name and sections with `{{fullName}}`, `{{#jobs}}`, etc.
+3. Click **Fix Word lists & encoding** if needed — converts `MsoListParagraph` blocks to real `<ul><li>` bullets (Word does not export standard `<li>` tags)
+4. Replace your name and sections with `{{fullName}}`, `{{#jobs}}`, etc.
 
 The default template matches a classic UK CV layout (summary, education, skills, career blocks).
 

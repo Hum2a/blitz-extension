@@ -165,10 +165,8 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
       const after = countWordHtmlSanitizeFixes(cleaned);
       setSanitizeNote(
         before > 0
-          ? `Replaced ${before} broken character${before === 1 ? "" : "s"} with full stops.`
-          : after === 0
-            ? "No broken characters found."
-            : "Sanitized — preview again to confirm."
+          ? `Fixed ${before} encoding issue${before === 1 ? "" : "s"} and normalised Word lists to <ul>/<li>.`
+          : "Lists normalised — preview again to confirm."
       );
     } finally {
       setSanitizing(false);
@@ -245,7 +243,7 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
           disabled={sanitizing || !template.trim()}
           className="text-xs border border-amber-300 bg-amber-50 text-amber-900 px-3 py-1.5 rounded-lg hover:bg-amber-100"
         >
-          {sanitizing ? "Fixing…" : "Fix Word characters ( → . )"}
+          {sanitizing ? "Fixing…" : "Fix Word lists & encoding"}
         </Btn>
         {sanitizeNote && <span className="text-xs text-amber-800">{sanitizeNote}</span>}
       </div>

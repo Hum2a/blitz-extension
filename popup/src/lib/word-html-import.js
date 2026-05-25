@@ -25,6 +25,26 @@ export const MINIMAL_CV_PAGE_CSS = `
     padding: 0;
     width: 100%;
   }
+  ul.word-cv-ul,
+  .cv-page ul {
+    margin: 4px 0 8px 0;
+    padding-left: 1.35em;
+    list-style-type: disc;
+    list-style-position: outside;
+  }
+  li.word-cv-li,
+  .cv-page li {
+    display: list-item;
+    margin: 0 0 4px 0;
+    text-align: justify;
+  }
+  p.MsoListParagraph {
+    margin: 0 0 4px 0;
+    padding-left: 1.35em;
+    text-indent: -1.35em;
+    list-style-type: disc;
+    list-style-position: outside;
+  }
 `;
 
 export const WORD_HTML_IMPORT_GUIDE = `Best match to your original Word CV
@@ -95,7 +115,7 @@ export async function htmlFileToCvTemplate(file, options = {}) {
   const warnings = [];
   if (fixes > 0) {
     warnings.push(
-      `Replaced ${fixes} broken Word character${fixes === 1 ? "" : "s"} with full stops. Use “Fix Word characters” again if needed.`
+      `Fixed ${fixes} broken encoding character${fixes === 1 ? "" : "s"} and converted Word list paragraphs to HTML bullets.`
     );
   }
   return { html, warnings };

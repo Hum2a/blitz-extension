@@ -118,8 +118,8 @@ export default function ReviewPdfHtmlEditor({
                         syncOverride(cleaned, true);
                         setSanitizeNote(
                           before > 0
-                            ? `Fixed ${before} character${before === 1 ? "" : "s"}.`
-                            : "No broken characters found."
+                            ? `Fixed ${before} encoding issue${before === 1 ? "" : "s"} and list markup.`
+                            : "Lists and encoding look OK."
                         );
                       } finally {
                         setSanitizing(false);
@@ -129,7 +129,7 @@ export default function ReviewPdfHtmlEditor({
                     disabled={sanitizing || !html.trim()}
                     className="text-xs border border-amber-300 bg-amber-50 text-amber-900 px-3 py-1.5 rounded-lg hover:bg-amber-100"
                   >
-                    {sanitizing ? "Fixing…" : "Fix Word characters"}
+                    {sanitizing ? "Fixing…" : "Fix lists & encoding"}
                   </Btn>
                   {sanitizeNote && (
                     <span className="text-[11px] text-amber-800">{sanitizeNote}</span>
