@@ -19,7 +19,7 @@ const DEFAULTS = {
   ai_config: {
     provider: "anthropic",
     apiKey: "",
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-6",
   },
   license: {
     key: "",
@@ -38,6 +38,37 @@ const DEFAULTS = {
   job_queue: [],
   queue_processing: false,
 };
+
+import { remapAnthropicModel, ANTHROPIC_DEFAULT_MODEL, OPENAI_DEFAULT_MODEL } from "./models.js";
+
+export function normalizeAiConfig(aiConfig) {
+  const base = { ...DEFAULTS.ai_config, ...(aiConfig || {}) };
+  if (base.provider === "anthropic") {
+    const remapped = remapAnthropicModel(base.model);
+    if (remapped !== base.model) {
+      return { ...base, model: remapped };
+    }
+  }
+  if (!base.model?.trim()) {
+    return {
+      ...base,
+      model: base.provider === "openai" ? OPENAI_DEFAULT_MODEL : ANTHROPIC_DEFAULT_MODEL,
+    };
+  }
+  return base;
+}
+
+async function persistAiConfigIfMigrated(previous, normalized) {
+  if (previous?.model === normalized.model) return;
+  await storageSet({
+    ai_config: {
+      ...previous,
+      provider: normalized.provider,
+      apiKey: normalized.apiKey,
+      model: normalized.model,
+    },
+  });
+}
 
 export class StorageError extends Error {
   constructor(message, cause) {
@@ -85,9 +116,14 @@ export async function getStorage(key) {
   if (key === null || key === undefined) {
     return result;
   }
-  const value = result[key];
+  let value = result[key];
   if (value === undefined && key in DEFAULTS) {
-    return DEFAULTS[key];
+    value = DEFAULTS[key];
+  }
+  if (key === "ai_config") {
+    const normalized = normalizeAiConfig(value);
+    await persistAiConfigIfMigrated(value, normalized);
+    return normalized;
   }
   return value;
 }
@@ -135,7 +171,10 @@ export async function getStorageUsage() {
 
 export async function getAllSettings() {
   const stored = await storageGet(null);
-  return { ...DEFAULTS, ...stored };
+  const merged = { ...DEFAULTS, ...stored };
+  const ai_config = normalizeAiConfig(merged.ai_config);
+  await persistAiConfigIfMigrated(merged.ai_config, ai_config);
+  return { ...merged, ai_config };
 }
 
 export { DEFAULTS };

@@ -1,11 +1,29 @@
+import {
+  remapAnthropicModel,
+  ANTHROPIC_DEFAULT_MODEL,
+  ANTHROPIC_FALLBACK_CHAIN,
+  OPENAI_DEFAULT_MODEL,
+  uniqueModels,
+  isModelErrorMessage,
+} from "./models.js";
+
+export function resolveModel(provider, model) {
+  if (provider === "anthropic") {
+    return remapAnthropicModel(model);
+  }
+  const trimmed = model?.trim();
+  if (trimmed) return trimmed;
+  return OPENAI_DEFAULT_MODEL;
+}
+
 export function formatApiError(errBody, status, provider) {
   const msg = errBody?.error?.message || errBody?.message || "";
-  if (/^model:/i.test(msg) || /model.*not found|invalid.*model/i.test(msg)) {
+  if (isModelErrorMessage(msg)) {
     const modelName = msg.replace(/^model:\s*/i, "").trim();
     return (
       `Invalid or unavailable model${modelName ? ` (“${modelName}”)` : ""}. ` +
-      `Open Settings → AI provider and pick a supported model ` +
-      `(e.g. claude-3-5-sonnet-20241022 or gpt-4o).`
+      `Open Settings → AI provider, click “Refresh models”, and pick one from your account ` +
+      `(recommended: ${ANTHROPIC_DEFAULT_MODEL} or gpt-4o).`
     );
   }
   if (status === 401) return "Invalid API key. Check Settings → AI provider.";
@@ -19,7 +37,7 @@ export async function callAI({ provider, apiKey, model, systemPrompt, userPrompt
   }
 
   if (provider === "anthropic") {
-    return callAnthropic({ apiKey, model, systemPrompt, userPrompt });
+    return callAnthropicWithFallback({ apiKey, model, systemPrompt, userPrompt });
   }
   if (provider === "openai") {
     return callOpenAI({ apiKey, model, systemPrompt, userPrompt });
@@ -27,7 +45,7 @@ export async function callAI({ provider, apiKey, model, systemPrompt, userPrompt
   throw new Error(`Unknown AI provider: ${provider}`);
 }
 
-async function callAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
+async function requestAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -37,7 +55,7 @@ async function callAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: model || "claude-3-5-sonnet-20241022",
+      model,
       max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
@@ -46,7 +64,9 @@ async function callAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(formatApiError(err, response.status, "Anthropic"));
+    const error = new Error(formatApiError(err, response.status, "Anthropic"));
+    error.isModelError = isModelErrorMessage(err.error?.message || "");
+    throw error;
   }
 
   const data = await response.json();
@@ -57,7 +77,32 @@ async function callAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
   };
 }
 
+async function callAnthropicWithFallback({ apiKey, model, systemPrompt, userPrompt }) {
+  const candidates = uniqueModels([
+    resolveModel("anthropic", model),
+    ...ANTHROPIC_FALLBACK_CHAIN,
+  ]);
+
+  let lastError;
+  for (const candidate of candidates) {
+    try {
+      const result = await requestAnthropic({
+        apiKey,
+        model: candidate,
+        systemPrompt,
+        userPrompt,
+      });
+      return result;
+    } catch (err) {
+      lastError = err;
+      if (!err.isModelError) throw err;
+    }
+  }
+  throw lastError || new Error("No Anthropic models available for this API key.");
+}
+
 async function callOpenAI({ apiKey, model, systemPrompt, userPrompt }) {
+  const resolvedModel = resolveModel("openai", model);
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -65,7 +110,7 @@ async function callOpenAI({ apiKey, model, systemPrompt, userPrompt }) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: model || "gpt-4o",
+      model: resolvedModel,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -99,7 +144,7 @@ export function parseApplicationResponse(raw) {
     parsed = JSON.parse(text);
   } catch {
     throw new Error(
-      "AI returned invalid JSON. Try again or switch model (e.g. claude-3-5-sonnet-20241022)."
+      `AI returned invalid JSON. Try again or switch model (e.g. ${ANTHROPIC_DEFAULT_MODEL}).`
     );
   }
   return {

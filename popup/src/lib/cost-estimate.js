@@ -9,10 +9,10 @@ export function estimateTokens(text) {
 /** USD per 1M tokens — update periodically; estimates only. */
 const PRICING_USD_PER_M = {
   anthropic: {
-    "claude-sonnet-4-20250514": { input: 3, output: 15 },
-    "claude-3-7-sonnet-20250219": { input: 3, output: 15 },
-    "claude-3-5-sonnet-20241022": { input: 3, output: 15 },
-    "claude-3-5-haiku-20241022": { input: 0.8, output: 4 },
+    "claude-sonnet-4-6": { input: 3, output: 15 },
+    "claude-sonnet-4-5-20250929": { input: 3, output: 15 },
+    "claude-haiku-4-5-20251001": { input: 1, output: 5 },
+    "claude-opus-4-6": { input: 5, output: 25 },
     default: { input: 3, output: 15 },
   },
   openai: {

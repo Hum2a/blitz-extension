@@ -12,6 +12,11 @@ import {
 import { extractTextFromPdf } from "../lib/pdf-parse.js";
 import { FREE_APPLICATION_LIMIT } from "../lib/license.js";
 import { LEMONSQUEEZY } from "../lib/config.js";
+import {
+  ANTHROPIC_MODEL_SUGGESTIONS,
+  OPENAI_MODEL_SUGGESTIONS,
+  ANTHROPIC_DEFAULT_MODEL,
+} from "../lib/models.js";
 
 export default function Settings({ onSaved }) {
   const { settings, loading, refresh } = useAllSettings();
@@ -26,6 +31,46 @@ export default function Settings({ onSaved }) {
   const [saveError, setSaveError] = useState(null);
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef(null);
+  const [availableModels, setAvailableModels] = useState(ANTHROPIC_MODEL_SUGGESTIONS);
+  const [modelsLoading, setModelsLoading] = useState(false);
+
+  const refreshModels = useCallback(async () => {
+    if (form?.ai_config?.provider !== "anthropic") return;
+    if (!form?.ai_config?.apiKey?.trim()) {
+      setAvailableModels(ANTHROPIC_MODEL_SUGGESTIONS);
+      return;
+    }
+    setModelsLoading(true);
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: "LIST_ANTHROPIC_MODELS",
+        payload: { apiKey: form.ai_config.apiKey },
+      });
+      if (result?.models?.length) {
+        setAvailableModels(result.models);
+        const ids = result.models.map((m) => m.id);
+        if (form.ai_config.model && !ids.includes(form.ai_config.model)) {
+          setForm((prev) => ({
+            ...prev,
+            ai_config: { ...prev.ai_config, model: result.models[0].id },
+          }));
+          setSaved(false);
+        }
+      }
+    } catch {
+      setAvailableModels(ANTHROPIC_MODEL_SUGGESTIONS);
+    } finally {
+      setModelsLoading(false);
+    }
+  }, [form?.ai_config?.apiKey, form?.ai_config?.provider, form?.ai_config?.model]);
+
+  useEffect(() => {
+    if (form?.ai_config?.provider === "anthropic" && form?.ai_config?.apiKey?.trim()) {
+      refreshModels();
+    } else if (form?.ai_config?.provider === "openai") {
+      setAvailableModels(OPENAI_MODEL_SUGGESTIONS);
+    }
+  }, [form?.ai_config?.provider, form?.ai_config?.apiKey, refreshModels]);
 
   useEffect(() => {
     if (settings && !dirtyRef.current) {
@@ -227,30 +272,43 @@ export default function Settings({ onSaved }) {
           onChange={(e) => update("ai_config.apiKey", e.target.value)}
           className="w-full border rounded p-2 mt-2"
         />
-        <input
-          type="text"
-          list="blitz-model-suggestions"
-          placeholder="Model ID"
-          value={form.ai_config?.model || ""}
-          onChange={(e) => update("ai_config.model", e.target.value)}
-          className="w-full border rounded p-2 mt-2 font-mono text-xs"
-        />
-        <datalist id="blitz-model-suggestions">
-          {form.ai_config?.provider === "openai" ? (
-            <>
-              <option value="gpt-4o" />
-              <option value="gpt-4o-mini" />
-            </>
-          ) : (
-            <>
-              <option value="claude-3-5-sonnet-20241022" />
-              <option value="claude-3-7-sonnet-20250219" />
-              <option value="claude-3-5-haiku-20241022" />
-            </>
-          )}
-        </datalist>
+        {form.ai_config?.provider === "openai" ? (
+          <select
+            value={form.ai_config?.model || "gpt-4o"}
+            onChange={(e) => update("ai_config.model", e.target.value)}
+            className="w-full border rounded p-2 mt-2 font-mono text-xs"
+          >
+            {OPENAI_MODEL_SUGGESTIONS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <select
+              value={form.ai_config?.model || ANTHROPIC_DEFAULT_MODEL}
+              onChange={(e) => update("ai_config.model", e.target.value)}
+              className="w-full border rounded p-2 mt-2 font-mono text-xs"
+            >
+              {availableModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label || m.id}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={refreshModels}
+              disabled={modelsLoading || !form.ai_config?.apiKey?.trim()}
+              className="mt-1 text-xs text-blitz-600 underline disabled:opacity-50"
+            >
+              {modelsLoading ? "Loading models…" : "Refresh models from API"}
+            </button>
+          </>
+        )}
         <p className="text-xs text-slate-500 mt-1">
-          Use a model your API key can access. Wrong model IDs cause generation errors.
+          Older models (e.g. claude-3-5-sonnet) are retired — use Sonnet 4.6 or refresh from API.
         </p>
         <button
           type="button"

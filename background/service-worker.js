@@ -1,4 +1,9 @@
-import { getStorage, setStorage, getAllSettings } from "../popup/src/lib/storage.js";
+import {
+  getStorage,
+  setStorage,
+  getAllSettings,
+  normalizeAiConfig,
+} from "../popup/src/lib/storage.js";
 import { PROMPTS } from "../popup/src/lib/prompts.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
 import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
@@ -11,6 +16,22 @@ import {
 import { processQueue } from "./queue-processor.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
+
+async function migrateStoredAiConfig() {
+  const raw = (await getStorage("ai_config")) || {};
+  const normalized = normalizeAiConfig(raw);
+  if (normalized.model !== raw.model) {
+    await setStorage("ai_config", normalized);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  migrateStoredAiConfig().catch(() => {});
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  migrateStoredAiConfig().catch(() => {});
+});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GENERATE_PDF_OFFSCREEN") {
@@ -198,6 +219,16 @@ async function handleMessage(message, sender) {
 
     case "SCRAPE_ACTIVE_TAB": {
       return scrapeActiveTabJob(message.payload?.tabId);
+    }
+
+    case "LIST_ANTHROPIC_MODELS": {
+      const { fetchAnthropicModels, ANTHROPIC_MODEL_SUGGESTIONS } = await import(
+        "../popup/src/lib/models.js"
+      );
+      const config = await getStorage("ai_config");
+      const apiKey = message.payload?.apiKey || config?.apiKey;
+      const models = await fetchAnthropicModels(apiKey);
+      return { models: models?.length ? models : ANTHROPIC_MODEL_SUGGESTIONS };
     }
 
     case "TEST_API_KEY": {
