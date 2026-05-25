@@ -1,4 +1,5 @@
 import { getStorage, setStorage } from "./storage.js";
+import { sendExtensionMessage } from "./extension-env.js";
 
 const MAX_LOG = 20;
 
@@ -30,17 +31,10 @@ export async function clearErrorLog() {
 export async function sendRuntimeMessage(message) {
   let response;
   try {
-    response = await chrome.runtime.sendMessage(message);
+    response = await sendExtensionMessage(message);
   } catch (err) {
-    const msg =
-      chrome.runtime.lastError?.message ||
-      err?.message ||
-      "Extension messaging failed";
+    const msg = err?.message || "Extension messaging failed";
     throw enrichMessageError(msg, message.type);
-  }
-
-  if (chrome.runtime.lastError) {
-    throw enrichMessageError(chrome.runtime.lastError.message, message.type);
   }
 
   if (response?.error) {

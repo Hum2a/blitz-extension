@@ -1,5 +1,7 @@
 import { useMemo, useEffect, useState } from "react";
 import CostEstimate from "./CostEstimate.jsx";
+import GenerationProgress from "./GenerationProgress.jsx";
+import { progressFromStage } from "../lib/generation-progress.js";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
@@ -44,6 +46,7 @@ export default function Dashboard({
   generateError,
   onDismissGenerateError,
   lastGenerationCost,
+  generationProgress,
   onRefresh,
   onGenerate,
   onReview,
@@ -285,19 +288,21 @@ export default function Dashboard({
               </motion.div>
             )}
           </AnimatePresence>
-          <Btn
-            onClick={onGenerate}
-            disabled={!canGenerate}
-            className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition btn-shine relative"
-          >
-            <AnimatePresence mode="wait">
-              <motion.span
-                key={generating ? "gen" : "idle"}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                className="inline-flex items-center justify-center gap-2"
-              >
+          <div className="relative w-full">
+            <Btn
+              onClick={onGenerate}
+              disabled={!canGenerate || generating}
+              className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition btn-shine relative overflow-hidden"
+            >
+              {generating && (
+                <motion.div
+                  className="absolute inset-0 bg-blitz-600/30"
+                  initial={{ width: "0%" }}
+                  animate={{ width: `${generationProgress?.percent ?? 5}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              )}
+              <span className="relative z-10 inline-flex items-center justify-center gap-2">
                 {generating ? (
                   <>
                     <motion.span
@@ -305,14 +310,29 @@ export default function Dashboard({
                       animate={{ rotate: 360 }}
                       transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
                     />
-                    Generating…
+                    Generating… {generationProgress?.percent != null ? `${generationProgress.percent}%` : ""}
                   </>
                 ) : (
                   "Generate tailored application"
                 )}
-              </motion.span>
-            </AnimatePresence>
-          </Btn>
+              </span>
+            </Btn>
+          </div>
+
+          <AnimatePresence>
+            {generating && (
+              <motion.div
+                key="gen-progress"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <GenerationProgress
+                  progress={generationProgress || progressFromStage("validate", "Connecting…")}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </FadeUp>
 

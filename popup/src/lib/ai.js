@@ -31,15 +31,29 @@ export function formatApiError(errBody, status, provider) {
   return msg || `${provider} API error (${status})`;
 }
 
-export async function callAI({ provider, apiKey, model, systemPrompt, userPrompt }) {
+export async function callAI({
+  provider,
+  apiKey,
+  model,
+  systemPrompt,
+  userPrompt,
+  onApiProgress,
+}) {
   if (!apiKey) {
     throw new Error("API key not configured. Add your key in Settings.");
   }
 
   if (provider === "anthropic") {
-    return callAnthropicWithFallback({ apiKey, model, systemPrompt, userPrompt });
+    return callAnthropicWithFallback({
+      apiKey,
+      model,
+      systemPrompt,
+      userPrompt,
+      onApiProgress,
+    });
   }
   if (provider === "openai") {
+    onApiProgress?.(resolveModel("openai", model), 1, 1);
     return callOpenAI({ apiKey, model, systemPrompt, userPrompt });
   }
   throw new Error(`Unknown AI provider: ${provider}`);
@@ -77,14 +91,22 @@ async function requestAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
   };
 }
 
-async function callAnthropicWithFallback({ apiKey, model, systemPrompt, userPrompt }) {
+async function callAnthropicWithFallback({
+  apiKey,
+  model,
+  systemPrompt,
+  userPrompt,
+  onApiProgress,
+}) {
   const candidates = uniqueModels([
     resolveModel("anthropic", model),
     ...ANTHROPIC_FALLBACK_CHAIN,
   ]);
 
   let lastError;
-  for (const candidate of candidates) {
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    onApiProgress?.(candidate, i + 1, candidates.length);
     try {
       const result = await requestAnthropic({
         apiKey,

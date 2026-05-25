@@ -10,7 +10,10 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     rollupOptions: {
-      input: resolve(__dirname, "popup/index.html"),
+      input: {
+        popup: resolve(__dirname, "popup/index.html"),
+        dashboard: resolve(__dirname, "popup/dashboard.html"),
+      },
     },
   },
   resolve: {

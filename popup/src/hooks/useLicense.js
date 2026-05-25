@@ -20,5 +20,13 @@ export function useLicense() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const onChanged = (changes, area) => {
+      if (area === "local" && changes.license) refresh();
+    };
+    chrome.storage?.onChanged?.addListener(onChanged);
+    return () => chrome.storage?.onChanged?.removeListener(onChanged);
+  }, [refresh]);
+
   return { ...status, refresh };
 }

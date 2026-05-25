@@ -12,6 +12,9 @@ import { scrapeActiveTab } from "./lib/scrape-tab.js";
 import { logError, pingBackground } from "./lib/runtime-messages.js";
 import DebugLog from "./components/DebugLog.jsx";
 import { Page, NavTab } from "./components/motion.jsx";
+import { progressFromStage } from "./lib/generation-progress.js";
+import { openDashboard } from "./lib/open-dashboard.js";
+import { isExtensionPage } from "./lib/extension-env.js";
 
 const VIEWS = {
   dashboard: "dashboard",
@@ -21,7 +24,7 @@ const VIEWS = {
   settings: "settings",
 };
 
-export default function App() {
+export default function App({ fullPage = false }) {
   const [view, setView] = useState(VIEWS.dashboard);
   const [pendingJob, setPendingJob] = useState(null);
   const [application, setApplication] = useState(null);
@@ -31,6 +34,7 @@ export default function App() {
   const [detectErrorDetails, setDetectErrorDetails] = useState(null);
   const [generateError, setGenerateError] = useState(null);
   const [lastGenerationCost, setLastGenerationCost] = useState(null);
+  const [generationProgress, setGenerationProgress] = useState(null);
   const license = useLicense();
 
   const refreshJobFromTab = async () => {
@@ -66,24 +70,50 @@ export default function App() {
     }
   };
 
+  const syncFromStorage = async (changes) => {
+    if (changes?.pending_job) {
+      setPendingJob(changes.pending_job.newValue ?? null);
+    } else if (!changes || changes.pending_job === undefined) {
+      setPendingJob(await getStorage("pending_job"));
+    }
+    if (changes?.pending_application) {
+      setApplication(changes.pending_application.newValue ?? null);
+    } else if (!changes || changes.pending_application === undefined) {
+      setApplication(await getStorage("pending_application"));
+    }
+  };
+
   useEffect(() => {
     getStorage("pending_application").then(setApplication);
+    getStorage("pending_job").then(setPendingJob);
     refreshJobFromTab();
+
+    const onStorage = (ch, area) => {
+      if (area === "local") syncFromStorage(ch);
+    };
+    chrome.storage.onChanged.addListener(onStorage);
 
     const listener = (message) => {
       if (message.type === "JOB_DETECTED") {
         setPendingJob(message.payload);
         setDetectError(null);
       }
+      if (message.type === "GENERATION_PROGRESS") {
+        setGenerationProgress(message.payload);
+      }
       if (message.type === "APPLICATION_READY") {
         setApplication(message.payload);
         setGenerating(false);
+        setGenerationProgress(null);
         setView(VIEWS.review);
       }
     };
 
     chrome.runtime.onMessage.addListener(listener);
-    return () => chrome.runtime.onMessage.removeListener(listener);
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+      chrome.storage.onChanged.removeListener(onStorage);
+    };
   }, []);
 
   const showPaywall = !license.loading && !license.allowed && license.tier !== "pro";
@@ -111,11 +141,13 @@ export default function App() {
             generateError={generateError}
             onDismissGenerateError={() => setGenerateError(null)}
             lastGenerationCost={lastGenerationCost}
+            generationProgress={generationProgress}
             onRefresh={refreshJobFromTab}
             license={license}
             onGenerate={async () => {
               setGenerating(true);
               setGenerateError(null);
+              setGenerationProgress(progressFromStage("validate", "Starting…"));
               try {
                 const result = await chrome.runtime.sendMessage({
                   type: "GENERATE_APPLICATION",
@@ -138,6 +170,7 @@ export default function App() {
                 setGenerateError(err.message || "Generation failed");
               } finally {
                 setGenerating(false);
+                setGenerationProgress(null);
               }
             }}
         onReview={() => setView(VIEWS.review)}
@@ -148,10 +181,13 @@ export default function App() {
         application={application}
         pendingJob={pendingJob}
         onBack={() => setView(VIEWS.dashboard)}
+        generating={generating}
         lastGenerationCost={lastGenerationCost}
+        generationProgress={generationProgress}
         onRegenerate={async () => {
           setGenerating(true);
           setGenerateError(null);
+          setGenerationProgress(progressFromStage("validate", "Regenerating…"));
           try {
             const result = await chrome.runtime.sendMessage({
               type: "GENERATE_APPLICATION",
@@ -163,6 +199,7 @@ export default function App() {
             setGenerateError(err.message);
           } finally {
             setGenerating(false);
+            setGenerationProgress(null);
           }
         }}
         onApplicationUpdate={setApplication}
@@ -184,34 +221,54 @@ export default function App() {
 
   return (
     <motion.div
-      className="flex flex-col min-h-[520px] overflow-hidden"
+      className={`flex flex-col overflow-hidden bg-slate-50 ${
+        fullPage
+          ? "blitz-dashboard min-h-screen w-full max-w-5xl mx-auto shadow-xl"
+          : "blitz-popup min-h-[520px] w-[420px]"
+      }`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.35 }}
     >
+      {fullPage && (
+        <p className="text-center text-xs text-slate-500 py-1 bg-slate-100 border-b">
+          Blitz dashboard · stays in sync with the extension ·{" "}
+          <span className="text-green-700">live</span>
+        </p>
+      )}
       <motion.header
-        className="header-shine text-white px-4 py-3 flex items-center justify-between shadow-lg"
+        className="header-shine text-white px-4 py-3 flex items-center justify-between shadow-lg gap-2"
         initial={{ y: -24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 320, damping: 28 }}
       >
         <motion.h1
-          className="font-bold text-lg tracking-tight"
-          animate={{ scale: [1, 1.03, 1] }}
+          className="font-bold text-lg tracking-tight shrink-0"
+          animate={fullPage ? undefined : { scale: [1, 1.03, 1] }}
           transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
         >
-          Blitz
+          {fullPage ? "Blitz Dashboard" : "Blitz"}
         </motion.h1>
-        <nav className="flex gap-1 text-sm">
+        <nav className="flex gap-1 text-sm items-center flex-wrap justify-end">
           {navItems.map(([id, label]) => (
             <NavTab key={id} active={view === id} onClick={() => setView(id)}>
               {label}
             </NavTab>
           ))}
+          {isExtensionPage() && !fullPage && (
+            <button
+              type="button"
+              onClick={openDashboard}
+              className="text-xs px-2 py-1 rounded bg-white/15 hover:bg-white/25 ml-1"
+              title="Open full dashboard in a tab"
+            >
+              Dashboard
+            </button>
+          )}
         </nav>
       </motion.header>
 
-      <main className="flex-1 p-4 relative">
+      <main className={`flex-1 p-4 relative ${fullPage ? "min-h-[calc(100vh-8rem)]" : ""}`}>
         <AnimatePresence mode="wait">
           <Page key={view} className="w-full">
             {viewContent[view]}

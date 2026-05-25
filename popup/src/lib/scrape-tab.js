@@ -1,4 +1,5 @@
 import { sendRuntimeMessage } from "./runtime-messages.js";
+import { isExtensionPage } from "./extension-env.js";
 
 const SUPPORTED_URL =
   /greenhouse\.io|linkedin\.com\/jobs|indeed\.(com|co\.uk|fr|de)|myworkdayjobs\.com/i;
@@ -15,6 +16,10 @@ async function scrapeViaContentScript(tabId) {
  * Read job data from the active tab. Tries content script first, then background inject.
  */
 export async function scrapeActiveTab() {
+  if (!isExtensionPage()) {
+    return sendRuntimeMessage({ type: "SCRAPE_ACTIVE_TAB" });
+  }
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url) {
     return { error: "No active tab" };

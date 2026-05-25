@@ -8,6 +8,11 @@ import { PROMPTS } from "../popup/src/lib/prompts.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
 import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
 import {
+  createProgressReporter,
+  progressComplete,
+  formatPromptStats,
+} from "../popup/src/lib/generation-progress.js";
+import {
   canSubmitApplication,
   incrementApplicationCount,
   checkLicenseStatus,
@@ -36,6 +41,21 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GENERATE_PDF_OFFSCREEN") {
     return false;
+  }
+  handleMessage(message, sender).then(sendResponse).catch((err) => {
+    sendResponse({ error: err.message || "Unknown error" });
+  });
+  return true;
+});
+
+/** Local web dashboard (npm run web:dev) uses the same APIs via extension ID. */
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  const origin = sender.origin || "";
+  const allowed =
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  if (!allowed) {
+    sendResponse({ error: "Origin not allowed" });
+    return;
   }
   handleMessage(message, sender).then(sendResponse).catch((err) => {
     sendResponse({ error: err.message || "Unknown error" });
@@ -104,18 +124,25 @@ async function handleMessage(message, sender) {
       }
       if (!settings.cv_text?.trim()) throw new Error("Add your CV in Settings first.");
 
-      const { allowed } = await canSubmitApplication();
-      if (!allowed) {
-        throw new Error("Free tier limit reached (15 applications). Upgrade to Pro.");
-      }
-
+      const report = createProgressReporter();
       const result = await generateApplication(
         jobData,
         settings.cv_text,
         settings.user_profile,
         settings.preferences,
-        settings.linkedin_profile_text
+        settings.linkedin_profile_text,
+        report
       );
+
+      report(
+        "save",
+        `Match score ${result.matchScore}%`,
+        result.cost ? `API cost ~$${result.cost.totalCostUsd?.toFixed(3)}` : ""
+      );
+      chrome.runtime.sendMessage({
+        type: "GENERATION_PROGRESS",
+        payload: progressComplete("Application ready — opening review"),
+      }).catch(() => {});
 
       const application = { ...result, jobData };
       await setStorage("pending_application", application);
@@ -331,14 +358,49 @@ async function generatePdfOffscreen(cvText, template) {
   return result.base64;
 }
 
+function safeHostname(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url.slice(0, 40);
+  }
+}
+
 async function generateApplication(
   jobData,
   cvText,
   userProfile,
   preferences,
-  linkedinProfileText = ""
+  linkedinProfileText = "",
+  report = () => {}
 ) {
+  const title = jobData.jobTitle || "Job listing";
+  const company = jobData.company || jobData.platform || "Unknown";
+  report(
+    "validate",
+    `${title} · ${company}`,
+    `${jobData.platform || "web"}${jobData.url ? ` · ${safeHostname(jobData.url)}` : ""}`
+  );
+
+  report(
+    "settings",
+    `CV ${(cvText?.length || 0).toLocaleString()} chars`,
+    linkedinProfileText?.trim()
+      ? `LinkedIn export ${linkedinProfileText.length.toLocaleString()} chars`
+      : "No LinkedIn PDF text"
+  );
+
   const aiConfig = await getStorage("ai_config");
+  const { allowed, remaining } = await canSubmitApplication();
+  report(
+    "license",
+    allowed ? "Quota OK" : "Quota exceeded",
+    remaining === Infinity ? "Pro — unlimited" : `${remaining} free applications left`
+  );
+  if (!allowed) {
+    throw new Error("Free tier limit reached (15 applications). Upgrade to Pro.");
+  }
+
   const systemPrompt = PROMPTS.system(userProfile);
   const userPrompt = PROMPTS.generateApplication(
     cvText,
@@ -347,13 +409,61 @@ async function generateApplication(
     linkedinProfileText
   );
 
+  const stats = formatPromptStats({
+    cvText,
+    linkedinText: linkedinProfileText,
+    jobData,
+    systemPrompt,
+    userPrompt,
+  });
+  const screeningCount = jobData.screeningQuestions?.length || 0;
+  report(
+    "prompts",
+    stats.summary,
+    `${screeningCount} screening question${screeningCount === 1 ? "" : "s"} · cover letter: ${preferences?.coverLetterMode || "always"}`
+  );
+
+  const resolvedModel =
+    aiConfig.provider === "anthropic"
+      ? (await import("../popup/src/lib/models.js")).remapAnthropicModel(aiConfig.model)
+      : aiConfig.model || "gpt-4o";
+  report(
+    "model",
+    `${aiConfig.provider} / ${resolvedModel}`,
+    `Profile: ${userProfile?.name || "not set"} · ${userProfile?.email || "no email"}`
+  );
+
+  report(
+    "api",
+    `Calling ${aiConfig.provider} API`,
+    `Sending ~${stats.inputTotal.toLocaleString()} input tokens · max 8,192 output tokens`
+  );
+
   const { text, usage, model: usedModel } = await callAI({
     provider: aiConfig.provider,
     apiKey: aiConfig.apiKey,
     model: aiConfig.model,
     systemPrompt,
     userPrompt,
+    onApiProgress: (modelId, attempt, total) => {
+      report(
+        "api",
+        `Waiting for ${modelId}…`,
+        total > 1
+          ? `Model attempt ${attempt}/${total} · typically 20–90 seconds`
+          : "Typically 20–90 seconds — do not close the popup"
+      );
+    },
   });
+
+  const outputTokens = usage?.output_tokens ?? usage?.completion_tokens;
+  report(
+    "parse",
+    `Received ${(text?.length || 0).toLocaleString()} characters from ${usedModel || resolvedModel}`,
+    outputTokens
+      ? `${outputTokens.toLocaleString()} output tokens`
+      : "Validating JSON structure"
+  );
 
   const parsed = parseApplicationResponse(text);
   const cost = costFromUsage(usage, aiConfig.provider, usedModel || aiConfig.model);

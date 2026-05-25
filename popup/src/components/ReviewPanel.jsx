@@ -4,6 +4,8 @@ import { setStorage } from "../lib/storage.js";
 import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
 import CostEstimate from "./CostEstimate.jsx";
+import GenerationProgress from "./GenerationProgress.jsx";
+import { progressFromStage } from "../lib/generation-progress.js";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 
 export default function ReviewPanel({
@@ -13,7 +15,9 @@ export default function ReviewPanel({
   onRegenerate,
   onApplicationUpdate,
   license,
+  generating,
   lastGenerationCost,
+  generationProgress,
 }) {
   const { saveApplication } = useApplications();
   const [cv, setCv] = useState("");
@@ -205,12 +209,18 @@ export default function ReviewPanel({
             "Approve & fill"
           )}
         </Btn>
+        {generating && (
+          <GenerationProgress
+            progress={generationProgress || progressFromStage("api", "Regenerating…")}
+          />
+        )}
         <div className="flex gap-2">
           <Btn
             onClick={onRegenerate}
-            className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white"
+            disabled={generating}
+            className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white disabled:opacity-50"
           >
-            Regenerate
+            {generating ? "Regenerating…" : "Regenerate"}
           </Btn>
           <Btn
             onClick={onBack}

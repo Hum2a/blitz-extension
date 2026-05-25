@@ -14,6 +14,7 @@ const required = [
   "assets/icon48.png",
   "assets/icon128.png",
   "popup/dist/index.html",
+  "popup/dist/dashboard.html",
 ];
 
 const optional = ["popup/dist/assets"];

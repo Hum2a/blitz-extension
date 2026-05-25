@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./popup/**/*.{html,jsx,js}"],
+  content: ["./popup/**/*.{html,jsx,js}", "./web/**/*.{html,jsx,js}"],
   theme: {
     extend: {
       colors: {

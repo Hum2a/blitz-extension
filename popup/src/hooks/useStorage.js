@@ -38,5 +38,11 @@ export function useAllSettings() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const onChanged = () => refresh();
+    chrome.storage?.onChanged?.addListener(onChanged);
+    return () => chrome.storage?.onChanged?.removeListener(onChanged);
+  }, [refresh]);
+
   return { settings, loading, refresh };
 }

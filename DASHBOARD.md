@@ -1,0 +1,42 @@
+# Blitz dashboard (full tab + local website)
+
+Use a **persistent dashboard** instead of reopening the small popup. It reads and writes the same `chrome.storage.local` data as the extension (CV, settings, pending job, queue, license).
+
+## Option A — Extension dashboard (recommended)
+
+No extra setup. Same storage as the popup automatically.
+
+1. Run `npm run build` and reload the extension.
+2. Open Blitz → click **Dashboard** in the header, **or**
+3. Right-click the Blitz icon → **Options** (opens the dashboard in a new tab).
+4. Bookmark the tab and leave it open — changes sync live with the popup.
+
+URL shape: `chrome-extension://<your-extension-id>/popup/dist/dashboard.html`
+
+## Option B — Local website (`npm run web:dev`)
+
+A normal browser tab at `http://localhost:3789` that talks to the extension over Chrome’s external messaging API.
+
+1. Load the unpacked extension (Developer mode).
+2. From `blitz-extension`: `npm run web:dev`
+3. Open http://localhost:3789
+4. Copy the extension **ID** from `chrome://extensions` and paste it on the connect screen.
+5. Click **Connect** — the full UI loads and uses extension storage.
+
+Keep the extension installed; the site is only a window into the same background worker + storage.
+
+## What stays in sync
+
+| Data | Storage | Synced in dashboard? |
+|------|---------|-------------------------|
+| CV, LinkedIn PDF text, profile, API key, preferences | `chrome.storage.local` | Yes |
+| Pending job / application | `chrome.storage.local` | Yes |
+| Job queue | `chrome.storage.local` | Yes |
+| Application tracker history | IndexedDB (per origin) | Same on extension popup + extension dashboard; **not** on localhost web |
+
+## Development
+
+```bash
+npm run build      # popup + extension dashboard
+npm run web:dev    # localhost dashboard (optional)
+```
