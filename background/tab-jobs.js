@@ -18,7 +18,7 @@ export async function findJobTabForScrape(preferredTabId) {
     }
   }
 
-  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [active] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (active?.id && isSupportedJobUrl(active.url)) return active;
 
   const windowTabs = await chrome.tabs.query({ currentWindow: true });

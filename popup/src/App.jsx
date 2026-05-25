@@ -82,15 +82,21 @@ export default function App({ fullPage = false, bridgeMode = false }) {
           job.code === "no_job_tab" ||
           (job.error && /dashboard\.html|chrome:\/\/extensions/i.test(job.error));
 
-        if (hasStoredJob && workspaceOnly) {
+        if (hasStoredJob) {
           await applyPendingJob(stored, { persist: false });
-          setDetectError(null);
-          setDetectErrorDetails(null);
+          if (workspaceOnly) {
+            setDetectError(null);
+            setDetectErrorDetails(null);
+          } else {
+            setDetectError(
+              "Could not refresh from the job tab — showing the last job Blitz detected."
+            );
+            setDetectErrorDetails({ ping, url: job.url, tabId: job.tabId });
+          }
         } else {
           await logError("scrapeActiveTab", new Error(job.error), { ping, url: job.url });
           setDetectError(job.error);
           setDetectErrorDetails({ ping, url: job.url, tabId: job.tabId });
-          if (hasStoredJob) await applyPendingJob(stored, { persist: false });
         }
       } else if (job) {
         await applyPendingJob(job);
@@ -150,11 +156,19 @@ export default function App({ fullPage = false, bridgeMode = false }) {
   }, [view, application, pendingJob]);
 
   useEffect(() => {
-    getStorage("pending_job").then(async (job) => {
-      setPendingJob(job);
-      await reconcileApplication(job);
-    });
-    refreshJobFromTab();
+    let cancelled = false;
+    (async () => {
+      const [job, app] = await Promise.all([
+        getStorage("pending_job"),
+        getStorage("pending_application"),
+      ]);
+      if (cancelled) return;
+      if (job?.jobTitle || job?.jobDescription) {
+        setPendingJob(job);
+        if (app && applicationMatchesJob(app, job)) setApplication(app);
+      }
+      refreshJobFromTab();
+    })();
 
     const onStorage = (ch, area) => {
       if (area === "local") syncFromStorage(ch);
@@ -183,6 +197,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
 
     chrome.runtime.onMessage.addListener(listener);
     return () => {
+      cancelled = true;
       chrome.runtime.onMessage.removeListener(listener);
       chrome.storage.onChanged.removeListener(onStorage);
     };

@@ -171,7 +171,7 @@ export default function Dashboard({
               </motion.p>
             )}
 
-            {detecting && !pendingJob && (
+            {detecting && !hasJob && (
               <motion.div key="loading" exit={{ opacity: 0 }}>
                 <PulseDots label="Reading job from this tab…" />
                 <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -185,13 +185,18 @@ export default function Dashboard({
               </motion.div>
             )}
 
-            {hasJob && !detecting ? (
+            {hasJob ? (
               <motion.div
                 key="job"
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ type: "spring", stiffness: 350, damping: 28 }}
               >
+                {detecting && (
+                  <p className="text-xs text-blitz-600 mb-2 animate-pulse">
+                    Updating from your job tab…
+                  </p>
+                )}
                 <motion.p
                   className="font-medium text-slate-900"
                   layout
