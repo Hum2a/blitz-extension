@@ -210,7 +210,7 @@ export default function Settings({ onSaved }) {
   const isPro = license.tier === "pro";
 
   return (
-    <Stagger className="space-y-4 max-h-[440px] overflow-y-auto text-sm">
+    <Stagger className="space-y-4 max-h-[480px] overflow-y-auto overflow-x-hidden text-sm pr-1">
       <Section title="AI provider" index={0}>
         <select
           value={form.ai_config?.provider || "anthropic"}
@@ -336,6 +336,43 @@ export default function Settings({ onSaved }) {
           ["email", "Email"],
           ["phone", "Phone"],
           ["location", "Location"],
+        ].map(([key, label]) => (
+          <input
+            key={key}
+            type="text"
+            placeholder={label}
+            value={profile[key] || ""}
+            onChange={(e) => update(`user_profile.${key}`, e.target.value)}
+            className="w-full border rounded p-2 mb-2"
+          />
+        ))}
+
+        <p className="text-xs font-semibold text-blitz-700 uppercase tracking-wide mt-3 mb-2">
+          Links
+        </p>
+        {[
+          ["github", "GitHub", "https://github.com/username"],
+          ["linkedin", "LinkedIn profile URL", "https://linkedin.com/in/username"],
+          ["portfolio", "Portfolio / website", "https://yoursite.com"],
+        ].map(([key, label, placeholder]) => (
+          <label key={key} className="block mb-2">
+            <span className="text-xs text-slate-600 font-medium">{label}</span>
+            <input
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              placeholder={placeholder}
+              value={profile[key] || ""}
+              onChange={(e) => update(`user_profile.${key}`, e.target.value)}
+              className="w-full border rounded p-2 mt-0.5 text-xs"
+            />
+          </label>
+        ))}
+
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-3 mb-2">
+          Work preferences
+        </p>
+        {[
           ["rightToWork", "Right to work"],
           ["noticePeriod", "Notice period"],
           ["salaryExpectation", "Salary expectation"],
@@ -348,22 +385,6 @@ export default function Settings({ onSaved }) {
             onChange={(e) => update(`user_profile.${key}`, e.target.value)}
             className="w-full border rounded p-2 mb-2"
           />
-        ))}
-        {[
-          ["github", "GitHub", "https://github.com/username"],
-          ["linkedin", "LinkedIn", "https://linkedin.com/in/username"],
-          ["portfolio", "Portfolio", "https://yoursite.com"],
-        ].map(([key, label, placeholder]) => (
-          <label key={key} className="block mb-2">
-            <span className="text-xs text-slate-500">{label}</span>
-            <input
-              type="url"
-              placeholder={placeholder}
-              value={profile[key] || ""}
-              onChange={(e) => update(`user_profile.${key}`, e.target.value)}
-              className="w-full border rounded p-2 mt-0.5"
-            />
-          </label>
         ))}
         <select
           value={profile.remotePreference || "Hybrid"}
