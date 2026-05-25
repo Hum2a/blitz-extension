@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAllSettings } from "../hooks/useStorage.js";
+import { Stagger, FadeUp, Btn, PulseDots } from "./motion.jsx";
 import { mergeStorage, getStorage, setStorage } from "../lib/storage.js";
 import { extractTextFromPdf } from "../lib/pdf-parse.js";
 import { FREE_APPLICATION_LIMIT } from "../lib/license.js";
@@ -23,7 +25,11 @@ export default function Settings({ onSaved }) {
   }, [settings]);
 
   if (loading || !form) {
-    return <p className="text-sm text-slate-500">Loading settings…</p>;
+    return (
+      <div className="py-12 flex justify-center">
+        <PulseDots label="Loading settings…" />
+      </div>
+    );
   }
 
   const update = (path, value) => {
@@ -119,8 +125,8 @@ export default function Settings({ onSaved }) {
   const isPro = license.tier === "pro";
 
   return (
-    <div className="space-y-4 max-h-[440px] overflow-y-auto text-sm">
-      <Section title="AI provider">
+    <Stagger className="space-y-4 max-h-[440px] overflow-y-auto text-sm">
+      <Section title="AI provider" index={0}>
         <select
           value={form.ai_config?.provider || "anthropic"}
           onChange={(e) => update("ai_config.provider", e.target.value)}
@@ -153,7 +159,7 @@ export default function Settings({ onSaved }) {
         </button>
       </Section>
 
-      <Section title="Your CV">
+      <Section title="Your CV" index={1}>
         <input
           type="file"
           accept=".pdf"
@@ -210,7 +216,7 @@ export default function Settings({ onSaved }) {
         ) : null}
       </Section>
 
-      <Section title="Profile">
+      <Section title="Profile" index={3}>
         {[
           ["name", "Full name"],
           ["email", "Email"],
@@ -240,7 +246,7 @@ export default function Settings({ onSaved }) {
         </select>
       </Section>
 
-      <Section title="Preferences">
+      <Section title="Preferences" index={4}>
         <label className="flex items-center gap-2 mt-2">
           <span>Cover letter</span>
           <select
@@ -275,7 +281,7 @@ export default function Settings({ onSaved }) {
         </label>
       </Section>
 
-      <Section title="License">
+      <Section title="License" index={5}>
         <p className="text-xs text-slate-600 mb-2">
           {isPro ? (
             <span className="text-green-700 font-medium">Pro — unlimited applications</span>
@@ -322,24 +328,42 @@ export default function Settings({ onSaved }) {
         </button>
       </Section>
 
-      <button
-        type="button"
-        onClick={handleSave}
-        className="w-full bg-blitz-600 text-white py-2 rounded-lg font-medium"
-      >
-        Save settings
-      </button>
-      {saved && <p className="text-green-600 text-xs text-center">Saved.</p>}
-    </div>
+      <FadeUp delay={0.3}>
+        <Btn
+          onClick={handleSave}
+          className="w-full bg-blitz-600 text-white py-2 rounded-lg font-medium btn-shine"
+        >
+          Save settings
+        </Btn>
+        <AnimatePresence>
+          {saved && (
+            <motion.p
+              className="text-green-600 text-xs text-center mt-2"
+              initial={{ opacity: 0, y: -6, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4 }}
+            >
+              Saved.
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </FadeUp>
+    </Stagger>
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, children, index = 0 }) {
   return (
-    <div>
-      <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">{title}</h3>
-      {children}
-    </div>
+    <FadeUp delay={index * 0.05}>
+      <motion.div
+        className="rounded-lg p-1 -mx-1"
+        whileHover={{ backgroundColor: "rgba(240, 244, 255, 0.6)" }}
+        transition={{ duration: 0.2 }}
+      >
+        <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">{title}</h3>
+        {children}
+      </motion.div>
+    </FadeUp>
   );
 }
 

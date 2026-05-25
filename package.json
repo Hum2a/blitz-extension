@@ -44,6 +44,7 @@
     "load": "echo Open chrome://extensions → Developer mode → Load unpacked → select this folder"
   },
   "dependencies": {
+    "framer-motion": "^12.40.0",
     "jspdf": "^2.5.2",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",

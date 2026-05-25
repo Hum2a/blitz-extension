@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import Dashboard from "./components/Dashboard.jsx";
 import ReviewPanel from "./components/ReviewPanel.jsx";
 import ApplicationTracker from "./components/ApplicationTracker.jsx";
@@ -10,6 +11,7 @@ import { getStorage, setStorage } from "./lib/storage.js";
 import { scrapeActiveTab } from "./lib/scrape-tab.js";
 import { logError, pingBackground } from "./lib/runtime-messages.js";
 import DebugLog from "./components/DebugLog.jsx";
+import { Page, NavTab } from "./components/motion.jsx";
 
 const VIEWS = {
   dashboard: "dashboard",
@@ -95,92 +97,124 @@ export default function App() {
     [VIEWS.settings, "Settings"],
   ];
 
+  const viewContent = {
+    [VIEWS.dashboard]: (
+      <Dashboard
+        pendingJob={pendingJob}
+        application={application}
+        generating={generating}
+        detecting={detecting}
+        detectError={detectError}
+        detectErrorDetails={detectErrorDetails}
+        onRefresh={refreshJobFromTab}
+        license={license}
+        onGenerate={async () => {
+          setGenerating(true);
+          try {
+            const result = await chrome.runtime.sendMessage({
+              type: "GENERATE_APPLICATION",
+            });
+            if (result?.error) throw new Error(result.error);
+            setApplication(result);
+            setView(VIEWS.review);
+          } catch (err) {
+            alert(err.message);
+          } finally {
+            setGenerating(false);
+          }
+        }}
+        onReview={() => setView(VIEWS.review)}
+      />
+    ),
+    [VIEWS.review]: (
+      <ReviewPanel
+        application={application}
+        pendingJob={pendingJob}
+        onBack={() => setView(VIEWS.dashboard)}
+        onRegenerate={async () => {
+          setGenerating(true);
+          const result = await chrome.runtime.sendMessage({
+            type: "GENERATE_APPLICATION",
+          });
+          if (result?.error) alert(result.error);
+          else setApplication(result);
+          setGenerating(false);
+        }}
+        onApplicationUpdate={setApplication}
+        license={license}
+      />
+    ),
+    [VIEWS.queue]: (
+      <JobQueue
+        onReviewItem={(app, job) => {
+          setApplication(app);
+          setPendingJob(job);
+          setView(VIEWS.review);
+        }}
+      />
+    ),
+    [VIEWS.tracker]: <ApplicationTracker />,
+    [VIEWS.settings]: <Settings onSaved={() => license.refresh()} />,
+  };
+
   return (
-    <div className="flex flex-col min-h-[520px]">
-      <header className="bg-blitz-700 text-white px-4 py-3 flex items-center justify-between">
-        <h1 className="font-bold text-lg tracking-tight">Blitz</h1>
+    <motion.div
+      className="flex flex-col min-h-[520px] overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
+    >
+      <motion.header
+        className="header-shine text-white px-4 py-3 flex items-center justify-between shadow-lg"
+        initial={{ y: -24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+      >
+        <motion.h1
+          className="font-bold text-lg tracking-tight"
+          animate={{ scale: [1, 1.03, 1] }}
+          transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+        >
+          Blitz
+        </motion.h1>
         <nav className="flex gap-1 text-sm">
           {navItems.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setView(id)}
-              className={`px-2 py-1 rounded ${view === id ? "bg-white/20" : "hover:bg-white/10"}`}
-            >
+            <NavTab key={id} active={view === id} onClick={() => setView(id)}>
               {label}
-            </button>
+            </NavTab>
           ))}
         </nav>
-      </header>
+      </motion.header>
 
-      <main className="flex-1 p-4">
-        {view === VIEWS.dashboard && (
-          <Dashboard
-            pendingJob={pendingJob}
-            application={application}
-            generating={generating}
-            detecting={detecting}
-            detectError={detectError}
-            detectErrorDetails={detectErrorDetails}
-            onRefresh={refreshJobFromTab}
-            license={license}
-            onGenerate={async () => {
-              setGenerating(true);
-              try {
-                const result = await chrome.runtime.sendMessage({
-                  type: "GENERATE_APPLICATION",
-                });
-                if (result?.error) throw new Error(result.error);
-                setApplication(result);
-                setView(VIEWS.review);
-              } catch (err) {
-                alert(err.message);
-              } finally {
-                setGenerating(false);
-              }
-            }}
-            onReview={() => setView(VIEWS.review)}
-          />
-        )}
-        {view === VIEWS.review && (
-          <ReviewPanel
-            application={application}
-            pendingJob={pendingJob}
-            onBack={() => setView(VIEWS.dashboard)}
-            onRegenerate={async () => {
-              setGenerating(true);
-              const result = await chrome.runtime.sendMessage({
-                type: "GENERATE_APPLICATION",
-              });
-              if (result?.error) alert(result.error);
-              else setApplication(result);
-              setGenerating(false);
-            }}
-            onApplicationUpdate={setApplication}
-            license={license}
-          />
-        )}
-        {view === VIEWS.queue && (
-          <JobQueue
-            onReviewItem={(app, job) => {
-              setApplication(app);
-              setPendingJob(job);
-              setView(VIEWS.review);
-            }}
-          />
-        )}
-        {view === VIEWS.tracker && <ApplicationTracker />}
-        {view === VIEWS.settings && <Settings onSaved={() => license.refresh()} />}
+      <main className="flex-1 p-4 relative">
+        <AnimatePresence mode="wait">
+          <Page key={view} className="w-full">
+            {viewContent[view]}
+          </Page>
+        </AnimatePresence>
       </main>
 
-      <footer className="px-4 py-2 border-t bg-white space-y-1">
-        {!license.loading && license.tier === "free" && (
-          <p className="text-xs text-slate-500 text-center">
-            {license.remaining} of 15 free applications remaining
-          </p>
-        )}
+      <motion.footer
+        className="px-4 py-2 border-t bg-white space-y-1"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.35 }}
+      >
+        <AnimatePresence>
+          {!license.loading && license.tier === "free" && (
+            <motion.p
+              key="footer-tier"
+              className="text-xs text-slate-500 text-center"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              {license.remaining} of 15 free applications remaining
+            </motion.p>
+          )}
+        </AnimatePresence>
         <DebugLog />
-      </footer>
-    </div>
+      </motion.footer>
+    </motion.div>
   );
 }

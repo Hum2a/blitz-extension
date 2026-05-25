@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function ErrorPanel({ title = "Error", error, details, onCopy, onDismiss }) {
   const [copied, setCopied] = useState(false);
@@ -26,13 +27,40 @@ export default function ErrorPanel({ title = "Error", error, details, onCopy, on
   };
 
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+    <motion.div
+      className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+      initial={{ opacity: 0, scale: 0.96, x: -8 }}
+      animate={{ opacity: 1, scale: 1, x: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+      layout
+    >
       <div className="flex items-start justify-between gap-2 mb-1">
-        <p className="font-semibold">{title}</p>
+        <motion.p
+          className="font-semibold"
+          animate={{ x: [0, -2, 0] }}
+          transition={{ repeat: 2, duration: 0.15 }}
+        >
+          {title}
+        </motion.p>
         <div className="flex gap-2 shrink-0">
-          <button type="button" onClick={handleCopy} className="text-xs underline">
-            {copied ? "Copied" : "Copy"}
-          </button>
+          <motion.button
+            type="button"
+            onClick={handleCopy}
+            className="text-xs underline"
+            whileTap={{ scale: 0.92 }}
+          >
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={copied ? "c" : "copy"}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+              >
+                {copied ? "Copied" : "Copy"}
+              </motion.span>
+            </AnimatePresence>
+          </motion.button>
           {onDismiss && (
             <button type="button" onClick={onDismiss} className="text-xs underline">
               Dismiss
@@ -51,6 +79,6 @@ export default function ErrorPanel({ title = "Error", error, details, onCopy, on
           </pre>
         </details>
       )}
-    </div>
+    </motion.div>
   );
 }

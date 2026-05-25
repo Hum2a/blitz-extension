@@ -1,13 +1,35 @@
 import { useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
 import ErrorPanel from "./ErrorPanel.jsx";
+import { Stagger, FadeUp, Card, Btn, PulseDots } from "./motion.jsx";
 
 function formatCompany(company) {
   if (company == null || company === "") return null;
   const s = String(company).trim();
   if (!s || s === "true" || s === "false") return null;
   return s;
+}
+
+function StatCard({ value, label, delay }) {
+  return (
+    <Card
+      delay={delay}
+      className="bg-white rounded-lg border p-3 text-center"
+      hover
+    >
+      <motion.p
+        className="text-2xl font-bold text-blitz-700"
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 22, delay: delay + 0.1 }}
+      >
+        {value}
+      </motion.p>
+      <p className="text-xs text-slate-500">{label}</p>
+    </Card>
+  );
 }
 
 export default function Dashboard({
@@ -47,120 +69,215 @@ export default function Dashboard({
     hasJob && !generating && !detecting && license.allowed && !externalApply && !linkedinNoEasyApply;
 
   return (
-    <div className="space-y-4">
-      <section className="bg-white rounded-lg border border-slate-200 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
-            Current page
-          </h2>
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={detecting}
-            className="text-xs text-blitz-600 underline disabled:opacity-50"
-          >
-            {detecting ? "Reading…" : "Refresh"}
-          </button>
-        </div>
-
-        {detectError && (
-          <div className="mb-2">
-            <ErrorPanel
-              title="Could not read this page"
-              error={detectError}
-              details={detectErrorDetails}
-            />
+    <Stagger className="space-y-4">
+      <FadeUp>
+        <Card className="bg-white rounded-lg border border-slate-200 p-4" delay={0}>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              Current page
+            </h2>
+            <motion.button
+              type="button"
+              onClick={onRefresh}
+              disabled={detecting}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="text-xs text-blitz-600 underline disabled:opacity-50"
+            >
+              {detecting ? "Reading…" : "Refresh"}
+            </motion.button>
           </div>
-        )}
 
-        {detecting && !pendingJob && (
-          <p className="text-sm text-slate-500">Reading job from this tab…</p>
-        )}
-
-        {hasJob && !detecting ? (
-          <div>
-            <p className="font-medium text-slate-900">
-              {pendingJob.jobTitle || "Job listing"}
-            </p>
-            {company && <p className="text-sm text-slate-600 mt-0.5">{company}</p>}
-            <div className="flex flex-wrap gap-2 mt-2">
-              <span className="text-xs bg-blitz-100 text-blitz-700 px-2 py-0.5 rounded capitalize">
-                {pendingJob.platform}
-              </span>
-              {pendingJob.applyType && (
-                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                  {pendingJob.applyType === "external" ? "External apply" : "Indeed apply"}
-                </span>
-              )}
-            </div>
-            {externalApply && (
-              <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                Applies on company site — Blitz cannot auto-fill this role.
-              </p>
+          <AnimatePresence mode="wait">
+            {detectError && (
+              <motion.div
+                key="error"
+                className="mb-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <ErrorPanel
+                  title="Could not read this page"
+                  error={detectError}
+                  details={detectErrorDetails}
+                />
+              </motion.div>
             )}
-            {linkedinNoEasyApply && (
-              <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-                No Easy Apply on this listing.
-              </p>
+
+            {detecting && !pendingJob && (
+              <motion.div key="loading" exit={{ opacity: 0 }}>
+                <PulseDots label="Reading job from this tab…" />
+                <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-blitz-500 rounded-full"
+                    initial={{ width: "0%" }}
+                    animate={{ width: "85%" }}
+                    transition={{ duration: 1.2, ease: "easeOut" }}
+                  />
+                </div>
+              </motion.div>
             )}
-          </div>
-        ) : !detecting && !detectError ? (
-          <p className="text-sm text-slate-600">
-            Open a job on Greenhouse, LinkedIn, Indeed, or Workday, then click Refresh.
-          </p>
-        ) : null}
-      </section>
 
-      {application?.matchScore != null && (
-        <section className="bg-white rounded-lg border p-4">
-          <MatchScoreRing
-            score={application.matchScore}
-            rationale={application.matchRationale}
-            size={80}
-          />
-        </section>
-      )}
+            {hasJob && !detecting ? (
+              <motion.div
+                key="job"
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+              >
+                <motion.p
+                  className="font-medium text-slate-900"
+                  layout
+                >
+                  {pendingJob.jobTitle || "Job listing"}
+                </motion.p>
+                <AnimatePresence>
+                  {company && (
+                    <motion.p
+                      className="text-sm text-slate-600 mt-0.5"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      {company}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <motion.span
+                    className="text-xs bg-blitz-100 text-blitz-700 px-2 py-0.5 rounded capitalize"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.1, type: "spring" }}
+                  >
+                    {pendingJob.platform}
+                  </motion.span>
+                  {pendingJob.applyType && (
+                    <motion.span
+                      className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.15, type: "spring" }}
+                    >
+                      {pendingJob.applyType === "external" ? "External apply" : "Indeed apply"}
+                    </motion.span>
+                  )}
+                </div>
+                <AnimatePresence>
+                  {externalApply && (
+                    <motion.p
+                      className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      Applies on company site — Blitz cannot auto-fill this role.
+                    </motion.p>
+                  )}
+                  {linkedinNoEasyApply && (
+                    <motion.p
+                      className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      No Easy Apply on this listing.
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ) : !detecting && !detectError ? (
+              <motion.p
+                key="empty"
+                className="text-sm text-slate-600"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                Open a job on Greenhouse, LinkedIn, Indeed, or Workday, then click Refresh.
+              </motion.p>
+            ) : null}
+          </AnimatePresence>
+        </Card>
+      </FadeUp>
 
-      <div className="flex flex-col gap-2">
-        {application ? (
-          <button
-            type="button"
-            onClick={onReview}
-            className="w-full bg-blitz-600 hover:bg-blitz-700 text-white font-medium py-2.5 rounded-lg transition"
+      <AnimatePresence>
+        {application?.matchScore != null && (
+          <motion.div
+            key="match"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 24 }}
           >
-            Review application
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={!canGenerate}
-          className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition"
-        >
-          {generating ? "Generating…" : "Generate tailored application"}
-        </button>
-      </div>
+            <Card className="bg-white rounded-lg border p-4" delay={0.08}>
+              <MatchScoreRing
+                score={application.matchScore}
+                rationale={application.matchRationale}
+                size={80}
+              />
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <section className="grid grid-cols-2 gap-3 text-center">
-        <div className="bg-white rounded-lg border p-3">
-          <p className="text-2xl font-bold text-blitz-700">{stats.thisWeek}</p>
-          <p className="text-xs text-slate-500">This week</p>
+      <FadeUp delay={0.12}>
+        <div className="flex flex-col gap-2">
+          <AnimatePresence>
+            {application && (
+              <motion.div
+                key="review-btn"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+              >
+                <Btn
+                  onClick={onReview}
+                  className="w-full bg-blitz-600 hover:bg-blitz-700 text-white font-medium py-2.5 rounded-lg transition btn-shine"
+                >
+                  Review application
+                </Btn>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <Btn
+            onClick={onGenerate}
+            disabled={!canGenerate}
+            className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition btn-shine relative"
+          >
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={generating ? "gen" : "idle"}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                className="inline-flex items-center justify-center gap-2"
+              >
+                {generating ? (
+                  <>
+                    <motion.span
+                      className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                    />
+                    Generating…
+                  </>
+                ) : (
+                  "Generate tailored application"
+                )}
+              </motion.span>
+            </AnimatePresence>
+          </Btn>
         </div>
-        <div className="bg-white rounded-lg border p-3">
-          <p className="text-2xl font-bold text-blitz-700">{stats.responseRate}%</p>
-          <p className="text-xs text-slate-500">Response rate</p>
-        </div>
-        <div className="bg-white rounded-lg border p-3">
-          <p className="text-2xl font-bold text-blitz-700">{license.used ?? 0}</p>
-          <p className="text-xs text-slate-500">Total used</p>
-        </div>
-        <div className="bg-white rounded-lg border p-3">
-          <p className="text-2xl font-bold text-blitz-700">
-            {license.remaining === Infinity ? "∞" : license.remaining}
-          </p>
-          <p className="text-xs text-slate-500">Remaining (free)</p>
-        </div>
+      </FadeUp>
+
+      <section className="grid grid-cols-2 gap-3">
+        <StatCard value={stats.thisWeek} label="This week" delay={0.14} />
+        <StatCard value={`${stats.responseRate}%`} label="Response rate" delay={0.18} />
+        <StatCard value={license.used ?? 0} label="Total used" delay={0.22} />
+        <StatCard
+          value={license.remaining === Infinity ? "∞" : license.remaining}
+          label="Remaining (free)"
+          delay={0.26}
+        />
       </section>
-    </div>
+    </Stagger>
   );
 }
