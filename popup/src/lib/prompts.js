@@ -23,6 +23,9 @@ User profile for screening questions:
 - Notice period: ${profile.noticePeriod || "Not set"}
 - Salary expectation: ${profile.salaryExpectation || "Not set"}
 - Remote preference: ${profile.remotePreference || "Not set"}
+- GitHub: ${profile.github || "Not set"}
+- LinkedIn: ${profile.linkedin || "Not set"}
+- Portfolio: ${profile.portfolio || "Not set"}
 - Willing to relocate: ${profile.willingToRelocate ?? false}
 - Skills and experience: ${JSON.stringify(profile.skills || {})}
 

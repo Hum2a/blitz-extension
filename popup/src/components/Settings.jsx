@@ -349,6 +349,22 @@ export default function Settings({ onSaved }) {
             className="w-full border rounded p-2 mb-2"
           />
         ))}
+        {[
+          ["github", "GitHub", "https://github.com/username"],
+          ["linkedin", "LinkedIn", "https://linkedin.com/in/username"],
+          ["portfolio", "Portfolio", "https://yoursite.com"],
+        ].map(([key, label, placeholder]) => (
+          <label key={key} className="block mb-2">
+            <span className="text-xs text-slate-500">{label}</span>
+            <input
+              type="url"
+              placeholder={placeholder}
+              value={profile[key] || ""}
+              onChange={(e) => update(`user_profile.${key}`, e.target.value)}
+              className="w-full border rounded p-2 mt-0.5"
+            />
+          </label>
+        ))}
         <select
           value={profile.remotePreference || "Hybrid"}
           onChange={(e) => update("user_profile.remotePreference", e.target.value)}
