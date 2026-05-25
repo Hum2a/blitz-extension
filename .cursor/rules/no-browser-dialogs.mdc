@@ -1,0 +1,42 @@
+---
+description: Use Blitz modals instead of window.alert, confirm, or prompt
+globs: blitz-extension/popup/**/*.{jsx,js}
+alwaysApply: false
+---
+
+# No browser dialogs in popup UI
+
+Never use `window.alert`, `window.confirm`, `window.prompt`, or bare `alert()` / `confirm()` / `prompt()` in popup React code. Native dialogs block the UI thread, ignore theme tokens, and break extension UX.
+
+## Use the modal system
+
+1. Wrap app roots with `ModalProvider` (already in `main.jsx` and `dashboard-main.jsx`).
+2. In components, call `useModal()`:
+
+```jsx
+import { useModal } from "../hooks/useModal.js";
+
+const { showAlert, showConfirm, showPrompt } = useModal();
+
+await showAlert("Saved.", { title: "Success", variant: "success" });
+const ok = await showConfirm("Discard changes?", { variant: "warning" });
+const url = await showPrompt({ title: "Link URL", defaultValue: "https://" });
+```
+
+Variants: `info` | `success` | `error` | `warning`.
+
+## Custom or large content
+
+Use `Modal` from `components/Modal.jsx` with local `open` state (see `ReviewPanel` CV preview, `CvTemplateRichEditor` link URL).
+
+```jsx
+import { Modal, ModalButton } from "./Modal.jsx";
+
+<Modal open={open} onClose={() => setOpen(false)} title="Title" size="lg" footer={...}>
+  {children}
+</Modal>
+```
+
+## Adding new entry points
+
+Any new popup bundle (`main.jsx`, `dashboard-main.jsx`, etc.) must include `<ModalProvider>` inside `ThemeProvider`.
