@@ -41,5 +41,5 @@ jobs:
       - name: Build and validate
         run: npm run build:check
 
-      - name: Run validation tests
-        run: npm run test:validate
+      - name: Unit tests and validation
+        run: npm run test:ci

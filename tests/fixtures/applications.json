@@ -1,0 +1,30 @@
+[
+  {
+    "id": "app-1",
+    "applicationTitle": "Senior Engineer — Acme",
+    "role": "Senior Engineer",
+    "company": "Acme Corp",
+    "platform": "greenhouse",
+    "status": "applied",
+    "matchScore": 82,
+    "url": "https://boards.greenhouse.io/acme/jobs/123",
+    "updatedAt": "2026-05-20T10:00:00.000Z",
+    "notes": "Referred by Jane"
+  },
+  {
+    "id": "app-2",
+    "role": "Product Manager",
+    "company": "Beta Ltd",
+    "platform": "linkedin",
+    "status": "interview",
+    "matchScore": 71,
+    "generatedAt": "2026-05-18T08:00:00.000Z"
+  },
+  {
+    "id": "app-3",
+    "company": "Gamma",
+    "platform": "indeed",
+    "status": "rejected",
+    "appliedAt": "2026-05-01T12:00:00.000Z"
+  }
+]

@@ -44,6 +44,11 @@
     "loc:md": "node scripts/loc-report.mjs --md",
     "loc:verbose": "node scripts/loc-report.mjs --verbose",
     "test": "node scripts/test-all.mjs",
+    "test:ci": "npm run test:unit && npm run test:validate",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:coverage": "vitest run --coverage",
+    "test:unit:ui": "vitest --ui",
     "test:validate": "node scripts/validate.mjs",
     "test:license": "npm run test --prefix license-worker",
     "pack": "npm run build:check && node scripts/zip-extension.mjs",
@@ -81,12 +86,18 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.1.7",
     "archiver": "^7.0.1",
-    "sharp": "^0.34.2",
     "autoprefixer": "^10.4.21",
+    "happy-dom": "^20.9.0",
     "postcss": "^8.5.3",
+    "sharp": "^0.34.2",
     "tailwindcss": "^3.4.17",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^4.1.7"
   }
 }

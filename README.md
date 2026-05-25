@@ -72,7 +72,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for message flows and module bo
 | `npm run validate` | Check manifest, assets, dist exist |
 | `npm run loc` | Lines-of-code report (console + `reports/loc-report.md`) |
 | `npm run loc:json` | LOC report as JSON on stdout |
-| `npm run test` | Validate + license worker smoke test |
+| `npm run test` | Unit tests + validate + license worker smoke test |
+| `npm run test:unit` | Vitest unit tests (see [tests/README.md](tests/README.md)) |
+| `npm run test:unit:watch` | Vitest watch mode |
+| `npm run test:unit:coverage` | Unit tests with coverage report |
+| `npm run test:ci` | Unit tests + validate (CI) |
 | `npm run clean` | Remove `popup/dist` and pack output |
 | `npm run rebuild` | Clean + build |
 | `npm run pack` | Build, validate, zip for Chrome Web Store → `dist/blitz-extension-v*.zip` |

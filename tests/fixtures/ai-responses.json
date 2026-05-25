@@ -1,0 +1,6 @@
+{
+  "validJson": "{\"applicationTitle\":\"Engineer at Acme\",\"tailoredCV\":\"CV text\",\"coverLetter\":\"Dear team\",\"screeningAnswers\":[{\"question\":\"Why us?\",\"answer\":\"Culture fit\"}],\"matchScore\":88,\"matchRationale\":\"Strong overlap\"}",
+  "fencedJson": "```json\n{\"applicationTitle\":\"PM — Beta\",\"tailoredCV\":\"x\",\"coverLetter\":\"\",\"screeningAnswers\":[],\"matchScore\":70,\"matchRationale\":\"ok\"}\n```",
+  "withEmDash": "{\"applicationTitle\":\"Role — Company\",\"tailoredCV\":\"I led teams — successfully\",\"coverLetter\":\"\",\"screeningAnswers\":[],\"matchScore\":50,\"matchRationale\":\"\"}",
+  "invalid": "not json at all"
+}

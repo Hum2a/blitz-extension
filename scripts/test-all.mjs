@@ -16,6 +16,7 @@ function run(name, cmd, args, cwd = root) {
 
 console.log("Running Blitz test suite…");
 
+run("Unit tests (Vitest)", "npm", ["run", "test:unit"]);
 run("Validate extension", "node", ["scripts/validate.mjs"]);
 
 const workerTest = spawnSync("npm", ["run", "test", "--prefix", "license-worker"], {

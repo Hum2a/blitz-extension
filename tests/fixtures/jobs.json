@@ -1,0 +1,31 @@
+{
+  "greenhouse": {
+    "url": "https://boards.greenhouse.io/acme/jobs/123?utm_source=linkedin",
+    "jobTitle": "Senior Engineer",
+    "company": "Acme Corp",
+    "platform": "greenhouse"
+  },
+  "linkedin": {
+    "url": "https://www.linkedin.com/jobs/view/9876543210",
+    "jobTitle": "Product Manager",
+    "company": "Beta Ltd",
+    "platform": "linkedin"
+  },
+  "indeed": {
+    "url": "https://www.indeed.com/viewjob?jk=abc123def",
+    "jobTitle": "Analyst",
+    "company": "Gamma",
+    "platform": "indeed"
+  },
+  "workday": {
+    "url": "https://acme.wd5.myworkdayjobs.com/en-US/careers/job/REQ-001",
+    "jobTitle": "Designer",
+    "company": "Acme",
+    "platform": "workday"
+  },
+  "titleCompanyOnly": {
+    "jobTitle": "  Data   Scientist ",
+    "company": "Delta Inc",
+    "platform": "greenhouse"
+  }
+}

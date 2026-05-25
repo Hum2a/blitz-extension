@@ -49,3 +49,17 @@ Out of scope:
 - Cloud sync uses client-side encryption (E2EE); treat lost sync passphrases as unrecoverable by design
 
 See [docs/SYNC_AND_AUTH.md](docs/SYNC_AND_AUTH.md) for operator setup.
+
+## CodeQL (GitHub Actions)
+
+The [CodeQL workflow](.github/workflows/codeql.yml) runs on push, PR, and weekly schedule.
+
+If Actions logs **"Code scanning is not enabled for this repository"**, enable it once:
+
+1. Open **Settings → Code security and analysis** for this repo  
+   `https://github.com/Hum2a/blitz-extension/settings/security_analysis`
+2. Under **Code scanning**, set **CodeQL analysis** to **Enabled** (or "Default").
+
+**Public repositories** usually get CodeQL for free. **Private repositories** require [GitHub Advanced Security](https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security) on the org or repo.
+
+Until code scanning is enabled, the workflow still runs analysis locally but cannot upload SARIF results; the analyze step is marked `continue-on-error` so other CI jobs are not blocked.

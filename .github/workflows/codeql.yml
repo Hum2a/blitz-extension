@@ -1,3 +1,11 @@
+# CodeQL security analysis.
+#
+# If this job fails with "Code scanning is not enabled for this repository":
+#   GitHub → Settings → Code security and analysis → enable "Code scanning" (CodeQL).
+#   Public repos: free. Private repos: require GitHub Advanced Security (org/license).
+#
+# Until enabled, the analyze step uses continue-on-error so CI stays green; SARIF upload is skipped.
+
 name: CodeQL
 
 on:
@@ -7,12 +15,18 @@ on:
     branches: [master, main]
   schedule:
     - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   analyze:
     name: Analyze JavaScript
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Fork PRs cannot upload code scanning results to the base repository.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       actions: read
       contents: read
@@ -23,13 +37,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           queries: security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        id: analyze
+        uses: github/codeql-action/analyze@v4
+        continue-on-error: true
+
+      - name: Code scanning setup reminder
+        if: steps.analyze.outcome == 'failure'
+        run: |
+          echo "::warning::CodeQL analysis did not upload results. Enable Code scanning for this repository:"
+          echo "  https://github.com/${{ github.repository }}/settings/security_analysis"
+          echo "See .github/workflows/codeql.yml and SECURITY.md for details."
+          exit 0
