@@ -27,11 +27,14 @@ export function isHumzaWordCvTemplate(html) {
   const s = html || "";
   if (templateHasMustacheVariables(s)) return false;
   return (
-    (s.includes("titleparagraph") || s.includes("MsoListParagraph")) &&
     /professional\s+summary/i.test(s) &&
-    /technical\s+skills/i.test(s) &&
-    /career\s*\(/i.test(s)
+    (/technical\s+skills/i.test(s) || /education/i.test(s)) &&
+    (/career\s*\(/i.test(s) || /career/i.test(s))
   );
+}
+
+function normalizeForCompare(html) {
+  return (html || "").replace(/\s+/g, " ").trim();
 }
 
 function findMarkerIndex(html, re) {
@@ -266,14 +269,7 @@ function buildCareerSectionHtml(data, template) {
   return noteP + jobsHtml;
 }
 
-/**
- * Inject structured / parsed CV data into Humza's Word HTML template.
- */
-export function injectHumzaWordCvTemplate(template, cvDocument, userProfile = {}) {
-  const normalized = normalizeCvDocument(cvDocument);
-  if (!normalized) return template;
-
-  const data = enrichCvDocumentRichFields(normalized, userProfile);
+function injectHumzaWordCvTemplateRegex(template, data, userProfile) {
   const ranges = findHumzaSectionRanges(template);
   if (!ranges.summary) return template;
 
@@ -296,4 +292,129 @@ export function injectHumzaWordCvTemplate(template, cvDocument, userProfile = {}
   }
 
   return html;
+}
+
+function sectionTitlePattern(title) {
+  return new RegExp(`^\\s*${title.replace(/[()]/g, "\\$&")}\\s*$`, "i");
+}
+
+function findSectionHeadingElement(root, title) {
+  const candidates = root.querySelectorAll("p, h1, h2, h3, b, span");
+  for (const el of candidates) {
+    const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+    if (title.toLowerCase() === "career" && /^career\s*\(/i.test(text)) return el;
+    if (sectionTitlePattern(title).test(text)) return el;
+  }
+  return null;
+}
+
+function replaceSectionAfterHeading(root, title, htmlFragment) {
+  const heading = findSectionHeadingElement(root, title);
+  if (!heading) return false;
+
+  let block = heading.closest("div[style*='para-border']") || heading.parentElement;
+  let node = block?.nextSibling ?? heading.nextSibling;
+
+  const stopTitles = [
+    "Professional Summary",
+    "Education",
+    "Technical Skills",
+    "Career",
+  ].filter((t) => t.toLowerCase() !== title.toLowerCase());
+
+  const toRemove = [];
+  while (node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const text = node.textContent || "";
+      if (stopTitles.some((t) => sectionTitlePattern(t).test(text.replace(/\s+/g, " ").trim()))) {
+        break;
+      }
+      if (stopTitles.some((t) => findSectionHeadingElement(node, t))) break;
+    }
+    toRemove.push(node);
+    node = node.nextSibling;
+  }
+
+  for (const n of toRemove) n.remove();
+
+  const wrap = root.ownerDocument.createElement("div");
+  wrap.setAttribute("data-blitz-section", title.toLowerCase().replace(/\s+/g, "-"));
+  wrap.innerHTML = htmlFragment;
+  block.parentNode.insertBefore(wrap, block.nextSibling);
+  return true;
+}
+
+function injectHumzaWordCvTemplateDom(template, data, userProfile) {
+  if (typeof DOMParser === "undefined") return template;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(template, "text/html");
+  const root = doc.body;
+  if (!root) return template;
+
+  const firstHeading = findSectionHeadingElement(root, "Professional Summary");
+  if (firstHeading) {
+    const headerWrap = doc.createElement("div");
+    headerWrap.setAttribute("data-blitz-header", "1");
+    headerWrap.innerHTML = buildHeaderHtml(data, userProfile, template);
+    const headerBlock =
+      firstHeading.closest(".WordSection1") ||
+      firstHeading.closest("div")?.parentElement;
+    if (headerBlock?.parentNode) {
+      let n = headerBlock.previousSibling;
+      while (n) {
+        const prev = n.previousSibling;
+        n.remove();
+        n = prev;
+      }
+      headerBlock.parentNode.insertBefore(headerWrap, headerBlock);
+    }
+  }
+
+  replaceSectionAfterHeading(
+    root,
+    "Professional Summary",
+    buildSummarySectionHtml(data, template)
+  );
+  replaceSectionAfterHeading(
+    root,
+    "Education",
+    buildEducationSectionHtml(data, template)
+  );
+  replaceSectionAfterHeading(
+    root,
+    "Technical Skills",
+    buildSkillsSectionHtml(data)
+  );
+  replaceSectionAfterHeading(
+    root,
+    "Career",
+    buildCareerSectionHtml(data, template)
+  );
+
+  return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+}
+
+/**
+ * Inject structured / parsed CV data into Humza's Word HTML template.
+ * @returns {{ html: string, changed: boolean }}
+ */
+export function injectHumzaWordCvTemplate(template, cvDocument, userProfile = {}) {
+  const normalized = normalizeCvDocument(cvDocument);
+  if (!normalized) {
+    return { html: template, changed: false };
+  }
+
+  const data = enrichCvDocumentRichFields(normalized, userProfile);
+  let html = injectHumzaWordCvTemplateRegex(template, data, userProfile);
+  let changed = normalizeForCompare(html) !== normalizeForCompare(template);
+
+  if (!changed) {
+    const domHtml = injectHumzaWordCvTemplateDom(template, data, userProfile);
+    if (normalizeForCompare(domHtml) !== normalizeForCompare(template)) {
+      html = domHtml;
+      changed = true;
+    }
+  }
+
+  return { html, changed };
 }

@@ -10,7 +10,12 @@ import { progressFromStage } from "../lib/generation-progress.js";
 import { displayApplicationLabel } from "../lib/application-history-utils.js";
 import { scrollPanelClass } from "../lib/layout.js";
 import { getStorage } from "../lib/storage.js";
-import { buildRenderedCvHtml, downloadCvPdf } from "../lib/cv-export.js";
+import {
+  applyTailoredCvToPdfLayout,
+  buildRenderedCvHtml,
+  downloadCvPdf,
+  resolvePdfHtmlForExport,
+} from "../lib/cv-export.js";
 import ReviewPdfHtmlEditor from "./ReviewPdfHtmlEditor.jsx";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 import { Modal, ModalButton } from "./Modal.jsx";
@@ -38,6 +43,10 @@ export default function ReviewPanel({
   const [cvPreviewOpen, setCvPreviewOpen] = useState(false);
   const [cvPreviewHtml, setCvPreviewHtml] = useState("");
   const [pdfHtmlOverride, setPdfHtmlOverride] = useState(null);
+  const [pdfLayoutHtml, setPdfLayoutHtml] = useState(null);
+  const [pdfLayoutUpdatedAt, setPdfLayoutUpdatedAt] = useState(null);
+  const [useManualPdfHtml, setUseManualPdfHtml] = useState(false);
+  const [pdfApplying, setPdfApplying] = useState(false);
   const initialCvRef = useRef("");
 
   useEffect(() => {
@@ -48,16 +57,65 @@ export default function ReviewPanel({
     setCoverLetter(application.coverLetter || "");
     setAnswers(application.screeningAnswers || []);
     setPdfHtmlOverride(application.pdfHtmlOverride || null);
+    setPdfLayoutHtml(application.pdfLayoutHtml || null);
+    setPdfLayoutUpdatedAt(application.pdfLayoutUpdatedAt || null);
+    setUseManualPdfHtml(Boolean(application.pdfHtmlOverride?.trim()));
   }, [application]);
 
-  const persistPdfHtmlOverride = async (html) => {
+  const persistPdfHtmlOverride = async (html, manual = true) => {
     setPdfHtmlOverride(html);
+    setUseManualPdfHtml(Boolean(html?.trim() && manual));
     const updated = {
       ...application,
       pdfHtmlOverride: html || undefined,
     };
     onApplicationUpdate(updated);
     await setStorage("pending_application", updated);
+  };
+
+  const persistPdfLayout = async (html) => {
+    const at = new Date().toISOString();
+    setPdfLayoutHtml(html);
+    setPdfLayoutUpdatedAt(at);
+    setPdfHtmlOverride(null);
+    setUseManualPdfHtml(false);
+    const updated = {
+      ...application,
+      pdfLayoutHtml: html,
+      pdfLayoutUpdatedAt: at,
+      pdfHtmlOverride: undefined,
+    };
+    onApplicationUpdate(updated);
+    await setStorage("pending_application", updated);
+  };
+
+  const pdfLayoutStale =
+    Boolean(pdfLayoutHtml) &&
+    cv.trim() !== (initialCvRef.current || "").trim();
+
+  const handleApplyPdfLayout = async () => {
+    setPdfApplying(true);
+    try {
+      const userProfile = (await getStorage("user_profile")) || {};
+      const { cvDocument, tailoredCV } = exportCvPayload();
+      const { html } = await applyTailoredCvToPdfLayout({
+        cvDocument,
+        tailoredCV,
+        userProfile,
+      });
+      await persistPdfLayout(html);
+      await showAlert(
+        "Your Word CV layout now includes the Tailored CV text. Use Preview or Download PDF.",
+        { title: "PDF layout updated", variant: "success" }
+      );
+    } catch (err) {
+      await showAlert(err.message || "Could not update PDF layout", {
+        title: "Update failed",
+        variant: "error",
+      });
+    } finally {
+      setPdfApplying(false);
+    }
   };
 
   /** Always pass latest textarea + structured AI doc (merged at export time). */
@@ -80,7 +138,9 @@ export default function ReviewPanel({
         cvDocument,
         tailoredCV,
         userProfile,
+        pdfLayoutHtml,
         htmlOverride: pdfHtmlOverride,
+        useManualOverride: useManualPdfHtml,
         filename: `${label}.pdf`,
       });
     } catch (err) {
@@ -98,11 +158,14 @@ export default function ReviewPanel({
     try {
       const userProfile = (await getStorage("user_profile")) || {};
       const { cvDocument, tailoredCV } = exportCvPayload();
-      const html = await buildRenderedCvHtml({
+      const { html } = await resolvePdfHtmlForExport({
         cvDocument,
         tailoredCV,
         userProfile,
+        pdfLayoutHtml,
         htmlOverride: pdfHtmlOverride,
+        useManualOverride: useManualPdfHtml,
+        autoApplyIfMissing: true,
       });
       setCvPreviewHtml(html);
       setCvPreviewOpen(true);
@@ -152,6 +215,8 @@ export default function ReviewPanel({
       coverLetter,
       screeningAnswers: answers,
       pdfHtmlOverride: pdfHtmlOverride || undefined,
+      pdfLayoutHtml: pdfLayoutHtml || undefined,
+      pdfLayoutUpdatedAt: pdfLayoutUpdatedAt || undefined,
     };
     await setStorage("pending_application", updated);
     onApplicationUpdate(updated);
@@ -246,11 +311,43 @@ export default function ReviewPanel({
             />
           </div>
         )}
+        <Btn
+          onClick={handleApplyPdfLayout}
+          loading={pdfApplying}
+          disabled={pdfApplying || !cv.trim()}
+          className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 rounded-lg text-sm btn-shine disabled:opacity-50"
+        >
+          {pdfApplying ? "Updating PDF layout…" : "Update PDF from tailored CV"}
+        </Btn>
+        <p className="text-[11px] text-slate-500 leading-snug">
+          {useManualPdfHtml ? (
+            <>
+              Using <strong>manual PDF HTML</strong> (see editor below). Uncheck custom HTML to use
+              applied layout.
+            </>
+          ) : pdfLayoutHtml ? (
+            <>
+              PDF layout applied
+              {pdfLayoutUpdatedAt
+                ? ` ${new Date(pdfLayoutUpdatedAt).toLocaleString(undefined, {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}`
+                : ""}
+              .{pdfLayoutStale ? " Tailored CV changed — click Update again." : ""}
+            </>
+          ) : (
+            <>
+              Click <strong>Update PDF from tailored CV</strong> before preview/download so your
+              Word template gets the edited text (not the raw upload).
+            </>
+          )}
+        </p>
         <div className="flex gap-2">
           <Btn
             onClick={handlePreviewCv}
             loading={pdfLoading}
-            disabled={pdfLoading}
+            disabled={pdfLoading || pdfApplying}
             className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white"
           >
             {pdfLoading ? "Building…" : "Preview PDF layout"}
@@ -258,7 +355,7 @@ export default function ReviewPanel({
           <Btn
             onClick={handleDownloadPdf}
             loading={pdfLoading}
-            disabled={pdfLoading}
+            disabled={pdfLoading || pdfApplying}
             className="flex-1 border border-blitz-300 text-blitz-700 py-2 rounded-lg text-sm hover:bg-blitz-50 bg-white"
           >
             {pdfLoading ? "Building PDF…" : "Download PDF"}
@@ -309,7 +406,13 @@ export default function ReviewPanel({
         cvDocument={application?.cvDocument ?? null}
         tailoredCV={cv}
         pdfHtmlOverride={pdfHtmlOverride}
+        pdfLayoutHtml={pdfLayoutHtml}
+        pdfLayoutUpdatedAt={pdfLayoutUpdatedAt}
+        pdfLayoutStale={pdfLayoutStale}
+        useManualPdfHtml={useManualPdfHtml}
         onOverrideChange={persistPdfHtmlOverride}
+        onApplyLayout={handleApplyPdfLayout}
+        applyingLayout={pdfApplying}
         fullPage={fullPage}
       />
       {answers.length > 0 && (

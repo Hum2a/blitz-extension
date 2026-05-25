@@ -13,26 +13,100 @@ export async function getCvHtmlTemplate() {
   return (stored && String(stored).trim()) || DEFAULT_CV_HTML_TEMPLATE;
 }
 
+async function renderTemplateWithDoc(template, doc, userProfile) {
+  if (isHumzaWordCvTemplate(template)) {
+    const { html, changed } = injectHumzaWordCvTemplate(template, doc, userProfile);
+    return { html, injected: changed };
+  }
+
+  if (templateHasMustacheVariables(template)) {
+    return { html: renderCvHtml(template, doc), injected: true };
+  }
+
+  const { html, changed } = injectHumzaWordCvTemplate(template, doc, userProfile);
+  return { html, injected: changed };
+}
+
+/**
+ * Merge tailored CV + template. Never uses stale manual override.
+ */
+export async function applyTailoredCvToPdfLayout({
+  cvDocument,
+  tailoredCV,
+  userProfile,
+}) {
+  const doc = resolveCvDocument({ cvDocument, tailoredCV, userProfile });
+  if (!doc) {
+    throw new Error("No CV content — add text in Tailored CV first.");
+  }
+  if (!tailoredCV?.trim() && !doc.summary?.trim() && !(doc.jobs?.length > 0)) {
+    throw new Error("Tailored CV is empty — generate or paste content first.");
+  }
+
+  const template = await getCvHtmlTemplate();
+  const { html, injected } = await renderTemplateWithDoc(template, doc, userProfile);
+
+  if (!injected) {
+    throw new Error(
+      "Could not merge tailored CV into your template. Re-import your Word .htm in Settings → CV layout, then try again."
+    );
+  }
+
+  return { html, injected };
+}
+
 export async function buildRenderedCvHtml({
   cvDocument,
   tailoredCV,
   userProfile,
   htmlOverride,
+  pdfLayoutHtml,
+  useManualOverride = false,
 }) {
-  if (htmlOverride?.trim()) return htmlOverride.trim();
+  if (useManualOverride && htmlOverride?.trim()) {
+    return htmlOverride.trim();
+  }
+  if (pdfLayoutHtml?.trim()) {
+    return pdfLayoutHtml.trim();
+  }
+
   const doc = resolveCvDocument({ cvDocument, tailoredCV, userProfile });
   if (!doc) throw new Error("No CV content to render");
   const template = await getCvHtmlTemplate();
+  const { html } = await renderTemplateWithDoc(template, doc, userProfile);
+  return html;
+}
 
-  if (isHumzaWordCvTemplate(template)) {
-    return injectHumzaWordCvTemplate(template, doc, userProfile);
+export async function resolvePdfHtmlForExport({
+  cvDocument,
+  tailoredCV,
+  userProfile,
+  pdfLayoutHtml,
+  htmlOverride,
+  useManualOverride = false,
+  autoApplyIfMissing = true,
+}) {
+  if (useManualOverride && htmlOverride?.trim()) {
+    return { html: htmlOverride.trim(), source: "manual" };
   }
-
-  if (templateHasMustacheVariables(template)) {
-    return renderCvHtml(template, doc);
+  if (pdfLayoutHtml?.trim()) {
+    return { html: pdfLayoutHtml.trim(), source: "applied" };
   }
-
-  return injectHumzaWordCvTemplate(template, doc, userProfile);
+  if (autoApplyIfMissing) {
+    const applied = await applyTailoredCvToPdfLayout({
+      cvDocument,
+      tailoredCV,
+      userProfile,
+    });
+    return { html: applied.html, source: "auto-applied" };
+  }
+  const html = await buildRenderedCvHtml({
+    cvDocument,
+    tailoredCV,
+    userProfile,
+    useManualOverride: false,
+  });
+  return { html, source: "live" };
 }
 
 export async function generateCvPdfBase64(payload) {
@@ -67,12 +141,24 @@ export async function downloadCvPdf({
   userProfile,
   filename,
   htmlOverride,
+  pdfLayoutHtml,
+  useManualOverride = false,
   html,
 }) {
   const resolvedHtml =
     html?.trim() ||
-    htmlOverride?.trim() ||
-    (await buildRenderedCvHtml({ cvDocument, tailoredCV, userProfile }));
+    (
+      await resolvePdfHtmlForExport({
+        cvDocument,
+        tailoredCV,
+        userProfile,
+        pdfLayoutHtml,
+        htmlOverride,
+        useManualOverride,
+        autoApplyIfMissing: !useManualOverride,
+      })
+    ).html;
+
   const base64 = await generateCvPdfBase64({ html: resolvedHtml });
   const name =
     filename ||

@@ -1,6 +1,4 @@
-import { useState, useCallback } from "react";
-import { getStorage } from "../lib/storage.js";
-import { buildRenderedCvHtml } from "../lib/cv-export.js";
+import { useState, useCallback, useEffect } from "react";
 import {
   sanitizeWordImportedHtml,
   countWordHtmlSanitizeFixes,
@@ -8,58 +6,61 @@ import {
 import { FadeUp, Btn } from "./motion.jsx";
 
 /**
- * Per-application HTML override for PDF preview/download (does not call AI).
+ * Per-application PDF layout: applied HTML from tailored CV, or optional manual override.
  */
 export default function ReviewPdfHtmlEditor({
-  application,
   cvDocument,
   tailoredCV,
   pdfHtmlOverride,
+  pdfLayoutHtml,
+  pdfLayoutUpdatedAt,
+  pdfLayoutStale,
+  useManualPdfHtml,
   onOverrideChange,
+  onApplyLayout,
+  applyingLayout = false,
   fullPage = false,
 }) {
-  const [expanded, setExpanded] = useState(Boolean(pdfHtmlOverride));
-  const [html, setHtml] = useState(pdfHtmlOverride || "");
-  const [useCustom, setUseCustom] = useState(Boolean(pdfHtmlOverride));
-  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [html, setHtml] = useState(pdfLayoutHtml || pdfHtmlOverride || "");
   const [sanitizing, setSanitizing] = useState(false);
   const [sanitizeNote, setSanitizeNote] = useState(null);
 
+  useEffect(() => {
+    if (useManualPdfHtml) {
+      setHtml(pdfHtmlOverride || "");
+    } else {
+      setHtml(pdfLayoutHtml || "");
+    }
+  }, [useManualPdfHtml, pdfHtmlOverride, pdfLayoutHtml]);
+
   const syncOverride = useCallback(
     (nextHtml, enabled) => {
-      const value = enabled && nextHtml?.trim() ? nextHtml.trim() : null;
-      onOverrideChange(value);
+      onOverrideChange(nextHtml, enabled);
     },
     [onOverrideChange]
   );
 
-  const loadRendered = async () => {
-    setLoading(true);
-    try {
-      const userProfile = (await getStorage("user_profile")) || {};
-      const built = await buildRenderedCvHtml({
-        cvDocument,
-        tailoredCV,
-        userProfile,
-      });
-      setHtml(built);
-      setUseCustom(true);
-      syncOverride(built, true);
-    } finally {
-      setLoading(false);
+  const toggleCustom = (enabled) => {
+    if (!enabled) {
+      syncOverride(null, false);
+      setHtml(pdfLayoutHtml || "");
+    } else if (pdfHtmlOverride?.trim()) {
+      setHtml(pdfHtmlOverride);
+      syncOverride(pdfHtmlOverride, true);
+    } else if (pdfLayoutHtml?.trim()) {
+      setHtml(pdfLayoutHtml);
+      syncOverride(pdfLayoutHtml, true);
     }
   };
 
-  const toggleCustom = (enabled) => {
-    setUseCustom(enabled);
-    if (!enabled) {
-      syncOverride(null, false);
-    } else if (html.trim()) {
-      syncOverride(html, true);
-    } else {
-      loadRendered();
-    }
-  };
+  const statusLabel = useManualPdfHtml
+    ? "Manual HTML"
+    : pdfLayoutHtml
+      ? pdfLayoutStale
+        ? "Applied (stale)"
+        : "Applied"
+      : "Not applied";
 
   return (
     <FadeUp delay={0.12}>
@@ -69,9 +70,9 @@ export default function ReviewPdfHtmlEditor({
           onClick={() => setExpanded((e) => !e)}
           className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-slate-50 transition text-sm"
         >
-          <span className="font-medium text-slate-800">PDF HTML (download layout)</span>
+          <span className="font-medium text-slate-800">PDF HTML (advanced)</span>
           <span className="text-slate-400 text-xs">
-            {useCustom ? "Custom" : "From template"}
+            {statusLabel}
             {expanded ? " ▲" : " ▼"}
           </span>
         </button>
@@ -79,33 +80,44 @@ export default function ReviewPdfHtmlEditor({
         {expanded && (
           <div className="px-3 pb-3 border-t border-slate-100 space-y-3 text-xs text-slate-600">
             <p className="pt-2 leading-relaxed">
-              Edit the exact HTML used for <strong>Preview PDF layout</strong> and{" "}
-              <strong>Download PDF</strong>. No AI runs here. For a permanent layout, use{" "}
-              <strong>Settings → CV layout &amp; PDF template</strong> (import Word as .htm for
-              closest match).
+              Use the orange <strong>Update PDF from tailored CV</strong> button above for normal
+              export. Open this section only to inspect HTML or paste a fully custom layout.
             </p>
+
+            {pdfLayoutHtml && !useManualPdfHtml && (
+              <p className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1.5">
+                Applied layout saved
+                {pdfLayoutUpdatedAt
+                  ? ` · ${new Date(pdfLayoutUpdatedAt).toLocaleString(undefined, {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}`
+                  : ""}
+                {pdfLayoutStale ? " · Tailored CV changed since then" : ""}
+              </p>
+            )}
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={useCustom}
+                checked={useManualPdfHtml}
                 onChange={(e) => toggleCustom(e.target.checked)}
                 className="rounded border-slate-300 text-blitz-600"
               />
-              <span className="text-slate-800">Use custom HTML for this application&apos;s PDF</span>
+              <span className="text-slate-800">Use manual HTML instead of applied layout</span>
             </label>
 
-            {useCustom && (
+            {useManualPdfHtml && (
               <>
                 <div className="flex flex-wrap gap-2 items-center">
                   <Btn
                     type="button"
-                    onClick={loadRendered}
-                    loading={loading}
-                    disabled={loading}
-                    className="text-xs border border-slate-300 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50"
+                    onClick={onApplyLayout}
+                    loading={applyingLayout}
+                    disabled={applyingLayout || !tailoredCV?.trim()}
+                    className="text-xs border border-amber-400 bg-amber-50 text-amber-900 px-3 py-1.5 rounded-lg hover:bg-amber-100"
                   >
-                    {loading ? "Loading…" : "Reload from template + data"}
+                    {applyingLayout ? "Applying…" : "Apply tailored CV → save layout"}
                   </Btn>
                   <Btn
                     type="button"
@@ -134,16 +146,6 @@ export default function ReviewPdfHtmlEditor({
                   {sanitizeNote && (
                     <span className="text-[11px] text-amber-800">{sanitizeNote}</span>
                   )}
-                  <Btn
-                    type="button"
-                    onClick={() => {
-                      setHtml("");
-                      syncOverride(null, true);
-                    }}
-                    className="text-xs border border-slate-300 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50"
-                  >
-                    Clear editor
-                  </Btn>
                 </div>
                 <textarea
                   value={html}
@@ -158,6 +160,16 @@ export default function ReviewPdfHtmlEditor({
                   placeholder="<!DOCTYPE html>… full document for PDF export"
                 />
               </>
+            )}
+
+            {!useManualPdfHtml && pdfLayoutHtml && (
+              <textarea
+                readOnly
+                value={pdfLayoutHtml}
+                className={`w-full border border-slate-200 rounded-lg p-2 font-mono text-[11px] leading-relaxed bg-slate-50 text-slate-600 ${
+                  fullPage ? "min-h-[120px]" : "min-h-[80px]"
+                }`}
+              />
             )}
           </div>
         )}

@@ -270,7 +270,11 @@ async function handleMessage(message, sender) {
       let pdfBase64 = null;
       try {
         pdfBase64 = await generatePdfOffscreen({
-          html: application.pdfHtmlOverride,
+          pdfLayoutHtml: application.pdfLayoutHtml,
+          htmlOverride: application.pdfHtmlOverride,
+          useManualOverride: Boolean(
+            application.pdfHtmlOverride?.trim() && !application.pdfLayoutHtml?.trim()
+          ),
           cvDocument: application.cvDocument,
           tailoredCV: application.tailoredCV,
           userProfile: settings.user_profile,
@@ -477,12 +481,17 @@ async function ensureOffscreenDocument() {
 
 async function generatePdfOffscreen(payload) {
   await ensureOffscreenDocument();
-  let html = payload.html;
-  if (!html?.trim()) {
+  let html = payload.html?.trim() || payload.pdfLayoutHtml?.trim();
+  if (!html) {
     html = await buildRenderedCvHtml({
       cvDocument: payload.cvDocument,
       tailoredCV: payload.tailoredCV,
       userProfile: payload.userProfile,
+      pdfLayoutHtml: payload.pdfLayoutHtml,
+      htmlOverride: payload.htmlOverride,
+      useManualOverride: Boolean(
+        payload.useManualOverride ?? (payload.htmlOverride && !payload.pdfLayoutHtml)
+      ),
     });
   }
   const result = await chrome.runtime.sendMessage({
