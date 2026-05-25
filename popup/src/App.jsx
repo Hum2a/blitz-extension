@@ -9,6 +9,7 @@ import LicenseGate from "./components/LicenseGate.jsx";
 import { useLicense } from "./hooks/useLicense.js";
 import { getStorage, setStorage } from "./lib/storage.js";
 import { scrapeActiveTab } from "./lib/scrape-tab.js";
+import { applicationMatchesJob } from "./lib/job-listing.js";
 import { logError, pingBackground } from "./lib/runtime-messages.js";
 import DebugLog from "./components/DebugLog.jsx";
 import { Page, NavTab } from "./components/motion.jsx";
@@ -38,6 +39,26 @@ export default function App({ fullPage = false, bridgeMode = false }) {
   const [generationProgress, setGenerationProgress] = useState(null);
   const license = useLicense();
 
+  const reconcileApplication = async (job) => {
+    const stored = await getStorage("pending_application");
+    if (!stored) {
+      setApplication(null);
+      return;
+    }
+    if (!job || !applicationMatchesJob(stored, job)) {
+      await setStorage("pending_application", null);
+      setApplication(null);
+      return;
+    }
+    setApplication(stored);
+  };
+
+  const applyPendingJob = async (job, { persist = true } = {}) => {
+    setPendingJob(job ?? null);
+    if (persist && job) await setStorage("pending_job", job);
+    await reconcileApplication(job ?? null);
+  };
+
   const refreshJobFromTab = async () => {
     setDetecting(true);
     setDetectError(null);
@@ -62,20 +83,19 @@ export default function App({ fullPage = false, bridgeMode = false }) {
           (job.error && /dashboard\.html|chrome:\/\/extensions/i.test(job.error));
 
         if (hasStoredJob && workspaceOnly) {
-          setPendingJob(stored);
+          await applyPendingJob(stored, { persist: false });
           setDetectError(null);
           setDetectErrorDetails(null);
         } else {
           await logError("scrapeActiveTab", new Error(job.error), { ping, url: job.url });
           setDetectError(job.error);
           setDetectErrorDetails({ ping, url: job.url, tabId: job.tabId });
-          if (hasStoredJob) setPendingJob(stored);
+          if (hasStoredJob) await applyPendingJob(stored, { persist: false });
         }
       } else if (job) {
-        setPendingJob(job);
+        await applyPendingJob(job);
         setDetectError(null);
         setDetectErrorDetails(null);
-        await setStorage("pending_job", job);
       }
     } catch (err) {
       await logError("refreshJobFromTab", err);
@@ -88,20 +108,52 @@ export default function App({ fullPage = false, bridgeMode = false }) {
 
   const syncFromStorage = async (changes) => {
     if (changes?.pending_job) {
-      setPendingJob(changes.pending_job.newValue ?? null);
+      const job = changes.pending_job.newValue ?? null;
+      setPendingJob(job);
+      await reconcileApplication(job);
     } else if (!changes || changes.pending_job === undefined) {
-      setPendingJob(await getStorage("pending_job"));
+      const job = await getStorage("pending_job");
+      setPendingJob(job);
+      await reconcileApplication(job);
     }
     if (changes?.pending_application) {
-      setApplication(changes.pending_application.newValue ?? null);
+      const app = changes.pending_application.newValue ?? null;
+      const job =
+        changes.pending_job?.newValue ?? (await getStorage("pending_job"));
+      if (app && job && !applicationMatchesJob(app, job)) {
+        setApplication(null);
+      } else {
+        setApplication(app);
+      }
     } else if (!changes || changes.pending_application === undefined) {
-      setApplication(await getStorage("pending_application"));
+      const [app, job] = await Promise.all([
+        getStorage("pending_application"),
+        getStorage("pending_job"),
+      ]);
+      if (app && job && !applicationMatchesJob(app, job)) {
+        setApplication(null);
+      } else {
+        setApplication(app);
+      }
     }
   };
 
   useEffect(() => {
-    getStorage("pending_application").then(setApplication);
-    getStorage("pending_job").then(setPendingJob);
+    if (
+      view === VIEWS.review &&
+      application &&
+      pendingJob &&
+      !applicationMatchesJob(application, pendingJob)
+    ) {
+      setView(VIEWS.dashboard);
+    }
+  }, [view, application, pendingJob]);
+
+  useEffect(() => {
+    getStorage("pending_job").then(async (job) => {
+      setPendingJob(job);
+      await reconcileApplication(job);
+    });
     refreshJobFromTab();
 
     const onStorage = (ch, area) => {
@@ -111,8 +163,12 @@ export default function App({ fullPage = false, bridgeMode = false }) {
 
     const listener = (message) => {
       if (message.type === "JOB_DETECTED") {
-        setPendingJob(message.payload);
+        applyPendingJob(message.payload);
         setDetectError(null);
+      }
+      if (message.type === "APPLICATION_SUBMITTED") {
+        setStorage("pending_application", null);
+        setApplication(null);
       }
       if (message.type === "GENERATION_PROGRESS") {
         setGenerationProgress(message.payload);

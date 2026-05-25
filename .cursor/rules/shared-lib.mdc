@@ -19,6 +19,7 @@ Used by **popup** and **background** (imported via relative paths).
 | `pdf.js` / `cv-export.js` | Request PDF; `buildRenderedCvHtml` for offscreen |
 | `cv-template-engine.js`, `cv-template-default.js`, `cv-document.js`, `cv-html.js` | HTML CV template + sanitised rich fields |
 | `application-history-utils.js` | `displayApplicationLabel` (`{Role} — {Company}`) |
+| `job-listing.js` | `listingKey`, `applicationMatchesJob` — match card / review tied to one listing |
 | `extension-env.js` | `isExtensionPage`, `sendExtensionMessage`, web bridge |
 | `pdf-parse.js` | PDF → text in Settings (pdfjs-dist) |
 | `queue-utils.js` | `detectPlatformFromUrl`, parse bulk job URLs |

@@ -208,6 +208,22 @@ body:has(.blitz-site-connect) {
   border-color: rgb(52 211 153 / 0.35);
 }
 
+/* Dark themes invert slate-900 → light surface; keep readable label on those buttons */
+[data-mode="dark"] .btn-surface-contrast:not(:disabled) {
+  color: #0f172a !important;
+}
+
+[data-mode="dark"] .btn-surface-contrast:not(:disabled) .spinner-on-contrast {
+  border-color: rgb(15 23 42 / 0.35);
+  border-top-color: #0f172a;
+}
+
+@layer components {
+  .btn-surface-contrast {
+    @apply bg-slate-900 hover:bg-slate-800 text-white font-medium transition;
+  }
+}
+
 @layer utilities {
   .header-shine {
     background: linear-gradient(

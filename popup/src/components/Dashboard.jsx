@@ -10,6 +10,7 @@ import { Stagger, FadeUp, Card, Btn, PulseDots } from "./motion.jsx";
 import RecentApplications from "./RecentApplications.jsx";
 import WorkspaceTabJobs from "./WorkspaceTabJobs.jsx";
 import { scrollPanelClass } from "../lib/layout.js";
+import { applicationMatchesJob } from "../lib/job-listing.js";
 
 function formatCompany(company) {
   if (company == null || company === "") return null;
@@ -63,6 +64,10 @@ export default function Dashboard({
 
   const company = formatCompany(pendingJob?.company);
   const hasJob = Boolean(pendingJob?.jobTitle || pendingJob?.jobDescription || company);
+  const matchedApplication =
+    application && pendingJob && applicationMatchesJob(application, pendingJob)
+      ? application
+      : null;
 
   useEffect(() => {
     if (!hasJob) {
@@ -262,9 +267,9 @@ export default function Dashboard({
 
   const matchCard = (
     <AnimatePresence>
-      {application?.matchScore != null && (
+      {matchedApplication?.matchScore != null && (
         <motion.div
-          key="match"
+          key={`match-${matchedApplication.listingKey || pendingJob?.url || "job"}`}
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
@@ -272,8 +277,8 @@ export default function Dashboard({
         >
           <Card className="bg-white rounded-xl border p-4 shadow-sm" delay={0.08}>
             <MatchScoreRing
-              score={application.matchScore}
-              rationale={application.matchRationale}
+              score={matchedApplication.matchScore}
+              rationale={matchedApplication.matchRationale}
               size={fullPage ? 96 : 80}
             />
           </Card>
@@ -302,7 +307,7 @@ export default function Dashboard({
             loading={costLoading && hasJob}
           />
           <AnimatePresence>
-            {application && (
+            {matchedApplication && (
               <motion.div
                 key="review-btn"
                 initial={{ opacity: 0, y: 12 }}
@@ -322,7 +327,7 @@ export default function Dashboard({
             <Btn
               onClick={onGenerate}
               disabled={!canGenerate || generating}
-              className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-medium py-3 rounded-lg transition btn-shine relative overflow-hidden"
+              className="btn-surface-contrast w-full disabled:bg-slate-300 py-3 rounded-lg btn-shine relative overflow-hidden"
             >
               {generating && (
                 <motion.div
@@ -336,7 +341,7 @@ export default function Dashboard({
                 {generating ? (
                   <>
                     <motion.span
-                      className="inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full"
+                      className="spinner-on-contrast inline-block w-3 h-3 border-2 border-white/40 border-t-white rounded-full"
                       animate={{ rotate: 360 }}
                       transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
                     />

@@ -21,8 +21,26 @@ import {
 import { processQueue } from "./queue-processor.js";
 import { listOpenJobTabs, queueItemsFromTabs, findJobTabForScrape } from "./tab-jobs.js";
 import { buildRenderedCvHtml } from "../popup/src/lib/cv-export.js";
+import {
+  applicationMatchesJob,
+  withListingKey,
+} from "../popup/src/lib/job-listing.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
+
+async function setPendingJobAndReconcile(jobData) {
+  await setStorage("pending_job", jobData);
+  const app = await getStorage("pending_application");
+  if (app && jobData && !applicationMatchesJob(app, jobData)) {
+    await setStorage("pending_application", null);
+  }
+}
+
+async function savePendingApplication(result, jobData) {
+  const application = withListingKey({ ...result, jobData }, jobData);
+  await setStorage("pending_application", application);
+  return application;
+}
 
 async function migrateStoredAiConfig() {
   const raw = (await getStorage("ai_config")) || {};
@@ -81,7 +99,7 @@ async function handleMessage(message, sender) {
       };
 
     case "JOB_DETECTED":
-      await setStorage("pending_job", message.payload);
+      await setPendingJobAndReconcile(message.payload);
       chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: message.payload }).catch(() => {});
       return { ok: true };
 
@@ -104,7 +122,7 @@ async function handleMessage(message, sender) {
       if (!job?.jobTitle && !job?.jobDescription) {
         return { error: "No job on this page" };
       }
-      await setStorage("pending_job", job);
+      await setPendingJobAndReconcile(job);
       const settings = await getAllSettings();
       if (!settings.cv_text?.trim()) {
         return { error: "Add your CV in Settings first" };
@@ -134,8 +152,7 @@ async function handleMessage(message, sender) {
           type: "GENERATION_PROGRESS",
           payload: progressComplete("Application ready — open Blitz to review"),
         }).catch(() => {});
-        const application = { ...result, jobData: job };
-        await setStorage("pending_application", application);
+        const application = await savePendingApplication(result, job);
         chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
         return { ok: true, matchScore: result.matchScore };
       } catch (err) {
@@ -204,8 +221,7 @@ async function handleMessage(message, sender) {
         payload: progressComplete("Application ready — opening review"),
       }).catch(() => {});
 
-      const application = { ...result, jobData };
-      await setStorage("pending_application", application);
+      const application = await savePendingApplication(result, jobData);
       chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
       return application;
     }
@@ -276,6 +292,8 @@ async function handleMessage(message, sender) {
 
     case "APPLICATION_SUBMITTED":
       await incrementApplicationCount();
+      await setStorage("pending_application", null);
+      chrome.runtime.sendMessage({ type: "APPLICATION_SUBMITTED" }).catch(() => {});
       return { ok: true };
 
     case "LIST_JOB_TABS": {
@@ -417,7 +435,7 @@ async function scrapeActiveTabJob(tabId) {
     return { error: "No job listing detected on this page" };
   }
 
-  await setStorage("pending_job", jobData);
+  await setPendingJobAndReconcile(jobData);
   chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData }).catch(() => {});
   return jobData;
 }

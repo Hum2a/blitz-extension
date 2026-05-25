@@ -108,7 +108,7 @@ export default function JobQueue({ onReviewItem, fullPage = false }) {
             <Btn
               onClick={processQueue}
               disabled={processing || pendingCount === 0}
-              className="flex-1 bg-slate-900 text-white text-xs py-2 rounded disabled:opacity-50 btn-shine"
+              className="btn-surface-contrast flex-1 text-xs py-2 rounded disabled:opacity-50 btn-shine"
             >
               {processing ? (
                 <span className="inline-flex items-center gap-1 justify-center">
