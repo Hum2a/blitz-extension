@@ -1,0 +1,36 @@
+---
+description: Keep Cursor rules in sync when adding or changing features
+alwaysApply: true
+---
+
+# Maintain Cursor rules (required for agents)
+
+When you **add, remove, or materially change** a user-facing feature or cross-layer flow (background messages, content scripts, storage keys, build outputs), **update project docs in the same task** — do not leave rules stale.
+
+## Checklist (same PR / commit series as the feature)
+
+1. **`features-architecture.mdc`** — Add or edit a row in the feature table; update message/storage keys if applicable.
+2. **Area rule** — Touch the focused rule for the layer you changed:
+   - `background-worker.mdc` — new `handleMessage` cases, `background/*.js` modules
+   - `content-scripts.mdc` — detectors, widget, page context, content message handlers
+   - `popup-react.mdc` — views, `fullPage` / site shell, new components
+   - `shared-lib.mdc` — new `popup/src/lib/*` modules or storage keys
+   - `build-release.mdc` — manifest, validate script, new build/copy steps
+3. **`docs/ARCHITECTURE.md`** — Short section or diagram update for non-trivial flows (queue-from-tabs, PDF pipeline, external web bridge, etc.).
+4. **`AGENTS.md`** — One-line bullet in “Feature index” when the feature is agent-relevant.
+5. **`.cursor/README.md`** — Only if you add a **new** `.mdc` rule file.
+
+## When to add a new `.mdc` file
+
+- New **domain** with its own globs (e.g. a second Cloudflare worker, a new app under `web/`).
+- Otherwise **extend** existing rules; avoid duplicating the feature table.
+
+## Style
+
+- Rules stay **actionable and short** (prefer tables + file paths over prose).
+- Link to `docs/*.md` for deep specs; rules hold **where things live** and **invariants**.
+- Never document secrets, API key handling beyond “do not log”.
+
+## If unsure
+
+Default to updating `features-architecture.mdc` + the one layer rule you touched. Skipping rule updates is only OK for typo-only or comment-only changes with no behavioral/architectural impact.

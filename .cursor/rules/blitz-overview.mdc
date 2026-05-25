@@ -30,4 +30,10 @@ Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (Shadow DOM, best-effo
 
 ## Commands
 
-Run from `blitz-extension/`: `npm run build`, `npm run dev`, `npm run pack`, `npm run validate`. See `README.md` for full script list.
+Run from `blitz-extension/`: `npm run build`, `npm run dev`, `npm run web:dev`, `npm run pack`, `npm run validate`. See `README.md` for full script list.
+
+## Docs for agents
+
+- **Feature map**: `features-architecture.mdc` (always on)
+- **When you ship features**: update rules per `maintain-cursor-rules.mdc`
+- **Long-form**: `docs/ARCHITECTURE.md`, `DASHBOARD.md`, `docs/CV_HTML_PDF.md`

@@ -12,13 +12,19 @@ React 18 + Vite. Built output: `popup/dist/` (manifest points here). Tailwind in
 
 ## Structure
 
-- `App.jsx` — views: dashboard, review, queue, tracker, settings
+- `App.jsx` — views: dashboard, review, queue, history, settings; `fullPage` for workspace
+- `components/site/` — `SiteShell.jsx`, `SitePageHeader.jsx` (sidebar nav on dashboard)
+- `components/WorkspaceTabJobs.jsx` — open browser tabs → bulk queue (`fullPage` only)
+- `components/settings/CvTemplateEditor.jsx` — Visual / HTML / DOCX import for CV template
 - `components/` — UI only; no direct AI fetch
 - `hooks/` — `useStorage`, `useApplications`, `useLicense`, `useJobQueue`
+- `web/` + `vite.web.config.js` — localhost dashboard (`npm run web:dev`); `WebConnect.jsx` for extension ID
 
 ## Patterns
 
-- Talk to background via `chrome.runtime.sendMessage` (e.g. `GENERATE_APPLICATION`, `FILL_FORM`, `PROCESS_QUEUE`)
+- Extension pages: `chrome.runtime.sendMessage`
+- Localhost web: `sendExtensionMessage` from `lib/extension-env.js` (requires linked extension ID)
+- Messages: `GENERATE_APPLICATION`, `FILL_FORM`, `PROCESS_QUEUE`, `LIST_JOB_TABS`, `ADD_TABS_TO_QUEUE`
 - Use `getStorage` / `setStorage` / `mergeStorage` from `lib/storage.js`
 - License paywall: `LicenseGate.jsx` when free tier exhausted
 

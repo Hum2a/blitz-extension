@@ -8,13 +8,15 @@ alwaysApply: false
 
 ## Load order (manifest)
 
-Per platform: `humanise.js` → `file-upload.js` → platform script → `detector.js` (Greenhouse/Workday/LinkedIn/Indeed vary — see `manifest.json`).
+Job origins: `page-context.js` early; per platform `humanise.js` → `file-upload.js` → platform script → `detector.js` → `job-widget.js` (see `manifest.json`).
 
 ## Modules
 
 | File | Role |
 |------|------|
-| `detector.js` | Platform detect, `JOB_DETECTED`, route `FILL_FORM` / `SCRAPE_JOB` |
+| `page-context.js` | `window.blitzPageContext.analyze()` — `single_job` / `job_list` / `search`; sets `canCapture` |
+| `job-widget.js` | Floating panel (shadow DOM); `WIDGET_GENERATE`, refresh job |
+| `detector.js` | Platform detect, `JOB_DETECTED`, `GET_TAB_JOB_INFO`, `FILL_FORM` / `SCRAPE_JOB` |
 | `humanise.js` | `window.blitzHumanise` — typing, clicks, native value setter for React |
 | `file-upload.js` | Attach PDF/base64 to file inputs |
 | `greenhouse.js` / `linkedin.js` / `indeed.js` / `workday.js` | `scrapeJob()`, `fillForm(payload)` on `window.blitz*` |
@@ -29,6 +31,10 @@ Per platform: `humanise.js` → `file-upload.js` → platform script → `detect
 - **Indeed**: block `externalApply` redirects
 - **Workday**: `queryDeep()` for Shadow DOM
 - **Greenhouse**: `DataTransfer` for resume upload
+
+## Messages handled in content
+
+`SCRAPE_JOB`, `FILL_FORM`, `GET_TAB_JOB_INFO` (returns `{ context, jobData, platform }` for tab queue), `WIDGET_REFRESH_JOB`
 
 ## Do not
 

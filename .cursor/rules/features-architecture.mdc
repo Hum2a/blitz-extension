@@ -1,0 +1,51 @@
+---
+description: Feature map and cross-layer architecture (dashboard, widget, CV PDF, tab queue)
+alwaysApply: true
+---
+
+# Blitz — Feature architecture
+
+Canonical detail: `docs/ARCHITECTURE.md`, `docs/CV_HTML_PDF.md`, `DASHBOARD.md`.
+
+## Feature index
+
+| Feature | UI / entry | Background / content | Storage / data |
+|--------|------------|----------------------|----------------|
+| Popup (420px) | `popup/dist/index.html`, `App.jsx` | Same messages as dashboard | `chrome.storage.local` |
+| Full workspace | `popup/dist/dashboard.html`, `web/` (`npm run web:dev`) | `onMessage` + `onMessageExternal` (localhost) | Same storage; IDB history **extension origins only** |
+| Site shell | `SiteShell.jsx`, `fullPage` prop, `site-views.js` | — | — |
+| On-page widget | Shadow DOM `content/job-widget.js` + CSS | `OPEN_BLITZ`, `WIDGET_GENERATE`, `BLITZ_PAGE_STATE` | `pending_job` via widget generate |
+| Page context | `content/page-context.js` → `window.blitzPageContext` | Used by widget + `GET_TAB_JOB_INFO` | — |
+| Open job tabs | `WorkspaceTabJobs.jsx` (Home + Queue, `fullPage` only) | `LIST_JOB_TABS`, `ADD_TABS_TO_QUEUE` in `background/tab-jobs.js` | `job_queue` items may include `jobData`, `sourceTabId` |
+| Bulk URL queue | `JobQueue.jsx` | `ADD_QUEUE_URLS`, `PROCESS_QUEUE`, `queue-processor.js` | `job_queue`, `queue_processing` |
+| CV HTML → PDF | `CvTemplateEditor.jsx`, Review download | `GENERATE_PDF` → offscreen `html2canvas` + jsPDF | `cv_html_template` |
+| AI generation | Dashboard / Review / widget | `GENERATE_APPLICATION`, `WIDGET_GENERATE` | `pending_application`, `pending_job` |
+| Application naming | History / Review labels | `formatApplicationTitle` in prompts | IndexedDB + `applicationTitle` on records |
+| Web ↔ extension bridge | `WebConnect.jsx`, `extension-env.js` | `sendExtensionMessage()` → extension ID | `localStorage` key `blitz_extension_id` |
+
+## Layer invariants
+
+- **AI**: only `background/service-worker.js` (+ imports from `popup/src/lib/ai.js`, `prompts.js`).
+- **Job page DOM**: only `content/*`; fill gated on `FILL_FORM`.
+- **PDF render**: only `offscreen/`; `GENERATE_PDF_OFFSCREEN` not handled in SW (`return false`).
+- **Dashboard messaging**: use `sendExtensionMessage` from `lib/extension-env.js` on localhost web; `chrome.runtime.sendMessage` on extension pages.
+
+## Key background messages
+
+`JOB_DETECTED`, `GENERATE_APPLICATION`, `FILL_FORM`, `GENERATE_PDF`, `PROCESS_QUEUE`, `LIST_JOB_TABS`, `ADD_TABS_TO_QUEUE`, `ADD_QUEUE_URLS`, `WIDGET_GENERATE`, `OPEN_BLITZ`, `SCRAPE_ACTIVE_TAB`, `ESTIMATE_GENERATION_COST`, license/API test handlers.
+
+## Tab queue flow
+
+1. `listOpenJobTabs()` queries tabs → `GET_TAB_JOB_INFO` per tab (context + scrape).
+2. UI shows Ready / Select job / Reload; user selects → `ADD_TABS_TO_QUEUE`.
+3. `processQueue` prefers `sourceTabId` if still open; else opens background tab; does not close user tabs.
+
+## CV PDF flow
+
+1. AI returns `cvDocument` JSON → `cv-document.js` / `cv-html.js` enrich HTML fields.
+2. `cv-template-engine.js` renders template (`{{{triple}}}` = raw HTML, `{{double}}` = escaped).
+3. Offscreen renders HTML → canvas → PDF (`copy-offscreen-deps.mjs` vendors html2canvas + jsPDF).
+
+## Content script load (job sites)
+
+`page-context.js` before platform scripts; `detector.js` last. Widget: `job-widget.js` + `web_accessible_resources` for CSS.

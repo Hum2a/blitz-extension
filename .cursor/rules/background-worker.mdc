@@ -8,13 +8,20 @@ alwaysApply: false
 
 ## Files
 
-- `background/service-worker.js` — message router, AI generation, license, PDF trigger, queue
-- `background/queue-processor.js` — bulk URL queue (opens tabs, scrape, generate)
-- `offscreen/offscreen.html` + `pdf-generator.js` — jsPDF from local `jspdf.umd.min.js`
+- `background/service-worker.js` — message router, AI generation, license, PDF trigger, queue, external web
+- `background/queue-processor.js` — bulk queue (reuse `sourceTabId` when open, else background tab)
+- `background/tab-jobs.js` — `listOpenJobTabs`, `queueItemsFromTabs` for workspace tab browser
+- `offscreen/offscreen.html` + `pdf-generator.js` — HTML → html2canvas → jsPDF (vendored deps)
 
 ## Message types (popup/content → background)
 
-`JOB_DETECTED`, `GENERATE_APPLICATION`, `FILL_FORM`, `GENERATE_PDF`, `VALIDATE_LICENSE`, `GET_APPLICATION_COUNT`, `PROCESS_QUEUE`, `TEST_API_KEY`, `APPLICATION_SUBMITTED`
+Core: `JOB_DETECTED`, `GENERATE_APPLICATION`, `FILL_FORM`, `GENERATE_PDF`, `VALIDATE_LICENSE`, `GET_APPLICATION_COUNT`, `APPLICATION_SUBMITTED`, `TEST_API_KEY`, `SCRAPE_ACTIVE_TAB`, `ESTIMATE_GENERATION_COST`
+
+Queue / tabs: `PROCESS_QUEUE`, `ADD_QUEUE_URLS`, `ADD_TABS_TO_QUEUE`, `LIST_JOB_TABS`, `GET_QUEUE`, `CLEAR_QUEUE`
+
+Widget: `WIDGET_GENERATE`, `OPEN_BLITZ`, `BLITZ_PAGE_STATE`
+
+External: `chrome.runtime.onMessageExternal` for `localhost` / `127.0.0.1` (web dashboard) — same `handleMessage` switch
 
 Return `{ error: string }` on failure. Use `return true` + `sendResponse` for async handlers.
 
@@ -23,6 +30,8 @@ Return `{ error: string }` on failure. Use `return true` + `sendResponse` for as
 - Check `chrome.offscreen.hasDocument()` before `createDocument`
 - `GENERATE_PDF_OFFSCREEN` must **not** be handled in service worker (`return false` so offscreen receives it)
 - Reasons: `DOM_SCRAPING` for PDF justification
+- HTML assembly: `popup/src/lib/cv-export.js` → `buildRenderedCvHtml`; template in storage key `cv_html_template`
+- Postinstall: `copy-offscreen-deps.mjs` copies jspdf + html2canvas into `offscreen/`
 
 ## Imports
 
