@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest an idea or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you want solved and how Blitz could help.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain point does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like Blitz to do?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Primary platform
+      options:
+        - All platforms
+        - Greenhouse
+        - LinkedIn
+        - Indeed
+        - Workday
+        - Extension UI / dashboard
+        - License / billing
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: This is not a duplicate of an existing issue or request
+          required: true

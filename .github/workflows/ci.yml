@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-validate:
+    name: Build & validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            license-worker/package-lock.json
+
+      - name: Install extension dependencies
+        run: npm ci
+
+      - name: Install license-worker dependencies
+        run: npm ci --prefix license-worker
+
+      - name: Generate icons
+        run: npm run icons
+
+      - name: Build and validate
+        run: npm run build:check
+
+      - name: Run validation tests
+        run: npm run test:validate
