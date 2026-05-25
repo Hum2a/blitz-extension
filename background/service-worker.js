@@ -19,6 +19,7 @@ import {
   validateLicense,
 } from "../popup/src/lib/license.js";
 import { processQueue } from "./queue-processor.js";
+import { buildRenderedCvHtml } from "../popup/src/lib/cv-export.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -171,10 +172,7 @@ async function handleMessage(message, sender) {
     }
 
     case "GENERATE_PDF": {
-      const base64 = await generatePdfOffscreen(
-        message.payload.cvText,
-        message.payload.template || "modern"
-      );
+      const base64 = await generatePdfOffscreen(message.payload || {});
       return { base64 };
     }
 
@@ -193,10 +191,11 @@ async function handleMessage(message, sender) {
 
       let pdfBase64 = null;
       try {
-        pdfBase64 = await generatePdfOffscreen(
-          application.tailoredCV,
-          settings.preferences?.cvTemplate || "modern"
-        );
+        pdfBase64 = await generatePdfOffscreen({
+          cvDocument: application.cvDocument,
+          tailoredCV: application.tailoredCV,
+          userProfile: settings.user_profile,
+        });
       } catch {
         pdfBase64 = null;
       }
@@ -348,11 +347,19 @@ async function ensureOffscreenDocument() {
   });
 }
 
-async function generatePdfOffscreen(cvText, template) {
+async function generatePdfOffscreen(payload) {
   await ensureOffscreenDocument();
+  let html = payload.html;
+  if (!html?.trim()) {
+    html = await buildRenderedCvHtml({
+      cvDocument: payload.cvDocument,
+      tailoredCV: payload.tailoredCV,
+      userProfile: payload.userProfile,
+    });
+  }
   const result = await chrome.runtime.sendMessage({
     type: "GENERATE_PDF_OFFSCREEN",
-    payload: { cvText, template },
+    payload: { html },
   });
   if (result?.error) throw new Error(result.error);
   return result.base64;

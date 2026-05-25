@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { setStorage } from "../lib/storage.js";
 import { useApplications } from "../hooks/useApplications.js";
@@ -8,6 +8,8 @@ import GenerationProgress from "./GenerationProgress.jsx";
 import { progressFromStage } from "../lib/generation-progress.js";
 import { displayApplicationLabel } from "../lib/application-history-utils.js";
 import { scrollPanelClass } from "../lib/layout.js";
+import { getStorage } from "../lib/storage.js";
+import { buildRenderedCvHtml, downloadCvPdf } from "../lib/cv-export.js";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 
 export default function ReviewPanel({
@@ -27,13 +29,59 @@ export default function ReviewPanel({
   const [coverLetter, setCoverLetter] = useState("");
   const [answers, setAnswers] = useState([]);
   const [filling, setFilling] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [cvPreviewOpen, setCvPreviewOpen] = useState(false);
+  const [cvPreviewHtml, setCvPreviewHtml] = useState("");
+  const initialCvRef = useRef("");
 
   useEffect(() => {
     if (!application) return;
-    setCv(application.tailoredCV || "");
+    const text = application.tailoredCV || "";
+    setCv(text);
+    initialCvRef.current = text;
     setCoverLetter(application.coverLetter || "");
     setAnswers(application.screeningAnswers || []);
   }, [application]);
+
+  const cvDocumentForExport = () =>
+    cv === initialCvRef.current ? application?.cvDocument : null;
+
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const userProfile = (await getStorage("user_profile")) || {};
+      const label = displayApplicationLabel({
+        applicationTitle: application.applicationTitle,
+        role: pendingJob?.jobTitle || application.jobData?.jobTitle,
+        company: pendingJob?.company || application.jobData?.company,
+      });
+      await downloadCvPdf({
+        cvDocument: cvDocumentForExport(),
+        tailoredCV: cv,
+        userProfile,
+        filename: `${label}.pdf`,
+      });
+    } catch (err) {
+      alert(err.message || "Could not generate PDF");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handlePreviewCv = async () => {
+    try {
+      const userProfile = (await getStorage("user_profile")) || {};
+      const html = await buildRenderedCvHtml({
+        cvDocument: cvDocumentForExport(),
+        tailoredCV: cv,
+        userProfile,
+      });
+      setCvPreviewHtml(html);
+      setCvPreviewOpen(true);
+    } catch (err) {
+      alert(err.message || "Could not preview CV");
+    }
+  };
 
   if (!application) {
     return (
@@ -169,6 +217,21 @@ export default function ReviewPanel({
         )}
         <div className="flex gap-2">
           <Btn
+            onClick={handlePreviewCv}
+            className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white"
+          >
+            Preview PDF layout
+          </Btn>
+          <Btn
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading}
+            className="flex-1 border border-blitz-300 text-blitz-700 py-2 rounded-lg text-sm hover:bg-blitz-50 bg-white disabled:opacity-50"
+          >
+            {pdfLoading ? "Building PDF…" : "Download PDF"}
+          </Btn>
+        </div>
+        <div className="flex gap-2">
+          <Btn
             onClick={onRegenerate}
             disabled={generating}
             className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white disabled:opacity-50"
@@ -261,6 +324,29 @@ export default function ReviewPanel({
           {sidebar}
           {editors}
         </>
+      )}
+
+      {cvPreviewOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h4 className="font-semibold text-slate-900">Formatted CV (HTML)</h4>
+              <button
+                type="button"
+                onClick={() => setCvPreviewOpen(false)}
+                className="text-slate-500 hover:text-slate-800 text-lg"
+              >
+                ×
+              </button>
+            </div>
+            <iframe
+              title="CV preview"
+              srcDoc={cvPreviewHtml}
+              className="flex-1 w-full min-h-[480px] border-0 bg-slate-100"
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
       )}
     </Stagger>
   );

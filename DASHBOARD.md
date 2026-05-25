@@ -38,9 +38,16 @@ Keep the extension installed; the site is only a window into the same background
 
 **Home** shows stats + a short recent-applications list. **History** is the full log with search, filters, and CV/cover letter snapshots.
 
+## CV PDF (HTML template)
+
+Settings → **CV HTML template** — edit layout/CSS; saved as `cv_html_template` in extension storage (syncs with popup and web workspace). Review → **Download PDF** / **Preview PDF layout**.
+
+See [docs/CV_HTML_PDF.md](docs/CV_HTML_PDF.md).
+
 ## Development
 
 ```bash
+npm install
 npm run build      # popup + extension dashboard
 npm run web:dev    # localhost dashboard (optional)
 ```

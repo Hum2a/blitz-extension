@@ -126,7 +126,23 @@ Apply all CV writing rules above when tailoring. Do not fabricate experience, me
 Generate a tailored application. Respond with this exact JSON structure:
 {
   "applicationTitle": "Short label for finding this later — use format: {Job Title} — {Company Name} (e.g. ${JSON.stringify(titleHint)})",
-  "tailoredCV": "Full tailored CV as plain text. 1–2 pages. Sections: Summary, Experience, Projects, Education, Skills. Use accomplishment bullets (X by doing Y, resulting in Z). ATS-friendly plain text. Tailored to this job; cut irrelevant content.",
+  "tailoredCV": "Full tailored CV as plain text (same content as cvDocument). Sections: Professional Summary, Education, Technical Skills, Career. Use accomplishment bullets. ATS-friendly plain text.",
+  "cvDocument": {
+    "fullName": "string",
+    "contactLine": "location • phone • email | GitHub | Portfolio | LinkedIn",
+    "summary": "2-4 sentences tailored to this role",
+    "careerNote": "optional e.g. See Portfolio for more",
+    "education": [{ "heading": "Institution – dates", "lines": ["degree lines"] }],
+    "skillGroups": [{ "label": "Frontend", "value": "comma-separated skills" }],
+    "jobs": [{
+      "company": "string",
+      "role": "job title",
+      "dates": "Mon YYYY – Present",
+      "location": "City",
+      "bullets": ["Accomplished X by Y, resulting in Z"],
+      "tech": "Tech: comma-separated stack"
+    }]
+  },
   "coverLetter": ${coverLetterInstruction},
   "screeningAnswers": [
     { "question": "original question text", "answer": "honest answer based on user profile" }

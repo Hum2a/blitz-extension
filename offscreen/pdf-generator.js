@@ -1,59 +1,91 @@
-const TEMPLATES = {
-  modern: { margin: 20, titleSize: 18, bodySize: 10, accent: [59, 91, 219] },
-  minimal: { margin: 24, titleSize: 16, bodySize: 10, accent: [30, 30, 30] },
-  classic: { margin: 18, titleSize: 20, bodySize: 11, accent: [0, 0, 0] },
-};
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
 
-function generatePdfBase64(cvText, templateName = "modern") {
-  const { jsPDF } = window.jspdf;
-  const tpl = TEMPLATES[templateName] || TEMPLATES.modern;
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+async function htmlToPdfBase64(html) {
+  if (typeof html2canvas !== "function") {
+    throw new Error(
+      "html2canvas missing. Run: npm install && npm run copy:offscreen — then reload the extension."
+    );
+  }
+  const wrap = document.createElement("div");
+  wrap.style.cssText =
+    "position:fixed;left:-10000px;top:0;width:210mm;background:#fff;overflow:visible;";
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const maxWidth = pageWidth - tpl.margin * 2;
-  let y = tpl.margin;
+  const page = wrap.querySelector(".cv-page") || wrap;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(tpl.titleSize);
-  doc.setTextColor(...tpl.accent);
-  const titleLine = (cvText.split("\n")[0] || "Curriculum Vitae").slice(0, 80);
-  doc.text(titleLine, tpl.margin, y);
-  y += tpl.titleSize + 8;
+  try {
+    const canvas = await html2canvas(page, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: page.scrollWidth,
+      windowHeight: page.scrollHeight,
+    });
 
-  doc.setDrawColor(...tpl.accent);
-  doc.setLineWidth(0.5);
-  doc.line(tpl.margin, y, pageWidth - tpl.margin, y);
-  y += 14;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const imgWidth = A4_WIDTH_MM;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgData = canvas.toDataURL("image/jpeg", 0.92);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(tpl.bodySize);
-  doc.setTextColor(40, 40, 40);
+    let heightLeft = imgHeight;
+    let position = 0;
 
-  const lines = doc.splitTextToSize(cvText, maxWidth);
-  const lineHeight = tpl.bodySize * 1.35;
-  const pageHeight = doc.internal.pageSize.getHeight();
+    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+    heightLeft -= A4_HEIGHT_MM;
 
-  for (const line of lines) {
-    if (y > pageHeight - tpl.margin) {
-      doc.addPage();
-      y = tpl.margin;
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= A4_HEIGHT_MM;
     }
-    doc.text(line, tpl.margin, y);
+
+    const dataUri = pdf.output("datauristring");
+    return dataUri.split(",")[1];
+  } finally {
+    document.body.removeChild(wrap);
+  }
+}
+
+/** Legacy plain-text PDF (fallback) */
+function generatePlainPdfBase64(cvText) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const margin = 20;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+  const lines = doc.splitTextToSize(cvText || "", maxWidth);
+  const lineHeight = 12;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  for (const line of lines) {
+    if (y > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.text(line, margin, y);
     y += lineHeight;
   }
-
-  const dataUri = doc.output("datauristring");
-  return dataUri.split(",")[1];
+  return doc.output("datauristring").split(",")[1];
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === "GENERATE_PDF_OFFSCREEN") {
-    try {
-      const base64 = generatePdfBase64(message.payload.cvText, message.payload.template);
-      sendResponse({ base64 });
-    } catch (err) {
-      sendResponse({ error: err.message });
-    }
+    (async () => {
+      try {
+        const { html, cvText } = message.payload || {};
+        const base64 = html?.trim()
+          ? await htmlToPdfBase64(html)
+          : generatePlainPdfBase64(cvText);
+        sendResponse({ base64 });
+      } catch (err) {
+        sendResponse({ error: err.message || String(err) });
+      }
+    })();
     return true;
   }
 });

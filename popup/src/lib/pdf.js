@@ -1,7 +1,7 @@
-export async function generatePdf(cvText, template = "modern") {
+export async function generatePdf(payload) {
   const result = await chrome.runtime.sendMessage({
     type: "GENERATE_PDF",
-    payload: { cvText, template },
+    payload,
   });
   if (result?.error) throw new Error(result.error);
   return result.base64;

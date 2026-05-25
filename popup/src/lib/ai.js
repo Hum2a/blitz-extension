@@ -172,6 +172,7 @@ export function parseApplicationResponse(raw) {
   return {
     applicationTitle: parsed.applicationTitle || "",
     tailoredCV: parsed.tailoredCV || "",
+    cvDocument: parsed.cvDocument && typeof parsed.cvDocument === "object" ? parsed.cvDocument : null,
     coverLetter: parsed.coverLetter || "",
     screeningAnswers: parsed.screeningAnswers || [],
     matchScore: Number(parsed.matchScore) || 0,

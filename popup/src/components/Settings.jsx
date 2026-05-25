@@ -19,6 +19,7 @@ import {
 } from "../lib/models.js";
 
 import { scrollPanelClass } from "../lib/layout.js";
+import CvTemplateSettings from "./CvTemplateSettings.jsx";
 
 export default function Settings({ onSaved, fullPage = false }) {
   const { settings, loading, refresh } = useAllSettings();
@@ -490,18 +491,9 @@ export default function Settings({ onSaved, fullPage = false }) {
             <option value="ask">Ask</option>
           </select>
         </label>
-        <label className="flex items-center gap-2 mt-2">
-          <span>CV template</span>
-          <select
-            value={form.preferences?.cvTemplate || "modern"}
-            onChange={(e) => update("preferences.cvTemplate", e.target.value)}
-            className="border rounded p-1 flex-1"
-          >
-            <option value="modern">Modern</option>
-            <option value="minimal">Minimal</option>
-            <option value="classic">Classic</option>
-          </select>
-        </label>
+        <p className="text-xs text-slate-500 mt-2">
+          CV PDF layout is controlled by the HTML template in the section below.
+        </p>
         <label className="flex items-center gap-2 mt-2 text-xs">
           <input
             type="checkbox"
@@ -511,6 +503,8 @@ export default function Settings({ onSaved, fullPage = false }) {
           Auto-submit after fill (LinkedIn)
         </label>
       </Section>
+
+      <CvTemplateSettings fullPage={fullPage} />
 
       <Section title="License" index={5}>
         <p className="text-xs text-slate-600 mb-2">
