@@ -19,7 +19,7 @@ const DEFAULTS = {
   ai_config: {
     provider: "anthropic",
     apiKey: "",
-    model: "claude-sonnet-4-20250514",
+    model: "claude-3-5-sonnet-20241022",
   },
   license: {
     key: "",

@@ -1,6 +1,7 @@
 import { getStorage, setStorage, getAllSettings } from "../popup/src/lib/storage.js";
 import { PROMPTS } from "../popup/src/lib/prompts.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
+import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
 import {
   canSubmitApplication,
   incrementApplicationCount,
@@ -40,6 +41,35 @@ async function handleMessage(message, sender) {
       await setStorage("pending_job", message.payload);
       chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: message.payload }).catch(() => {});
       return { ok: true };
+
+    case "ESTIMATE_GENERATION_COST": {
+      const settings = await getAllSettings();
+      const jobData = message.payload?.jobData || (await getStorage("pending_job"));
+      if (!settings.ai_config?.apiKey?.trim()) {
+        return { error: "Add your API key in Settings." };
+      }
+      if (!settings.cv_text?.trim()) {
+        return { error: "Add your CV in Settings." };
+      }
+      if (!jobData?.jobTitle && !jobData?.jobDescription) {
+        return { error: "No job detected on this page." };
+      }
+      const { estimateCostFromPrompts } = await import("../popup/src/lib/cost-estimate.js");
+      const { PROMPTS } = await import("../popup/src/lib/prompts.js");
+      const systemPrompt = PROMPTS.system(settings.user_profile);
+      const userPrompt = PROMPTS.generateApplication(
+        settings.cv_text,
+        jobData,
+        settings.preferences,
+        settings.linkedin_profile_text
+      );
+      return estimateCostFromPrompts({
+        provider: settings.ai_config.provider,
+        model: settings.ai_config.model,
+        systemPrompt,
+        userPrompt,
+      });
+    }
 
     case "GENERATE_APPLICATION": {
       const settings = await getAllSettings();
@@ -172,7 +202,7 @@ async function handleMessage(message, sender) {
 
     case "TEST_API_KEY": {
       const { provider, apiKey, model } = message.payload;
-      const text = await callAI({
+      const { text } = await callAI({
         provider,
         apiKey,
         model,
@@ -286,7 +316,7 @@ async function generateApplication(
     linkedinProfileText
   );
 
-  const raw = await callAI({
+  const { text, usage, model: usedModel } = await callAI({
     provider: aiConfig.provider,
     apiKey: aiConfig.apiKey,
     model: aiConfig.model,
@@ -294,5 +324,7 @@ async function generateApplication(
     userPrompt,
   });
 
-  return parseApplicationResponse(raw);
+  const parsed = parseApplicationResponse(text);
+  const cost = costFromUsage(usage, aiConfig.provider, usedModel || aiConfig.model);
+  return { ...parsed, usage, cost };
 }

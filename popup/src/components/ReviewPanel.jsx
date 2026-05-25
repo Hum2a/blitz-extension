@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { setStorage } from "../lib/storage.js";
 import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
+import CostEstimate from "./CostEstimate.jsx";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 
 export default function ReviewPanel({
@@ -12,6 +13,7 @@ export default function ReviewPanel({
   onRegenerate,
   onApplicationUpdate,
   license,
+  lastGenerationCost,
 }) {
   const { saveApplication } = useApplications();
   const [cv, setCv] = useState("");
@@ -117,12 +119,15 @@ export default function ReviewPanel({
       </AnimatePresence>
 
       <FadeUp>
-        <Card className="bg-white rounded-lg border p-3" delay={0}>
+        <Card className="bg-white rounded-lg border p-3 space-y-3" delay={0}>
           <MatchScoreRing
             score={application.matchScore}
             rationale={application.matchRationale}
             size={88}
           />
+          {(lastGenerationCost || application.cost) && (
+            <CostEstimate actualCost={lastGenerationCost || application.cost} />
+          )}
         </Card>
       </FadeUp>
 

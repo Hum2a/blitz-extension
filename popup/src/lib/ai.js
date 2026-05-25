@@ -1,3 +1,18 @@
+export function formatApiError(errBody, status, provider) {
+  const msg = errBody?.error?.message || errBody?.message || "";
+  if (/^model:/i.test(msg) || /model.*not found|invalid.*model/i.test(msg)) {
+    const modelName = msg.replace(/^model:\s*/i, "").trim();
+    return (
+      `Invalid or unavailable model${modelName ? ` (“${modelName}”)` : ""}. ` +
+      `Open Settings → AI provider and pick a supported model ` +
+      `(e.g. claude-3-5-sonnet-20241022 or gpt-4o).`
+    );
+  }
+  if (status === 401) return "Invalid API key. Check Settings → AI provider.";
+  if (status === 429) return "Rate limited — wait a moment and try again.";
+  return msg || `${provider} API error (${status})`;
+}
+
 export async function callAI({ provider, apiKey, model, systemPrompt, userPrompt }) {
   if (!apiKey) {
     throw new Error("API key not configured. Add your key in Settings.");
@@ -22,7 +37,7 @@ async function callAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: model || "claude-sonnet-4-20250514",
+      model: model || "claude-3-5-sonnet-20241022",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
@@ -31,11 +46,15 @@ async function callAnthropic({ apiKey, model, systemPrompt, userPrompt }) {
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Anthropic API error: ${response.status}`);
+    throw new Error(formatApiError(err, response.status, "Anthropic"));
   }
 
   const data = await response.json();
-  return data.content?.[0]?.text || "";
+  return {
+    text: data.content?.[0]?.text || "",
+    usage: data.usage,
+    model: data.model,
+  };
 }
 
 async function callOpenAI({ apiKey, model, systemPrompt, userPrompt }) {
@@ -57,11 +76,15 @@ async function callOpenAI({ apiKey, model, systemPrompt, userPrompt }) {
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `OpenAI API error: ${response.status}`);
+    throw new Error(formatApiError(err, response.status, "OpenAI"));
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
+  return {
+    text: data.choices?.[0]?.message?.content || "",
+    usage: data.usage,
+    model: data.model,
+  };
 }
 
 export function parseApplicationResponse(raw) {
@@ -71,7 +94,14 @@ export function parseApplicationResponse(raw) {
     text = fenceMatch[1].trim();
   }
 
-  const parsed = JSON.parse(text);
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(
+      "AI returned invalid JSON. Try again or switch model (e.g. claude-3-5-sonnet-20241022)."
+    );
+  }
   return {
     tailoredCV: parsed.tailoredCV || "",
     coverLetter: parsed.coverLetter || "",

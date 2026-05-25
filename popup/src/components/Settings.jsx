@@ -229,11 +229,29 @@ export default function Settings({ onSaved }) {
         />
         <input
           type="text"
-          placeholder="Model"
+          list="blitz-model-suggestions"
+          placeholder="Model ID"
           value={form.ai_config?.model || ""}
           onChange={(e) => update("ai_config.model", e.target.value)}
-          className="w-full border rounded p-2 mt-2"
+          className="w-full border rounded p-2 mt-2 font-mono text-xs"
         />
+        <datalist id="blitz-model-suggestions">
+          {form.ai_config?.provider === "openai" ? (
+            <>
+              <option value="gpt-4o" />
+              <option value="gpt-4o-mini" />
+            </>
+          ) : (
+            <>
+              <option value="claude-3-5-sonnet-20241022" />
+              <option value="claude-3-7-sonnet-20250219" />
+              <option value="claude-3-5-haiku-20241022" />
+            </>
+          )}
+        </datalist>
+        <p className="text-xs text-slate-500 mt-1">
+          Use a model your API key can access. Wrong model IDs cause generation errors.
+        </p>
         <button
           type="button"
           onClick={handleTestKey}

@@ -29,6 +29,8 @@ export default function App() {
   const [detecting, setDetecting] = useState(false);
   const [detectError, setDetectError] = useState(null);
   const [detectErrorDetails, setDetectErrorDetails] = useState(null);
+  const [generateError, setGenerateError] = useState(null);
+  const [lastGenerationCost, setLastGenerationCost] = useState(null);
   const license = useLicense();
 
   const refreshJobFromTab = async () => {
@@ -105,24 +107,39 @@ export default function App() {
         generating={generating}
         detecting={detecting}
         detectError={detectError}
-        detectErrorDetails={detectErrorDetails}
-        onRefresh={refreshJobFromTab}
-        license={license}
-        onGenerate={async () => {
-          setGenerating(true);
-          try {
-            const result = await chrome.runtime.sendMessage({
-              type: "GENERATE_APPLICATION",
-            });
-            if (result?.error) throw new Error(result.error);
-            setApplication(result);
-            setView(VIEWS.review);
-          } catch (err) {
-            alert(err.message);
-          } finally {
-            setGenerating(false);
-          }
-        }}
+            detectErrorDetails={detectErrorDetails}
+            generateError={generateError}
+            onDismissGenerateError={() => setGenerateError(null)}
+            lastGenerationCost={lastGenerationCost}
+            onRefresh={refreshJobFromTab}
+            license={license}
+            onGenerate={async () => {
+              setGenerating(true);
+              setGenerateError(null);
+              try {
+                const result = await chrome.runtime.sendMessage({
+                  type: "GENERATE_APPLICATION",
+                });
+                if (chrome.runtime.lastError) {
+                  throw new Error(chrome.runtime.lastError.message);
+                }
+                if (result?.error) {
+                  throw new Error(
+                    typeof result.error === "string" ? result.error : JSON.stringify(result.error)
+                  );
+                }
+                if (!result?.tailoredCV && !result?.jobData) {
+                  throw new Error("No response from Blitz. Reload the extension and try again.");
+                }
+                setLastGenerationCost(result.cost ?? null);
+                setApplication(result);
+                setView(VIEWS.review);
+              } catch (err) {
+                setGenerateError(err.message || "Generation failed");
+              } finally {
+                setGenerating(false);
+              }
+            }}
         onReview={() => setView(VIEWS.review)}
       />
     ),
@@ -131,14 +148,22 @@ export default function App() {
         application={application}
         pendingJob={pendingJob}
         onBack={() => setView(VIEWS.dashboard)}
+        lastGenerationCost={lastGenerationCost}
         onRegenerate={async () => {
           setGenerating(true);
-          const result = await chrome.runtime.sendMessage({
-            type: "GENERATE_APPLICATION",
-          });
-          if (result?.error) alert(result.error);
-          else setApplication(result);
-          setGenerating(false);
+          setGenerateError(null);
+          try {
+            const result = await chrome.runtime.sendMessage({
+              type: "GENERATE_APPLICATION",
+            });
+            if (result?.error) throw new Error(result.error);
+            setLastGenerationCost(result.cost ?? null);
+            setApplication(result);
+          } catch (err) {
+            setGenerateError(err.message);
+          } finally {
+            setGenerating(false);
+          }
         }}
         onApplicationUpdate={setApplication}
         license={license}

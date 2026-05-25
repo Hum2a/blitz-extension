@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
+import CostEstimate from "./CostEstimate.jsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
@@ -40,11 +41,47 @@ export default function Dashboard({
   detecting,
   detectError,
   detectErrorDetails,
+  generateError,
+  onDismissGenerateError,
+  lastGenerationCost,
   onRefresh,
   onGenerate,
   onReview,
 }) {
   const { applications } = useApplications();
+  const [costEstimate, setCostEstimate] = useState(null);
+  const [costLoading, setCostLoading] = useState(false);
+
+  const company = formatCompany(pendingJob?.company);
+  const hasJob = Boolean(pendingJob?.jobTitle || pendingJob?.jobDescription || company);
+
+  useEffect(() => {
+    if (!hasJob) {
+      setCostEstimate(null);
+      return;
+    }
+    let cancelled = false;
+    setCostLoading(true);
+    chrome.runtime
+      .sendMessage({ type: "ESTIMATE_GENERATION_COST" })
+      .then((result) => {
+        if (cancelled) return;
+        if (chrome.runtime.lastError) {
+          setCostEstimate({ error: chrome.runtime.lastError.message });
+          return;
+        }
+        setCostEstimate(result?.error ? { error: result.error } : result);
+      })
+      .catch((err) => {
+        if (!cancelled) setCostEstimate({ error: err.message });
+      })
+      .finally(() => {
+        if (!cancelled) setCostLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasJob, pendingJob?.url, pendingJob?.jobTitle, pendingJob?.jobDescription]);
 
   const stats = useMemo(() => {
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -60,8 +97,6 @@ export default function Dashboard({
     return { thisWeek: thisWeek.length, responseRate };
   }, [applications]);
 
-  const company = formatCompany(pendingJob?.company);
-  const hasJob = Boolean(pendingJob?.jobTitle || pendingJob?.jobDescription || company);
   const externalApply = pendingJob?.externalApply === true;
   const linkedinNoEasyApply =
     pendingJob?.platform === "linkedin" && pendingJob?.hasEasyApply === false;
@@ -218,8 +253,21 @@ export default function Dashboard({
         )}
       </AnimatePresence>
 
+      {generateError && (
+        <ErrorPanel
+          title="Generation failed"
+          error={generateError}
+          onDismiss={onDismissGenerateError}
+        />
+      )}
+
       <FadeUp delay={0.12}>
         <div className="flex flex-col gap-2">
+          <CostEstimate
+            estimate={costEstimate}
+            actualCost={lastGenerationCost}
+            loading={costLoading && hasJob}
+          />
           <AnimatePresence>
             {application && (
               <motion.div
