@@ -11,6 +11,7 @@ const required = [
   "offscreen/offscreen.html",
   "offscreen/pdf-generator.js",
   "offscreen/jspdf.umd.min.js",
+  "assets/favicon.svg",
   "assets/icon16.png",
   "assets/icon48.png",
   "assets/icon128.png",

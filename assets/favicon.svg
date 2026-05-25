@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Blitz">
+  <defs>
+    <linearGradient id="bg" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F6DEB"/>
+      <stop offset="1" stop-color="#3B5BDB"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <path
+    fill="#fff"
+    d="M18.2 4.5 10.5 16.2h5.1L13.8 27.5l9.2-12.5h-5.4L18.2 4.5z"
+  />
+</svg>
