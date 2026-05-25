@@ -1,3 +1,18 @@
+const LINKEDIN_MAX_CHARS = 12000;
+
+function formatLinkedInSection(linkedinProfileText) {
+  const text = linkedinProfileText?.trim();
+  if (!text) return "";
+  const truncated =
+    text.length > LINKEDIN_MAX_CHARS
+      ? `${text.slice(0, LINKEDIN_MAX_CHARS)}\n\n[LinkedIn profile truncated]`
+      : text;
+  return `
+
+LinkedIn profile export (skills, experience, education, certifications — use for screening answers and to enrich the tailored CV; do not invent details not present in Base CV or LinkedIn profile):
+${truncated}`;
+}
+
 export const PROMPTS = {
   system: (profile) => `
 You are an expert career coach and CV writer. You help job seekers tailor their CVs and cover letters to specific job descriptions.
@@ -14,7 +29,7 @@ User profile for screening questions:
 Always respond with valid JSON only. No markdown, no preamble.
 `,
 
-  generateApplication: (cvText, jobData, preferences) => {
+  generateApplication: (cvText, jobData, preferences, linkedinProfileText = "") => {
     const coverLetterInstruction =
       preferences.coverLetterMode === "never"
         ? '"" (empty string, not required)'
@@ -27,7 +42,7 @@ Always respond with valid JSON only. No markdown, no preamble.
 
     return `
 Base CV:
-${cvText}
+${cvText}${formatLinkedInSection(linkedinProfileText)}
 
 Job Title: ${jobData.jobTitle}
 Company: ${jobData.company}

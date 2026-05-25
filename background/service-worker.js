@@ -23,6 +23,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function handleMessage(message, sender) {
   switch (message.type) {
+    case "PING":
+      return {
+        ok: true,
+        version: chrome.runtime.getManifest().version,
+        handlers: [
+          "PING",
+          "SCRAPE_ACTIVE_TAB",
+          "GENERATE_APPLICATION",
+          "JOB_DETECTED",
+          "FILL_FORM",
+        ],
+      };
+
     case "JOB_DETECTED":
       await setStorage("pending_job", message.payload);
       chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: message.payload }).catch(() => {});
@@ -49,7 +62,8 @@ async function handleMessage(message, sender) {
         jobData,
         settings.cv_text,
         settings.user_profile,
-        settings.preferences
+        settings.preferences,
+        settings.linkedin_profile_text
       );
 
       const application = { ...result, jobData };
@@ -152,6 +166,10 @@ async function handleMessage(message, sender) {
       return { ok: true };
     }
 
+    case "SCRAPE_ACTIVE_TAB": {
+      return scrapeActiveTabJob(message.payload?.tabId);
+    }
+
     case "TEST_API_KEY": {
       const { provider, apiKey, model } = message.payload;
       const text = await callAI({
@@ -167,6 +185,69 @@ async function handleMessage(message, sender) {
     default:
       throw new Error(`Unknown message type: ${message.type}`);
   }
+}
+
+function scriptsForUrl(url) {
+  const u = (url || "").toLowerCase();
+  const base = ["content/humanise.js", "content/file-upload.js"];
+  if (u.includes("greenhouse.io")) {
+    return [...base, "content/greenhouse.js", "content/detector.js"];
+  }
+  if (u.includes("linkedin.com") && u.includes("/jobs")) {
+    return [...base, "content/linkedin.js", "content/detector.js"];
+  }
+  if (u.includes("indeed.com") || u.includes("indeed.co.uk")) {
+    return [...base, "content/indeed.js", "content/detector.js"];
+  }
+  if (u.includes("myworkdayjobs.com")) {
+    return [...base, "content/workday.js", "content/detector.js"];
+  }
+  return null;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function scrapeActiveTabJob(tabId) {
+  let tab;
+  if (tabId) {
+    tab = await chrome.tabs.get(tabId);
+  } else {
+    const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+    tab = active;
+  }
+
+  if (!tab?.id || !tab.url) {
+    return { error: "No active tab" };
+  }
+
+  const scripts = scriptsForUrl(tab.url);
+  if (!scripts) {
+    return { error: "This page is not a supported job board" };
+  }
+
+  let jobData;
+  try {
+    jobData = await chrome.tabs.sendMessage(tab.id, { type: "SCRAPE_JOB" });
+  } catch {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: scripts });
+      await sleep(800);
+      jobData = await chrome.tabs.sendMessage(tab.id, { type: "SCRAPE_JOB" });
+    } catch (err) {
+      return { error: err.message || "Could not read this page. Refresh the tab and try again." };
+    }
+  }
+
+  if (jobData?.error) return jobData;
+  if (!jobData?.jobTitle && !jobData?.jobDescription) {
+    return { error: "No job listing detected on this page" };
+  }
+
+  await setStorage("pending_job", jobData);
+  chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData }).catch(() => {});
+  return jobData;
 }
 
 async function ensureOffscreenDocument() {
@@ -189,10 +270,21 @@ async function generatePdfOffscreen(cvText, template) {
   return result.base64;
 }
 
-async function generateApplication(jobData, cvText, userProfile, preferences) {
+async function generateApplication(
+  jobData,
+  cvText,
+  userProfile,
+  preferences,
+  linkedinProfileText = ""
+) {
   const aiConfig = await getStorage("ai_config");
   const systemPrompt = PROMPTS.system(userProfile);
-  const userPrompt = PROMPTS.generateApplication(cvText, jobData, preferences);
+  const userPrompt = PROMPTS.generateApplication(
+    cvText,
+    jobData,
+    preferences,
+    linkedinProfileText
+  );
 
   const raw = await callAI({
     provider: aiConfig.provider,

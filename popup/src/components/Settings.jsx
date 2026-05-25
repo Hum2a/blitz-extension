@@ -13,6 +13,7 @@ export default function Settings({ onSaved }) {
   const [licenseKey, setLicenseKey] = useState("");
   const [validatingLicense, setValidatingLicense] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [linkedinPdfLoading, setLinkedinPdfLoading] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -43,6 +44,7 @@ export default function Settings({ onSaved }) {
   const handleSave = async () => {
     await mergeStorage({
       cv_text: form.cv_text,
+      linkedin_profile_text: form.linkedin_profile_text,
       user_profile: form.user_profile,
       ai_config: form.ai_config,
       preferences: form.preferences,
@@ -68,17 +70,17 @@ export default function Settings({ onSaved }) {
     }
   };
 
-  const handlePdfUpload = async (e) => {
+  const handlePdfUpload = async (field, setLoading) => async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPdfLoading(true);
+    setLoading(true);
     try {
       const text = await extractTextFromPdf(file);
-      update("cv_text", text);
+      update(field, text);
     } catch (err) {
-      alert("Could not parse PDF. Try pasting your CV as text.");
+      alert("Could not parse PDF. Try pasting the text instead.");
     } finally {
-      setPdfLoading(false);
+      setLoading(false);
       e.target.value = "";
     }
   };
@@ -155,7 +157,7 @@ export default function Settings({ onSaved }) {
         <input
           type="file"
           accept=".pdf"
-          onChange={handlePdfUpload}
+          onChange={handlePdfUpload("cv_text", setPdfLoading)}
           disabled={pdfLoading}
           className="w-full text-xs mb-2"
         />
@@ -167,6 +169,45 @@ export default function Settings({ onSaved }) {
           placeholder="Paste your CV as plain text"
           className="w-full border rounded p-2 font-mono text-xs"
         />
+      </Section>
+
+      <Section title="LinkedIn profile">
+        <p className="text-xs text-slate-500 mb-2">
+          Export your profile as PDF from LinkedIn (Me → More → Save to PDF), then upload here.
+          Blitz uses this alongside your CV for tailoring and screening answers.
+        </p>
+        <input
+          type="file"
+          accept=".pdf"
+          onChange={handlePdfUpload("linkedin_profile_text", setLinkedinPdfLoading)}
+          disabled={linkedinPdfLoading}
+          className="w-full text-xs mb-2"
+        />
+        {linkedinPdfLoading && (
+          <p className="text-xs text-slate-500 mb-1">Parsing LinkedIn PDF…</p>
+        )}
+        {form.linkedin_profile_text?.trim() && (
+          <p className="text-xs text-green-700 mb-1">
+            {form.linkedin_profile_text.length.toLocaleString()} characters loaded
+            {form.linkedin_profile_text.length > 12000 ? " (will be trimmed for AI)" : ""}
+          </p>
+        )}
+        <textarea
+          value={form.linkedin_profile_text || ""}
+          onChange={(e) => update("linkedin_profile_text", e.target.value)}
+          rows={4}
+          placeholder="LinkedIn profile text (optional)"
+          className="w-full border rounded p-2 font-mono text-xs"
+        />
+        {form.linkedin_profile_text?.trim() ? (
+          <button
+            type="button"
+            onClick={() => update("linkedin_profile_text", "")}
+            className="mt-1 text-xs text-slate-500 underline"
+          >
+            Clear LinkedIn profile
+          </button>
+        ) : null}
       </Section>
 
       <Section title="Profile">

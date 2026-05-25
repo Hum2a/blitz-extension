@@ -10,22 +10,60 @@ function isExternalApply() {
   );
 }
 
-function scrapeJob() {
-  const jobTitle =
-    document.querySelector("h1.jobsearch-JobInfoHeader-title")?.textContent?.trim() ||
-    document.querySelector("[data-testid='jobsearch-JobInfoHeader-title']")?.textContent?.trim() ||
-    document.querySelector("h1")?.textContent?.trim() ||
-    "";
+function getIndeedCompany() {
+  const byTestId = document.querySelector('[data-testid="inlineHeader-companyName"]');
+  if (byTestId?.textContent?.trim()) {
+    return byTestId.textContent.trim();
+  }
 
-  const company =
-    document.querySelector("[data-company-name]")?.getAttribute("data-company-name") ||
-    document.querySelector(".jobsearch-InlineCompanyRating a")?.textContent?.trim() ||
-    document.querySelector('[data-testid="inlineHeader-companyName"]')?.textContent?.trim() ||
-    "";
+  const compContainer = document.querySelector('[data-testid="jobsearch-CompanyInfoContainer"]');
+  if (compContainer) {
+    const nameEl =
+      compContainer.querySelector('[data-testid="companyName"]') ||
+      compContainer.querySelector("a") ||
+      compContainer.querySelector("span");
+    if (nameEl?.textContent?.trim()) return nameEl.textContent.trim();
+  }
+
+  const ratingLink = document.querySelector(".jobsearch-InlineCompanyRating a");
+  if (ratingLink?.textContent?.trim()) {
+    return ratingLink.textContent.trim();
+  }
+
+  const dataEl = document.querySelector("[data-company-name]");
+  if (dataEl) {
+    const attr = dataEl.getAttribute("data-company-name");
+    if (attr && attr !== "true" && attr !== "false") return attr.trim();
+    const text = dataEl.textContent?.trim();
+    if (text) return text;
+  }
+
+  const og = document.querySelector('meta[property="og:site_name"]');
+  if (og?.content && !/indeed/i.test(og.content)) return og.content.trim();
+
+  return "";
+}
+
+function getIndeedJobTitle() {
+  return (
+    document.querySelector("h1.jobsearch-JobInfoHeader-title")?.textContent?.trim() ||
+    document.querySelector('[data-testid="jobsearch-JobInfoHeader-title"]')?.textContent?.trim() ||
+    document.querySelector('[data-testid="jobsearch-JobInfoHeader-title"] span')?.textContent
+      ?.trim() ||
+    document.querySelector("h1")?.textContent?.trim() ||
+    ""
+  );
+}
+
+function scrapeJob() {
+  const jobTitle = getIndeedJobTitle();
+  const company = getIndeedCompany();
 
   const descEl =
     document.querySelector("#jobDescriptionText") ||
-    document.querySelector(".jobsearch-JobComponent-description");
+    document.querySelector('[data-testid="jobDescriptionText"]') ||
+    document.querySelector(".jobsearch-JobComponent-description") ||
+    document.querySelector("#job-details");
   const jobDescription = descEl?.innerText?.trim() || "";
 
   const externalApply = isExternalApply();

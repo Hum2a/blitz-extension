@@ -77,7 +77,8 @@ export async function processQueue(generateApplication) {
           jobData,
           settings.cv_text,
           settings.user_profile,
-          settings.preferences
+          settings.preferences,
+          settings.linkedin_profile_text
         );
 
         queue = (await getStorage("job_queue")) || [];

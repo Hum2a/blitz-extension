@@ -1,5 +1,6 @@
 const DEFAULTS = {
   cv_text: "",
+  linkedin_profile_text: "",
   user_profile: {
     name: "",
     email: "",

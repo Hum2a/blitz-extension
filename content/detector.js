@@ -13,7 +13,7 @@
     const host = window.location.hostname;
     if (host.includes("greenhouse.io")) return "greenhouse";
     if (host.includes("linkedin.com")) return "linkedin";
-    if (host.includes("indeed.com")) return "indeed";
+    if (host.includes("indeed.com") || host.includes("indeed.co.uk")) return "indeed";
     if (host.includes("myworkdayjobs.com")) return "workday";
     return null;
   }
@@ -36,9 +36,15 @@
       );
     }
     if (platform === "indeed") {
+      const onJobView =
+        /viewjob/i.test(window.location.pathname + window.location.search) ||
+        /[?&]jk=/i.test(window.location.search);
       return Boolean(
-        document.querySelector("#jobDescriptionText") ||
+        onJobView ||
+          document.querySelector("#jobDescriptionText") ||
+          document.querySelector('[data-testid="jobDescriptionText"]') ||
           document.querySelector("h1.jobsearch-JobInfoHeader-title") ||
+          document.querySelector('[data-testid="jobsearch-JobInfoHeader-title"]') ||
           document.querySelector(".jobsearch-JobComponent-description")
       );
     }
@@ -108,9 +114,24 @@
     reportJob(platform);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
+  function scheduleDetect() {
     setTimeout(init, 500);
   }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scheduleDetect);
+  } else {
+    scheduleDetect();
+  }
+
+  // Indeed / SPAs update the job pane without full navigation
+  let debounce;
+  const observer = new MutationObserver(() => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+      const platform = detectPlatform();
+      if (platform && isJobListingPage(platform)) reportJob(platform);
+    }, 1200);
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 })();

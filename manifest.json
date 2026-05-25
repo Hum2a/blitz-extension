@@ -8,6 +8,7 @@
     "https://*.greenhouse.io/*",
     "https://www.linkedin.com/*",
     "https://*.indeed.com/*",
+    "https://*.indeed.co.uk/*",
     "https://*.myworkdayjobs.com/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
@@ -27,7 +28,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/jobs/*", "https://*.indeed.com/*"],
+      "matches": [
+        "https://www.linkedin.com/jobs/*",
+        "https://*.indeed.com/*",
+        "https://*.indeed.co.uk/*"
+      ],
       "js": ["content/humanise.js", "content/file-upload.js", "content/detector.js"],
       "run_at": "document_idle"
     },
@@ -37,7 +42,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.indeed.com/*"],
+      "matches": ["https://*.indeed.com/*", "https://*.indeed.co.uk/*"],
       "js": ["content/indeed.js"],
       "run_at": "document_idle"
     },

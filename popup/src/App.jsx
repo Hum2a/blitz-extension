@@ -6,7 +6,10 @@ import JobQueue from "./components/JobQueue.jsx";
 import Settings from "./components/Settings.jsx";
 import LicenseGate from "./components/LicenseGate.jsx";
 import { useLicense } from "./hooks/useLicense.js";
-import { getStorage } from "./lib/storage.js";
+import { getStorage, setStorage } from "./lib/storage.js";
+import { scrapeActiveTab } from "./lib/scrape-tab.js";
+import { logError, pingBackground } from "./lib/runtime-messages.js";
+import DebugLog from "./components/DebugLog.jsx";
 
 const VIEWS = {
   dashboard: "dashboard",
@@ -21,15 +24,52 @@ export default function App() {
   const [pendingJob, setPendingJob] = useState(null);
   const [application, setApplication] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [detectError, setDetectError] = useState(null);
+  const [detectErrorDetails, setDetectErrorDetails] = useState(null);
   const license = useLicense();
 
+  const refreshJobFromTab = async () => {
+    setDetecting(true);
+    setDetectError(null);
+    setDetectErrorDetails(null);
+    try {
+      let ping = null;
+      try {
+        ping = await pingBackground();
+      } catch (pingErr) {
+        await logError("ping", pingErr);
+        setDetectError(pingErr.message);
+        setDetectErrorDetails({ hint: "Reload Blitz at chrome://extensions" });
+        return;
+      }
+
+      const job = await scrapeActiveTab();
+      if (job?.error) {
+        await logError("scrapeActiveTab", new Error(job.error), { ping });
+        setDetectError(job.error);
+        setDetectErrorDetails({ ping, url: job.url });
+      } else if (job) {
+        setPendingJob(job);
+        await setStorage("pending_job", job);
+      }
+    } catch (err) {
+      await logError("refreshJobFromTab", err);
+      setDetectError(err.message || "Could not read this tab");
+      setDetectErrorDetails({ stack: err.stack });
+    } finally {
+      setDetecting(false);
+    }
+  };
+
   useEffect(() => {
-    getStorage("pending_job").then(setPendingJob);
     getStorage("pending_application").then(setApplication);
+    refreshJobFromTab();
 
     const listener = (message) => {
       if (message.type === "JOB_DETECTED") {
         setPendingJob(message.payload);
+        setDetectError(null);
       }
       if (message.type === "APPLICATION_READY") {
         setApplication(message.payload);
@@ -79,6 +119,10 @@ export default function App() {
             pendingJob={pendingJob}
             application={application}
             generating={generating}
+            detecting={detecting}
+            detectError={detectError}
+            detectErrorDetails={detectErrorDetails}
+            onRefresh={refreshJobFromTab}
             license={license}
             onGenerate={async () => {
               setGenerating(true);
@@ -129,11 +173,14 @@ export default function App() {
         {view === VIEWS.settings && <Settings onSaved={() => license.refresh()} />}
       </main>
 
-      {!license.loading && license.tier === "free" && (
-        <footer className="px-4 py-2 text-xs text-slate-500 border-t bg-white">
-          {license.remaining} of 15 free applications remaining
-        </footer>
-      )}
+      <footer className="px-4 py-2 border-t bg-white space-y-1">
+        {!license.loading && license.tier === "free" && (
+          <p className="text-xs text-slate-500 text-center">
+            {license.remaining} of 15 free applications remaining
+          </p>
+        )}
+        <DebugLog />
+      </footer>
     </div>
   );
 }
