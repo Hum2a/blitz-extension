@@ -1,8 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAllSettings } from "../hooks/useStorage.js";
 import { Stagger, FadeUp, Btn, PulseDots } from "./motion.jsx";
-import { mergeStorage, getStorage, setStorage } from "../lib/storage.js";
+import {
+  mergeStorage,
+  getStorage,
+  setStorage,
+  saveProfileTexts,
+  StorageError,
+} from "../lib/storage.js";
 import { extractTextFromPdf } from "../lib/pdf-parse.js";
 import { FREE_APPLICATION_LIMIT } from "../lib/license.js";
 import { LEMONSQUEEZY } from "../lib/config.js";
@@ -16,13 +22,55 @@ export default function Settings({ onSaved }) {
   const [validatingLicense, setValidatingLicense] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [linkedinPdfLoading, setLinkedinPdfLoading] = useState(false);
+  const [profileSaveStatus, setProfileSaveStatus] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const dirtyRef = useRef(false);
+  const saveTimerRef = useRef(null);
 
   useEffect(() => {
-    if (settings) {
+    if (settings && !dirtyRef.current) {
       setForm(settings);
       setLicenseKey(settings.license?.key || "");
     }
   }, [settings]);
+
+  const persistProfileTexts = useCallback(async (cvText, linkedinText) => {
+    setProfileSaveStatus("saving");
+    setSaveError(null);
+    try {
+      await saveProfileTexts({
+        cv_text: cvText,
+        linkedin_profile_text: linkedinText,
+      });
+      setProfileSaveStatus("saved");
+      dirtyRef.current = false;
+      onSaved?.();
+      refresh();
+      setTimeout(() => setProfileSaveStatus(null), 2500);
+    } catch (err) {
+      const msg =
+        err instanceof StorageError
+          ? err.message
+          : err?.message || "Could not save profile text";
+      setSaveError(msg);
+      setProfileSaveStatus("error");
+    }
+  }, [onSaved, refresh]);
+
+  const scheduleProfileAutosave = useCallback(
+    (nextForm) => {
+      dirtyRef.current = true;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        persistProfileTexts(nextForm.cv_text ?? "", nextForm.linkedin_profile_text ?? "");
+      }, 800);
+    },
+    [persistProfileTexts]
+  );
+
+  useEffect(() => () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+  }, []);
 
   if (loading || !form) {
     return (
@@ -32,7 +80,7 @@ export default function Settings({ onSaved }) {
     );
   }
 
-  const update = (path, value) => {
+  const update = (path, value, { autosaveProfile = false } = {}) => {
     setForm((prev) => {
       const next = { ...prev };
       const keys = path.split(".");
@@ -42,22 +90,43 @@ export default function Settings({ onSaved }) {
         obj = obj[keys[i]];
       }
       obj[keys[keys.length - 1]] = value;
+      if (autosaveProfile) scheduleProfileAutosave(next);
       return next;
     });
     setSaved(false);
   };
 
   const handleSave = async () => {
-    await mergeStorage({
-      cv_text: form.cv_text,
-      linkedin_profile_text: form.linkedin_profile_text,
-      user_profile: form.user_profile,
-      ai_config: form.ai_config,
-      preferences: form.preferences,
-    });
-    setSaved(true);
-    onSaved?.();
-    refresh();
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    setSaveError(null);
+    try {
+      await mergeStorage({
+        cv_text: form.cv_text ?? "",
+        linkedin_profile_text: form.linkedin_profile_text ?? "",
+        user_profile: form.user_profile,
+        ai_config: form.ai_config,
+        preferences: form.preferences,
+      });
+      dirtyRef.current = false;
+      setSaved(true);
+      setProfileSaveStatus("saved");
+      onSaved?.();
+      refresh();
+      setTimeout(() => {
+        setSaved(false);
+        setProfileSaveStatus(null);
+      }, 2500);
+    } catch (err) {
+      const msg =
+        err instanceof StorageError
+          ? err.message
+          : err?.message || "Could not save settings";
+      setSaveError(msg);
+      alert(msg);
+    }
   };
 
   const handleTestKey = async () => {
@@ -76,15 +145,31 @@ export default function Settings({ onSaved }) {
     }
   };
 
-  const handlePdfUpload = async (field, setLoading) => async (e) => {
+  const handlePdfUpload = (field, setLoading) => async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setLoading(true);
+    setSaveError(null);
     try {
       const text = await extractTextFromPdf(file);
-      update(field, text);
+      if (!text?.trim()) {
+        alert("No text found in this PDF. Try a different export or paste manually.");
+        return;
+      }
+      const cvText = field === "cv_text" ? text : form.cv_text ?? "";
+      const linkedinText =
+        field === "linkedin_profile_text" ? text : form.linkedin_profile_text ?? "";
+      setForm((prev) => ({
+        ...prev,
+        [field]: text,
+      }));
+      dirtyRef.current = true;
+      await persistProfileTexts(cvText, linkedinText);
     } catch (err) {
-      alert("Could not parse PDF. Try pasting the text instead.");
+      const msg = err?.message?.includes("Storage")
+        ? err.message
+        : "Could not parse PDF. Try pasting the text instead.";
+      alert(msg);
     } finally {
       setLoading(false);
       e.target.value = "";
@@ -159,6 +244,25 @@ export default function Settings({ onSaved }) {
         </button>
       </Section>
 
+      {(profileSaveStatus || saveError) && (
+        <motion.p
+          className={`text-xs text-center px-2 py-1 rounded ${
+            saveError || profileSaveStatus === "error"
+              ? "text-red-700 bg-red-50"
+              : profileSaveStatus === "saving"
+                ? "text-slate-600 bg-slate-100"
+                : "text-green-700 bg-green-50"
+          }`}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {saveError ||
+            (profileSaveStatus === "saving"
+              ? "Saving CV & profile…"
+              : "CV & profile saved automatically")}
+        </motion.p>
+      )}
+
       <Section title="Your CV" index={1}>
         <input
           type="file"
@@ -167,17 +271,22 @@ export default function Settings({ onSaved }) {
           disabled={pdfLoading}
           className="w-full text-xs mb-2"
         />
-        {pdfLoading && <p className="text-xs text-slate-500 mb-1">Parsing PDF…</p>}
+        {pdfLoading && <p className="text-xs text-slate-500 mb-1">Parsing & saving PDF…</p>}
+        {form.cv_text?.trim() && !pdfLoading && (
+          <p className="text-xs text-green-700 mb-1">
+            {form.cv_text.length.toLocaleString()} characters
+          </p>
+        )}
         <textarea
           value={form.cv_text || ""}
-          onChange={(e) => update("cv_text", e.target.value)}
+          onChange={(e) => update("cv_text", e.target.value, { autosaveProfile: true })}
           rows={6}
           placeholder="Paste your CV as plain text"
           className="w-full border rounded p-2 font-mono text-xs"
         />
       </Section>
 
-      <Section title="LinkedIn profile">
+      <Section title="LinkedIn profile" index={2}>
         <p className="text-xs text-slate-500 mb-2">
           Export your profile as PDF from LinkedIn (Me → More → Save to PDF), then upload here.
           Blitz uses this alongside your CV for tailoring and screening answers.
@@ -190,7 +299,7 @@ export default function Settings({ onSaved }) {
           className="w-full text-xs mb-2"
         />
         {linkedinPdfLoading && (
-          <p className="text-xs text-slate-500 mb-1">Parsing LinkedIn PDF…</p>
+          <p className="text-xs text-slate-500 mb-1">Parsing & saving LinkedIn PDF…</p>
         )}
         {form.linkedin_profile_text?.trim() && (
           <p className="text-xs text-green-700 mb-1">
@@ -200,7 +309,9 @@ export default function Settings({ onSaved }) {
         )}
         <textarea
           value={form.linkedin_profile_text || ""}
-          onChange={(e) => update("linkedin_profile_text", e.target.value)}
+          onChange={(e) =>
+            update("linkedin_profile_text", e.target.value, { autosaveProfile: true })
+          }
           rows={4}
           placeholder="LinkedIn profile text (optional)"
           className="w-full border rounded p-2 font-mono text-xs"
@@ -208,7 +319,10 @@ export default function Settings({ onSaved }) {
         {form.linkedin_profile_text?.trim() ? (
           <button
             type="button"
-            onClick={() => update("linkedin_profile_text", "")}
+            onClick={async () => {
+              update("linkedin_profile_text", "");
+              await persistProfileTexts(form.cv_text ?? "", "");
+            }}
             className="mt-1 text-xs text-slate-500 underline"
           >
             Clear LinkedIn profile

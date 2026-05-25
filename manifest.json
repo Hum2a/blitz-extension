@@ -3,7 +3,7 @@
   "name": "Blitz",
   "version": "1.2.0",
   "description": "Apply faster. Land sooner. Blitz tailors your CV and cover letter to every job in seconds.",
-  "permissions": ["storage", "activeTab", "scripting", "tabs", "offscreen"],
+  "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting", "tabs", "offscreen"],
   "host_permissions": [
     "https://*.greenhouse.io/*",
     "https://www.linkedin.com/*",

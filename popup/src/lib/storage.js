@@ -36,8 +36,49 @@ const DEFAULTS = {
   queue_processing: false,
 };
 
+export class StorageError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = "StorageError";
+    this.cause = cause;
+  }
+}
+
+function storageSet(items) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(items, () => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        const msg = err.message || "Storage write failed";
+        if (/quota|QUOTA|exceed/i.test(msg)) {
+          reject(
+            new StorageError(
+              "Storage full — remove old queue items or shorten saved text. Chrome allows ~10MB unless unlimitedStorage is enabled.",
+              err
+            )
+          );
+        } else {
+          reject(new StorageError(msg, err));
+        }
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+function storageGet(keys) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(keys, (result) => {
+      const err = chrome.runtime.lastError;
+      if (err) reject(new StorageError(err.message, err));
+      else resolve(result);
+    });
+  });
+}
+
 export async function getStorage(key) {
-  const result = await chrome.storage.local.get(key);
+  const result = await storageGet(key);
   if (key === null || key === undefined) {
     return result;
   }
@@ -49,17 +90,49 @@ export async function getStorage(key) {
 }
 
 export async function setStorage(key, value) {
-  await chrome.storage.local.set({ [key]: value });
+  await storageSet({ [key]: value });
+}
+
+/** Write only the keys provided (does not load/rewrite entire storage). */
+export async function mergeStorage(updates) {
+  if (!updates || typeof updates !== "object") return;
+  await storageSet(updates);
+}
+
+/** Persist CV / LinkedIn text immediately (survives popup close). */
+export async function saveProfileTexts({ cv_text, linkedin_profile_text }) {
+  const payload = {};
+  if (cv_text !== undefined) payload.cv_text = cv_text ?? "";
+  if (linkedin_profile_text !== undefined) payload.linkedin_profile_text = linkedin_profile_text ?? "";
+  if (Object.keys(payload).length === 0) return;
+  await storageSet(payload);
+}
+
+export async function getProfileTexts() {
+  const { cv_text, linkedin_profile_text } = await storageGet(["cv_text", "linkedin_profile_text"]);
+  return {
+    cv_text: cv_text ?? "",
+    linkedin_profile_text: linkedin_profile_text ?? "",
+  };
+}
+
+export async function getStorageUsage() {
+  if (!chrome.storage.local.getBytesInUse) {
+    return { bytesInUse: null, quota: null };
+  }
+  const bytesInUse = await new Promise((resolve, reject) => {
+    chrome.storage.local.getBytesInUse(null, (n) => {
+      const err = chrome.runtime.lastError;
+      if (err) reject(new StorageError(err.message, err));
+      else resolve(n);
+    });
+  });
+  return { bytesInUse, quota: chrome.storage.local.QUOTA_BYTES ?? 10_485_760 };
 }
 
 export async function getAllSettings() {
-  const stored = await chrome.storage.local.get(null);
+  const stored = await storageGet(null);
   return { ...DEFAULTS, ...stored };
-}
-
-export async function mergeStorage(updates) {
-  const current = await chrome.storage.local.get(null);
-  await chrome.storage.local.set({ ...current, ...updates });
 }
 
 export { DEFAULTS };
