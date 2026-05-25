@@ -60,8 +60,11 @@ export default function ReviewPanel({
     await setStorage("pending_application", updated);
   };
 
-  const cvDocumentForExport = () =>
-    cv === initialCvRef.current ? application?.cvDocument : null;
+  /** Always pass latest textarea + structured AI doc (merged at export time). */
+  const exportCvPayload = () => ({
+    cvDocument: application?.cvDocument ?? null,
+    tailoredCV: cv,
+  });
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true);
@@ -72,9 +75,10 @@ export default function ReviewPanel({
         role: pendingJob?.jobTitle || application.jobData?.jobTitle,
         company: pendingJob?.company || application.jobData?.company,
       });
+      const { cvDocument, tailoredCV } = exportCvPayload();
       await downloadCvPdf({
-        cvDocument: cvDocumentForExport(),
-        tailoredCV: cv,
+        cvDocument,
+        tailoredCV,
         userProfile,
         htmlOverride: pdfHtmlOverride,
         filename: `${label}.pdf`,
@@ -93,9 +97,10 @@ export default function ReviewPanel({
     setPdfLoading(true);
     try {
       const userProfile = (await getStorage("user_profile")) || {};
+      const { cvDocument, tailoredCV } = exportCvPayload();
       const html = await buildRenderedCvHtml({
-        cvDocument: cvDocumentForExport(),
-        tailoredCV: cv,
+        cvDocument,
+        tailoredCV,
         userProfile,
         htmlOverride: pdfHtmlOverride,
       });
@@ -232,9 +237,14 @@ export default function ReviewPanel({
           )}
         </Btn>
         {generating && (
-          <GenerationProgress
-            progress={generationProgress || progressFromStage("api", "Regenerating…")}
-          />
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">
+              Regeneration runs in the background — you can close Blitz and return when it finishes.
+            </p>
+            <GenerationProgress
+              progress={generationProgress || progressFromStage("api", "Regenerating…")}
+            />
+          </div>
         )}
         <div className="flex gap-2">
           <Btn
@@ -296,7 +306,7 @@ export default function ReviewPanel({
       </div>
       <ReviewPdfHtmlEditor
         application={application}
-        cvDocument={cvDocumentForExport()}
+        cvDocument={application?.cvDocument ?? null}
         tailoredCV={cv}
         pdfHtmlOverride={pdfHtmlOverride}
         onOverrideChange={persistPdfHtmlOverride}

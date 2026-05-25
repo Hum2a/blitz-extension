@@ -33,7 +33,11 @@ The default template matches a classic UK CV layout (summary, education, skills,
 3. Offscreen: `html2canvas` + jsPDF → base64 PDF
 4. Used on **Download PDF** (Review) and **Approve & fill** (form upload)
 
-If you edit the CV text in Review, export parses the plain text instead of the original `cvDocument`.
+If you edit the CV text in Review, export merges your plain text over the AI `cvDocument`.
+
+### Word template without `{{variables}}` (Humza layout)
+
+If your uploaded `.htm` uses Word section titles (**Professional Summary**, **Education**, **Technical Skills**, **Career**) but no `{{fullName}}` tags, Blitz injects the tailored CV into those sections automatically while keeping your Word styling. Preview/Download PDF use the **Tailored CV** box plus structured AI fields.
 
 ## Dependencies
 

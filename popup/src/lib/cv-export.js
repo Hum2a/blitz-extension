@@ -2,6 +2,11 @@ import { getStorage } from "./storage.js";
 import { DEFAULT_CV_HTML_TEMPLATE } from "./cv-template-default.js";
 import { renderCvHtml } from "./cv-template-engine.js";
 import { resolveCvDocument } from "./cv-document.js";
+import {
+  injectHumzaWordCvTemplate,
+  isHumzaWordCvTemplate,
+  templateHasMustacheVariables,
+} from "./humza-word-cv-inject.js";
 
 export async function getCvHtmlTemplate() {
   const stored = await getStorage("cv_html_template");
@@ -18,7 +23,16 @@ export async function buildRenderedCvHtml({
   const doc = resolveCvDocument({ cvDocument, tailoredCV, userProfile });
   if (!doc) throw new Error("No CV content to render");
   const template = await getCvHtmlTemplate();
-  return renderCvHtml(template, doc);
+
+  if (isHumzaWordCvTemplate(template)) {
+    return injectHumzaWordCvTemplate(template, doc, userProfile);
+  }
+
+  if (templateHasMustacheVariables(template)) {
+    return renderCvHtml(template, doc);
+  }
+
+  return injectHumzaWordCvTemplate(template, doc, userProfile);
 }
 
 export async function generateCvPdfBase64(payload) {

@@ -390,7 +390,12 @@ export default function Dashboard({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
+                className="space-y-2"
               >
+                <p className="text-xs text-slate-500 text-center px-1">
+                  Runs in the background — you can close Blitz or this job page. Reopen Blitz when
+                  finished to review.
+                </p>
                 <GenerationProgress
                   progress={generationProgress || progressFromStage("validate", "Connecting…")}
                 />

@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { getAllApplications, addApplication, updateApplication } from "../lib/db.js";
+import {
+  getAllApplications,
+  addApplication,
+  updateApplication,
+  deleteApplication,
+} from "../lib/db.js";
 import { HISTORY_EVENT_TYPES } from "../lib/application-store.js";
 
 export function useApplications() {
@@ -64,5 +69,21 @@ export function useApplications() {
     [refresh]
   );
 
-  return { applications, loading, refresh, saveApplication, updateStatus, updateNotes };
+  const removeApplication = useCallback(
+    async (id) => {
+      await deleteApplication(id);
+      return refresh();
+    },
+    [refresh]
+  );
+
+  return {
+    applications,
+    loading,
+    refresh,
+    saveApplication,
+    updateStatus,
+    updateNotes,
+    removeApplication,
+  };
 }

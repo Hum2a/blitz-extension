@@ -15,6 +15,7 @@ import {
 } from "../lib/application-history-utils.js";
 import { formatHistoryEvent } from "../lib/application-store.js";
 import { scrollPanelClass } from "../lib/layout.js";
+import { useModal } from "../hooks/useModal.js";
 
 function SummaryPill({ label, value, highlight }) {
   return (
@@ -113,10 +114,13 @@ function ApplicationDetail({ app, updateNotes, onOpenReview }) {
 }
 
 export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
-  const { applications, loading, refresh, updateStatus, updateNotes } = useApplications();
+  const { applications, loading, refresh, updateStatus, updateNotes, removeApplication } =
+    useApplications();
+  const { showConfirm } = useModal();
   const [expandedId, setExpandedId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     refresh();
@@ -127,6 +131,26 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
     () => filterApplications(applications, { statusFilter, search }),
     [applications, statusFilter, search]
   );
+
+  const handleDelete = async (app) => {
+    const label = displayApplicationLabel(app);
+    const ok = await showConfirm(
+      `Remove "${label}" from your application history? This cannot be undone.`,
+      {
+        title: "Delete application",
+        confirmLabel: "Delete",
+        variant: "warning",
+      }
+    );
+    if (!ok) return;
+    setDeletingId(app.id);
+    try {
+      await removeApplication(app.id);
+      if (expandedId === app.id) setExpandedId(null);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -270,7 +294,7 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
                   </div>
                 </button>
                 <div
-                  className="mt-2 flex justify-end"
+                  className="mt-2 flex justify-end items-center gap-2"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <select
@@ -284,6 +308,21 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(app)}
+                    disabled={deletingId === app.id}
+                    className="text-xs text-red-700 border border-red-200 px-2.5 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50 inline-flex items-center gap-1.5"
+                  >
+                    {deletingId === app.id ? (
+                      <>
+                        <span className="inline-block w-3 h-3 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                        Deleting…
+                      </>
+                    ) : (
+                      "Delete"
+                    )}
+                  </button>
                 </div>
                 <AnimatePresence>
                   {expandedId === app.id && (

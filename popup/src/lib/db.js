@@ -102,6 +102,20 @@ export async function getApplicationByListingKey(listingKeyValue) {
   });
 }
 
+export async function deleteApplication(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.delete(id);
+    request.onsuccess = () => {
+      notifyApplicationsChanged();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function updateApplication(id, updates) {
   const db = await openDB();
   return new Promise((resolve, reject) => {

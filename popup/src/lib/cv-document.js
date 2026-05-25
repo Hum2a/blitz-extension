@@ -33,13 +33,37 @@ function buildContactLineInline(profile) {
   return parts.join(" • ");
 }
 
-/** Prefer structured cvDocument when present; always merge profile header fields. */
+function mergeParsedTailoredCv(base, parsed) {
+  if (!parsed) return base;
+  const out = { ...base };
+  if (parsed.summary?.trim()) {
+    out.summary = parsed.summary;
+    out.summaryHtml = undefined;
+  }
+  if (parsed.careerNote?.trim()) {
+    out.careerNote = parsed.careerNote;
+    out.careerNoteHtml = undefined;
+  }
+  if (parsed.skillGroups?.length) out.skillGroups = parsed.skillGroups;
+  if (parsed.jobs?.length) out.jobs = parsed.jobs;
+  if (parsed.education?.length) out.education = parsed.education;
+  if (parsed.fullName?.trim()) out.fullName = parsed.fullName;
+  if (parsed.contactLine?.trim()) {
+    out.contactLine = parsed.contactLine;
+    out.contactLineHtml = undefined;
+  }
+  return out;
+}
+
+/** Prefer structured cvDocument; overlay sections from tailored plain text when present. */
 export function resolveCvDocument({ cvDocument, tailoredCV, userProfile }) {
   let doc = null;
   if (cvDocument && typeof cvDocument === "object") {
     doc = { ...cvDocument };
-  } else if (tailoredCV?.trim()) {
-    doc = parseTailoredCvText(tailoredCV, userProfile);
+  }
+  if (tailoredCV?.trim()) {
+    const parsed = parseTailoredCvText(tailoredCV, userProfile);
+    doc = doc ? mergeParsedTailoredCv(doc, parsed) : parsed;
   }
   if (!doc) return null;
 

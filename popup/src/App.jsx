@@ -15,6 +15,7 @@ import { logError, pingBackground } from "./lib/runtime-messages.js";
 import DebugLog from "./components/DebugLog.jsx";
 import { Page, NavTab } from "./components/motion.jsx";
 import { progressFromStage } from "./lib/generation-progress.js";
+import { GENERATION_STATUS_KEY } from "./lib/generation-status.js";
 import { openDashboard } from "./lib/open-dashboard.js";
 import { isExtensionPage, isLocalWeb } from "./lib/extension-env.js";
 import SiteShell from "./components/site/SiteShell.jsx";
@@ -135,6 +136,25 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     }
   };
 
+  const applyGenerationStatus = (status) => {
+    if (!status) return;
+    if (status.active) {
+      setGenerating(true);
+      if (status.progress) setGenerationProgress(status.progress);
+      setGenerateError(null);
+      return;
+    }
+    if (status.error) {
+      setGenerating(false);
+      setGenerationProgress(null);
+      setGenerateError(status.error);
+      return;
+    }
+    if (!status.active && !status.error) {
+      setGenerating(false);
+    }
+  };
+
   const syncFromStorage = async (changes) => {
     if (changes?.pending_job) {
       const job = changes.pending_job.newValue ?? null;
@@ -144,6 +164,12 @@ export default function App({ fullPage = false, bridgeMode = false }) {
       const job = await getStorage("pending_job");
       setPendingJob(job);
       await reconcileApplication(job);
+    }
+    if (changes?.[GENERATION_STATUS_KEY]) {
+      applyGenerationStatus(changes[GENERATION_STATUS_KEY].newValue);
+    } else if (!changes || changes[GENERATION_STATUS_KEY] === undefined) {
+      const genStatus = await getStorage(GENERATION_STATUS_KEY);
+      applyGenerationStatus(genStatus);
     }
     if (changes?.pending_application) {
       const app = changes.pending_application.newValue ?? null;
@@ -181,15 +207,17 @@ export default function App({ fullPage = false, bridgeMode = false }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [job, app] = await Promise.all([
+      const [job, app, genStatus] = await Promise.all([
         getStorage("pending_job"),
         getStorage("pending_application"),
+        getStorage(GENERATION_STATUS_KEY),
       ]);
       if (cancelled) return;
       if (job?.jobTitle || job?.jobDescription) {
         setPendingJob(job);
         if (app && applicationMatchesJob(app, job)) setApplication(app);
       }
+      applyGenerationStatus(genStatus);
       refreshJobFromTab();
     })();
 
@@ -214,7 +242,14 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         setApplication(message.payload);
         setGenerating(false);
         setGenerationProgress(null);
+        setGenerateError(null);
+        if (message.payload?.cost) setLastGenerationCost(message.payload.cost);
         setView(VIEWS.review);
+      }
+      if (message.type === "GENERATION_FAILED") {
+        setGenerating(false);
+        setGenerationProgress(null);
+        setGenerateError(message.payload?.error || "Generation failed");
       }
     };
 
@@ -262,6 +297,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
               try {
                 const result = await chrome.runtime.sendMessage({
                   type: "GENERATE_APPLICATION",
+                  payload: { jobData: pendingJob },
                 });
                 if (chrome.runtime.lastError) {
                   throw new Error(chrome.runtime.lastError.message);
@@ -271,15 +307,18 @@ export default function App({ fullPage = false, bridgeMode = false }) {
                     typeof result.error === "string" ? result.error : JSON.stringify(result.error)
                   );
                 }
-                if (!result?.tailoredCV && !result?.jobData) {
-                  throw new Error("No response from Blitz. Reload the extension and try again.");
+                if (result?.started) {
+                  return;
                 }
-                setLastGenerationCost(result.cost ?? null);
-                setApplication(result);
-                setView(VIEWS.review);
+                if (result?.tailoredCV || result?.jobData) {
+                  setLastGenerationCost(result.cost ?? null);
+                  setApplication(result);
+                  setView(VIEWS.review);
+                  setGenerating(false);
+                  setGenerationProgress(null);
+                }
               } catch (err) {
                 setGenerateError(err.message || "Generation failed");
-              } finally {
                 setGenerating(false);
                 setGenerationProgress(null);
               }
@@ -307,13 +346,19 @@ export default function App({ fullPage = false, bridgeMode = false }) {
           try {
             const result = await chrome.runtime.sendMessage({
               type: "GENERATE_APPLICATION",
+              payload: { jobData: pendingJob },
             });
+            if (chrome.runtime.lastError) throw new Error(chrome.runtime.lastError.message);
             if (result?.error) throw new Error(result.error);
-            setLastGenerationCost(result.cost ?? null);
-            setApplication(result);
+            if (result?.started) return;
+            if (result?.tailoredCV || result?.jobData) {
+              setLastGenerationCost(result.cost ?? null);
+              setApplication(result);
+              setGenerating(false);
+              setGenerationProgress(null);
+            }
           } catch (err) {
             setGenerateError(err.message);
-          } finally {
             setGenerating(false);
             setGenerationProgress(null);
           }

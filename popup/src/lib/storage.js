@@ -49,6 +49,7 @@ const DEFAULTS = {
   cv_html_template: null,
   pending_job: null,
   pending_application: null,
+  generation_status: { active: false },
   job_queue: [],
   queue_processing: false,
 };

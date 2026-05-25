@@ -13,11 +13,7 @@ import {
   ANTHROPIC_MODEL_SUGGESTIONS,
   remapAnthropicModel,
 } from "../popup/src/lib/models.js";
-import {
-  createProgressReporter,
-  progressComplete,
-  formatPromptStats,
-} from "../popup/src/lib/generation-progress.js";
+import { formatPromptStats } from "../popup/src/lib/generation-progress.js";
 import {
   canSubmitApplication,
   incrementApplicationCount,
@@ -25,6 +21,7 @@ import {
   validateLicense,
 } from "../popup/src/lib/license.js";
 import { processQueue } from "./queue-processor.js";
+import { startBackgroundGeneration } from "./generation-runner.js";
 import { listOpenJobTabs, queueItemsFromTabs, findJobTabForScrape } from "./tab-jobs.js";
 import { buildRenderedCvHtml } from "../popup/src/lib/cv-export.js";
 import {
@@ -152,45 +149,19 @@ async function handleMessage(message, sender) {
       if (!job?.jobTitle && !job?.jobDescription) {
         return { error: "No job on this page" };
       }
-      await setPendingJobAndReconcile(job);
-      const settings = await getAllSettings();
-      if (!settings.cv_text?.trim()) {
-        return { error: "Add your CV in Settings first" };
-      }
-      if (job.externalApply) {
-        return { error: "External apply — open company site manually" };
-      }
-      if (job.platform === "linkedin" && job.hasEasyApply === false) {
-        return { error: "No Easy Apply on this listing" };
-      }
-      const report = createProgressReporter();
-      try {
-        const result = await generateApplication(
-          job,
-          settings.cv_text,
-          settings.user_profile,
-          settings.preferences,
-          settings.linkedin_profile_text,
-          report
-        );
-        await logGenerateApiCall(settings, job, result, null);
-        report(
-          "save",
-          `Match score ${result.matchScore}%`,
-          result.cost ? `API cost ~$${result.cost.totalCostUsd?.toFixed(3)}` : ""
-        );
-        chrome.runtime.sendMessage({
-          type: "GENERATION_PROGRESS",
-          payload: progressComplete("Application ready — open Blitz to review"),
-        }).catch(() => {});
-        const application = await savePendingApplication(result, job);
-        await persistGeneratedApplication(application, job);
-        chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
-        return { ok: true, matchScore: result.matchScore };
-      } catch (err) {
-        await logGenerateApiCall(settings, job, null, err);
-        return { error: err.message || "Generation failed" };
-      }
+      return startBackgroundGeneration({
+        jobData: job,
+        generateApplication,
+        savePendingApplication,
+        persistGeneratedApplication,
+        logGenerateApiCall,
+        setPendingJobAndReconcile,
+        options: {
+          requirePromptPreflight: false,
+          source: "widget",
+          completeMessage: "Application ready — open Blitz to review",
+        },
+      });
     }
 
     case "ESTIMATE_GENERATION_COST": {
@@ -223,61 +194,27 @@ async function handleMessage(message, sender) {
     }
 
     case "GENERATE_APPLICATION": {
-      const settings = await getAllSettings();
       const jobData = message.payload?.jobData || (await getStorage("pending_job"));
-      if (!jobData) throw new Error("No job detected. Open a supported job listing first.");
-      if (jobData.externalApply) {
-        throw new Error("This job applies on the company site. Blitz cannot fill external applications.");
+      if (!jobData) {
+        return { error: "No job detected. Open a supported job listing first." };
       }
-      if (jobData.platform === "linkedin" && jobData.hasEasyApply === false) {
-        throw new Error("This LinkedIn job does not offer Easy Apply.");
-      }
-      if (!settings.cv_text?.trim()) throw new Error("Add your CV in Settings first.");
-
-      const preflight = buildApplicationPrompts({
-        cvText: settings.cv_text,
+      return startBackgroundGeneration({
         jobData,
-        preferences: settings.preferences,
-        linkedinProfileText: settings.linkedin_profile_text,
-        userProfile: settings.user_profile,
+        generateApplication,
+        savePendingApplication,
+        persistGeneratedApplication,
+        logGenerateApiCall,
+        setPendingJobAndReconcile,
+        options: {
+          requirePromptPreflight: true,
+          source: "dashboard",
+          completeMessage: "Application ready — opening review",
+        },
       });
-      if (!preflight.parts.includeBaseCv && !preflight.parts.includeJobDescription) {
-        throw new Error(
-          "Enable at least Base CV or Job listing under Settings → Prompt content (API cost)."
-        );
-      }
+    }
 
-      const report = createProgressReporter();
-      let result;
-      try {
-        result = await generateApplication(
-          jobData,
-          settings.cv_text,
-          settings.user_profile,
-          settings.preferences,
-          settings.linkedin_profile_text,
-          report
-        );
-        await logGenerateApiCall(settings, jobData, result, null);
-      } catch (err) {
-        await logGenerateApiCall(settings, jobData, null, err);
-        throw err;
-      }
-
-      report(
-        "save",
-        `Match score ${result.matchScore}%`,
-        result.cost ? `API cost ~$${result.cost.totalCostUsd?.toFixed(3)}` : ""
-      );
-      chrome.runtime.sendMessage({
-        type: "GENERATION_PROGRESS",
-        payload: progressComplete("Application ready — opening review"),
-      }).catch(() => {});
-
-      const application = await savePendingApplication(result, jobData);
-      await persistGeneratedApplication(application, jobData);
-      chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
-      return application;
+    case "GET_GENERATION_STATUS": {
+      return { status: (await getStorage("generation_status")) || { active: false } };
     }
 
     case "LOAD_HISTORY_APPLICATION": {
@@ -651,7 +588,7 @@ async function generateApplication(
         `Waiting for ${modelId}…`,
         total > 1
           ? `Model attempt ${attempt}/${total} · typically 20–90 seconds`
-          : "Typically 20–90 seconds — do not close the popup"
+          : "Typically 20–90 seconds — runs in the background"
       );
     },
   });

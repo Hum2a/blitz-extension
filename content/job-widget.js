@@ -188,14 +188,26 @@
       progressText = "Starting…";
       render();
       chrome.runtime.sendMessage({ type: "WIDGET_GENERATE", payload: { jobData } }, (res) => {
-        generating = false;
         if (chrome.runtime.lastError) {
+          generating = false;
           progressText = chrome.runtime.lastError.message;
-        } else if (res?.error) {
-          progressText = res.error;
-        } else if (res?.ok) {
-          progressText = "Done — open Blitz to review";
+          render();
+          return;
         }
+        if (res?.error) {
+          generating = false;
+          progressText = res.error;
+          render();
+          return;
+        }
+        if (res?.started) {
+          generating = true;
+          progressText = "Generating in background…";
+          render();
+          return;
+        }
+        generating = false;
+        progressText = res?.ok ? "Done — open Blitz to review" : "Started";
         render();
       });
     }
@@ -211,8 +223,13 @@
     if (msg.type === "GENERATION_PROGRESS") {
       generating = true;
       const p = msg.payload;
-      progressText = p?.message || p?.stage || "Working…";
+      progressText = p?.detail || p?.stageLabel || "Working…";
       if (p?.percent != null) progressText += ` ${p.percent}%`;
+      render();
+    }
+    if (msg.type === "GENERATION_FAILED") {
+      generating = false;
+      progressText = msg.payload?.error || "Generation failed";
       render();
     }
     if (msg.type === "APPLICATION_READY") {
