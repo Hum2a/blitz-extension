@@ -104,8 +104,8 @@ export default function SiteShell({
   const inExtension = isExtensionPage();
 
   return (
-    <div className="blitz-site min-h-screen flex flex-col bg-[#f6f8fc]">
-      <header className="site-topbar sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+    <div className="blitz-site min-h-screen flex flex-col bg-slate-50">
+      <header className="blitz-site-header site-topbar sticky top-0 z-50 border-b backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <button
             type="button"
@@ -170,7 +170,7 @@ export default function SiteShell({
       </AnimatePresence>
 
       <div className="flex-1 flex max-w-[1400px] mx-auto w-full">
-        <aside className="hidden lg:flex w-60 shrink-0 flex-col border-r border-slate-200/80 bg-white/50 px-3 py-6">
+        <aside className="blitz-site-sidebar hidden lg:flex w-60 shrink-0 flex-col border-r px-3 py-6">
           <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Menu
           </p>
@@ -219,7 +219,7 @@ export default function SiteShell({
         </main>
       </div>
 
-      <footer className="mt-auto border-t border-slate-200 bg-white">
+      <footer className="blitz-site-footer mt-auto border-t">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2">
             <p className="font-bold text-slate-900">Blitz</p>

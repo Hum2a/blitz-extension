@@ -81,11 +81,24 @@ function headerGradient(hue, sat, mode) {
   };
 }
 
+function surfaceTokens(hue, mode) {
+  const neutrals = neutralScale(hue, mode);
+  const light = mode === "light";
+  return {
+    "--page-bg": neutrals["--slate-50"],
+    "--surface": light ? "255 255 255" : neutrals["--slate-100"],
+    "--surface-muted": light ? neutrals["--slate-100"] : neutrals["--slate-200"],
+    "--surface-header": light ? "255 255 255" : neutrals["--slate-100"],
+    "--surface-sidebar": light ? "255 255 255" : neutrals["--slate-100"],
+  };
+}
+
 function buildVariant(hue, sat, mode) {
   return {
     ...primaryScale(hue, sat, mode),
     ...neutralScale(hue, mode),
     ...headerGradient(hue, sat, mode),
+    ...surfaceTokens(hue, mode),
   };
 }
 

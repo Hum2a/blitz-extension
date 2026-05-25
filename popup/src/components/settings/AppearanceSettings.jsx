@@ -51,7 +51,7 @@ export default function AppearanceSettings({ fullPage = false }) {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Mode</p>
             <div
-              className="inline-flex rounded-lg border border-slate-200 bg-slate-100 p-1 gap-0.5"
+              className="appearance-mode-toggle inline-flex rounded-lg border p-1 gap-0.5"
               role="radiogroup"
               aria-label="Color mode"
             >

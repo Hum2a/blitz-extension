@@ -4,7 +4,7 @@ export default function SettingsCard({ id, title, description, children, classNa
       id={id}
       className={`bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden scroll-mt-24 ${className}`}
     >
-      <header className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+      <header className="settings-card-header px-5 py-4 border-b border-slate-100">
         <h2 className="text-base font-semibold text-slate-900 tracking-tight">{title}</h2>
         {description && (
           <p className="text-sm text-slate-600 mt-1 leading-relaxed max-w-2xl">{description}</p>

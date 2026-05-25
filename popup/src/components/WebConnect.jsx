@@ -49,8 +49,8 @@ export default function WebConnect() {
   }
 
   return (
-    <div className="blitz-site-connect min-h-screen flex flex-col bg-[#f6f8fc]">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="blitz-site-connect min-h-screen flex flex-col bg-slate-50">
+      <header className="blitz-site-header border-b">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-2.5">
           <span className="site-logo-mark flex h-9 w-9 items-center justify-center rounded-xl bg-blitz-600 text-white font-bold text-sm">
             B
@@ -87,7 +87,7 @@ export default function WebConnect() {
           </div>
         </section>
 
-        <section className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-white border-t lg:border-t-0 lg:border-l border-slate-200">
+        <section className="blitz-connect-panel flex-1 flex items-center justify-center p-6 lg:p-12 border-t lg:border-t-0 lg:border-l border-slate-200">
           <div className="w-full max-w-md space-y-5">
             <div>
               <h2 className="text-xl font-bold text-slate-900">Connect extension</h2>

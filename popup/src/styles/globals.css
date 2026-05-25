@@ -27,14 +27,31 @@
   --header-c: 79 110 247;
   --shadow-primary: 47, 74, 196;
   --shadow-card: 0.12;
+  --page-bg: 248 250 252;
+  --surface: 255 255 255;
+  --surface-muted: 241 245 249;
+  --surface-header: 255 255 255;
+  --surface-sidebar: 255 255 255;
   color-scheme: light;
+}
+
+html {
+  background-color: rgb(var(--page-bg));
+  color: rgb(var(--slate-900));
 }
 
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  @apply bg-slate-50 text-slate-900 antialiased;
+  background-color: rgb(var(--page-bg));
+  color: rgb(var(--slate-900));
+  @apply antialiased;
   overflow-x: hidden;
+}
+
+#root {
+  background-color: rgb(var(--page-bg));
+  color: rgb(var(--slate-900));
 }
 
 body:has(.blitz-popup) {
@@ -56,26 +73,90 @@ body:has(.blitz-site-connect) {
   min-height: 100vh;
 }
 
+/* Full-page layouts */
+.blitz-site,
+.blitz-site-connect {
+  background-color: rgb(var(--page-bg));
+  color: rgb(var(--slate-900));
+}
+
 /* Dark mode: remap common utility combos */
 [data-mode="dark"] {
   color-scheme: dark;
 }
 
 [data-mode="dark"] .bg-white {
-  background-color: rgb(var(--slate-100));
+  background-color: rgb(var(--surface)) !important;
+}
+
+[data-mode="dark"] .bg-white\/90 {
+  background-color: rgb(var(--surface-header) / 0.92) !important;
+}
+
+[data-mode="dark"] .bg-white\/80 {
+  background-color: rgb(var(--surface) / 0.8) !important;
+}
+
+[data-mode="dark"] .bg-white\/60 {
+  background-color: rgb(var(--surface) / 0.6) !important;
+}
+
+[data-mode="dark"] .bg-white\/50 {
+  background-color: rgb(var(--surface-sidebar) / 0.5) !important;
+}
+
+[data-mode="dark"] .bg-white\/25 {
+  background-color: rgb(var(--surface) / 0.25) !important;
+}
+
+[data-mode="dark"] .bg-white\/15 {
+  background-color: rgb(var(--surface) / 0.15) !important;
+}
+
+[data-mode="dark"] .hover\:bg-white:hover,
+[data-mode="dark"] .hover\:bg-white\/60:hover {
+  background-color: rgb(var(--surface-muted) / 0.85);
 }
 
 [data-mode="dark"] .bg-slate-50\/80,
-[data-mode="dark"] .bg-slate-50\/90 {
-  background-color: rgb(var(--slate-50) / 0.9);
+[data-mode="dark"] .bg-slate-50\/90,
+[data-mode="dark"] .bg-slate-50\/50 {
+  background-color: rgb(var(--page-bg) / 0.9);
 }
 
 [data-mode="dark"] .hover\:bg-slate-50:hover {
-  background-color: rgb(var(--slate-100));
+  background-color: rgb(var(--surface-muted));
 }
 
-[data-mode="dark"] .border-slate-100 {
-  border-color: rgb(var(--slate-200));
+[data-mode="dark"] .border-slate-100,
+[data-mode="dark"] .border-slate-200\/80 {
+  border-color: rgb(var(--slate-200) / var(--tw-border-opacity, 1));
+}
+
+[data-mode="dark"] .to-white {
+  --tw-gradient-to: rgb(var(--surface)) var(--tw-gradient-to-position);
+}
+
+[data-mode="dark"] .from-white {
+  --tw-gradient-from: rgb(var(--surface)) var(--tw-gradient-from-position);
+}
+
+[data-mode="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+[data-mode="dark"] select,
+[data-mode="dark"] textarea {
+  background-color: rgb(var(--surface));
+  color: rgb(var(--slate-900));
+  border-color: rgb(var(--slate-300));
+}
+
+[data-mode="dark"] input::placeholder,
+[data-mode="dark"] textarea::placeholder {
+  color: rgb(var(--slate-500));
+}
+
+[data-mode="dark"] .file\:bg-slate-50::file-selector-button {
+  background-color: rgb(var(--surface-muted)) !important;
+  color: rgb(var(--slate-900)) !important;
 }
 
 [data-mode="dark"] .text-green-800 {
@@ -112,6 +193,19 @@ body:has(.blitz-site-connect) {
 
 [data-mode="dark"] .border-amber-200 {
   border-color: rgb(251 191 36 / 0.35);
+}
+
+[data-mode="dark"] .text-emerald-700,
+[data-mode="dark"] .text-emerald-900 {
+  color: rgb(110 231 183);
+}
+
+[data-mode="dark"] .bg-emerald-50 {
+  background-color: rgb(6 78 59 / 0.45);
+}
+
+[data-mode="dark"] .border-emerald-200 {
+  border-color: rgb(52 211 153 / 0.35);
 }
 
 @layer utilities {
@@ -173,6 +267,39 @@ body:has(.blitz-site-connect) {
 
   .site-logo-mark {
     box-shadow: 0 2px 8px rgb(var(--blitz-700) / 0.35);
+  }
+
+  .blitz-site-header {
+    background-color: rgb(var(--surface-header) / 0.92);
+    border-color: rgb(var(--slate-200) / 0.8);
+  }
+
+  .blitz-site-sidebar {
+    background-color: rgb(var(--surface-sidebar) / 0.55);
+    border-color: rgb(var(--slate-200) / 0.8);
+  }
+
+  .blitz-site-footer {
+    background-color: rgb(var(--surface));
+    border-color: rgb(var(--slate-200));
+  }
+
+  .settings-card-header {
+    background: linear-gradient(
+      to right,
+      rgb(var(--page-bg)),
+      rgb(var(--surface))
+    );
+    border-color: rgb(var(--slate-200));
+  }
+
+  .appearance-mode-toggle {
+    background-color: rgb(var(--surface-muted));
+    border-color: rgb(var(--slate-200));
+  }
+
+  .blitz-connect-panel {
+    background-color: rgb(var(--surface));
   }
 }
 

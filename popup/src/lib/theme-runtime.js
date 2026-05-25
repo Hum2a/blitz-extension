@@ -18,6 +18,37 @@ export function getThemeVars(themeId, resolvedMode) {
   return theme[resolvedMode] || theme.light;
 }
 
+function channelsToHex(channels) {
+  const [r, g, b] = channels.trim().split(/\s+/).map((n) => parseInt(n, 10));
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function ensureMeta(name, content) {
+  if (typeof document === "undefined") return;
+  let el = document.querySelector(`meta[name="${name}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute("name", name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+/** Sync browser chrome (tab bar, etc.) and document surfaces with active theme. */
+function syncDocumentChrome(vars, resolved) {
+  if (typeof document === "undefined") return;
+
+  const pageBg = vars["--page-bg"] || vars["--slate-50"];
+  const hex = channelsToHex(pageBg);
+
+  document.documentElement.style.backgroundColor = `rgb(${pageBg})`;
+  document.body.style.backgroundColor = `rgb(${pageBg})`;
+  document.body.style.color = `rgb(${vars["--slate-900"]})`;
+
+  ensureMeta("theme-color", hex);
+  ensureMeta("color-scheme", resolved);
+}
+
 /** Apply theme CSS variables to document root. */
 export function applyAppearance(appearance) {
   const mode = appearance?.mode ?? DEFAULT_APPEARANCE.mode;
@@ -34,6 +65,8 @@ export function applyAppearance(appearance) {
   for (const [key, value] of Object.entries(vars)) {
     root.style.setProperty(key, value);
   }
+
+  syncDocumentChrome(vars, resolved);
 }
 
 export async function readAppearanceFromStorage() {
