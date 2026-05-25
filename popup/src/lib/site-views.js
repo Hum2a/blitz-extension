@@ -27,7 +27,7 @@ export const SITE_VIEWS = {
     id: "settings",
     label: "Settings",
     title: "Settings",
-    subtitle: "CV, profile, API keys, license, and generation preferences.",
+    subtitle: "AI, profile, CV template editor, and license — organised in sections below.",
   },
 };
 

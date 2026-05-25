@@ -17,9 +17,14 @@ import {
   OPENAI_MODEL_SUGGESTIONS,
   ANTHROPIC_DEFAULT_MODEL,
 } from "../lib/models.js";
-
 import { scrollPanelClass } from "../lib/layout.js";
-import CvTemplateSettings from "./CvTemplateSettings.jsx";
+import SettingsLayout from "./settings/SettingsLayout.jsx";
+import SettingsCard, {
+  SettingsField,
+  SettingsInput,
+  SettingsSelect,
+} from "./settings/SettingsCard.jsx";
+import CvTemplateEditor from "./CvTemplateEditor.jsx";
 
 export default function Settings({ onSaved, fullPage = false }) {
   const { settings, loading, refresh } = useAllSettings();
@@ -82,28 +87,31 @@ export default function Settings({ onSaved, fullPage = false }) {
     }
   }, [settings]);
 
-  const persistProfileTexts = useCallback(async (cvText, linkedinText) => {
-    setProfileSaveStatus("saving");
-    setSaveError(null);
-    try {
-      await saveProfileTexts({
-        cv_text: cvText,
-        linkedin_profile_text: linkedinText,
-      });
-      setProfileSaveStatus("saved");
-      dirtyRef.current = false;
-      onSaved?.();
-      refresh();
-      setTimeout(() => setProfileSaveStatus(null), 2500);
-    } catch (err) {
-      const msg =
-        err instanceof StorageError
-          ? err.message
-          : err?.message || "Could not save profile text";
-      setSaveError(msg);
-      setProfileSaveStatus("error");
-    }
-  }, [onSaved, refresh]);
+  const persistProfileTexts = useCallback(
+    async (cvText, linkedinText) => {
+      setProfileSaveStatus("saving");
+      setSaveError(null);
+      try {
+        await saveProfileTexts({
+          cv_text: cvText,
+          linkedin_profile_text: linkedinText,
+        });
+        setProfileSaveStatus("saved");
+        dirtyRef.current = false;
+        onSaved?.();
+        refresh();
+        setTimeout(() => setProfileSaveStatus(null), 2500);
+      } catch (err) {
+        const msg =
+          err instanceof StorageError
+            ? err.message
+            : err?.message || "Could not save profile text";
+        setSaveError(msg);
+        setProfileSaveStatus("error");
+      }
+    },
+    [onSaved, refresh]
+  );
 
   const scheduleProfileAutosave = useCallback(
     (nextForm) => {
@@ -116,9 +124,12 @@ export default function Settings({ onSaved, fullPage = false }) {
     [persistProfileTexts]
   );
 
-  useEffect(() => () => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    },
+    []
+  );
 
   if (loading || !form) {
     return (
@@ -169,9 +180,7 @@ export default function Settings({ onSaved, fullPage = false }) {
       }, 2500);
     } catch (err) {
       const msg =
-        err instanceof StorageError
-          ? err.message
-          : err?.message || "Could not save settings";
+        err instanceof StorageError ? err.message : err?.message || "Could not save settings";
       setSaveError(msg);
       alert(msg);
     }
@@ -207,10 +216,7 @@ export default function Settings({ onSaved, fullPage = false }) {
       const cvText = field === "cv_text" ? text : form.cv_text ?? "";
       const linkedinText =
         field === "linkedin_profile_text" ? text : form.linkedin_profile_text ?? "";
-      setForm((prev) => ({
-        ...prev,
-        [field]: text,
-      }));
+      setForm((prev) => ({ ...prev, [field]: text }));
       dirtyRef.current = true;
       await persistProfileTexts(cvText, linkedinText);
     } catch (err) {
@@ -257,338 +263,364 @@ export default function Settings({ onSaved, fullPage = false }) {
   const used = license.applicationsUsed ?? 0;
   const isPro = license.tier === "pro";
 
-  return (
-    <Stagger
-      className={`space-y-4 text-sm pr-1 ${scrollPanelClass(fullPage, "max-h-[480px] overflow-y-auto overflow-x-hidden")} ${fullPage ? "max-w-3xl" : ""}`}
+  const statusBanner = (profileSaveStatus || saveError) && (
+    <motion.div
+      className={`text-sm px-4 py-3 rounded-lg border ${
+        saveError || profileSaveStatus === "error"
+          ? "text-red-800 bg-red-50 border-red-200"
+          : profileSaveStatus === "saving"
+            ? "text-slate-700 bg-slate-50 border-slate-200"
+            : "text-green-800 bg-green-50 border-green-200"
+      }`}
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
     >
-      <Section title="AI provider" index={0}>
-        <select
-          value={form.ai_config?.provider || "anthropic"}
-          onChange={(e) => update("ai_config.provider", e.target.value)}
-          className="w-full border rounded p-2"
-        >
-          <option value="anthropic">Anthropic</option>
-          <option value="openai">OpenAI</option>
-        </select>
-        <input
-          type="password"
-          placeholder="API key"
-          value={form.ai_config?.apiKey || ""}
-          onChange={(e) => update("ai_config.apiKey", e.target.value)}
-          className="w-full border rounded p-2 mt-2"
-        />
-        {form.ai_config?.provider === "openai" ? (
-          <select
-            value={form.ai_config?.model || "gpt-4o"}
-            onChange={(e) => update("ai_config.model", e.target.value)}
-            className="w-full border rounded p-2 mt-2 font-mono text-xs"
-          >
-            {OPENAI_MODEL_SUGGESTIONS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <>
-            <select
-              value={form.ai_config?.model || ANTHROPIC_DEFAULT_MODEL}
-              onChange={(e) => update("ai_config.model", e.target.value)}
-              className="w-full border rounded p-2 mt-2 font-mono text-xs"
-            >
-              {availableModels.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label || m.id}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={refreshModels}
-              disabled={modelsLoading || !form.ai_config?.apiKey?.trim()}
-              className="mt-1 text-xs text-blitz-600 underline disabled:opacity-50"
-            >
-              {modelsLoading ? "Loading models…" : "Refresh models from API"}
-            </button>
-          </>
-        )}
-        <p className="text-xs text-slate-500 mt-1">
-          Older models (e.g. claude-3-5-sonnet) are retired — use Sonnet 4.6 or refresh from API.
-        </p>
-        <button
-          type="button"
-          onClick={handleTestKey}
-          disabled={testing}
-          className="mt-2 text-blitz-600 underline text-xs"
-        >
-          {testing ? "Testing…" : "Test API key"}
-        </button>
-      </Section>
+      {saveError ||
+        (profileSaveStatus === "saving"
+          ? "Saving CV & LinkedIn text…"
+          : "CV & LinkedIn text saved automatically")}
+    </motion.div>
+  );
 
-      {(profileSaveStatus || saveError) && (
-        <motion.p
-          className={`text-xs text-center px-2 py-1 rounded ${
-            saveError || profileSaveStatus === "error"
-              ? "text-red-700 bg-red-50"
-              : profileSaveStatus === "saving"
-                ? "text-slate-600 bg-slate-100"
-                : "text-green-700 bg-green-50"
-          }`}
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {saveError ||
-            (profileSaveStatus === "saving"
-              ? "Saving CV & profile…"
-              : "CV & profile saved automatically")}
-        </motion.p>
-      )}
-
-      <Section title="Your CV" index={1}>
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={handlePdfUpload("cv_text", setPdfLoading)}
-          disabled={pdfLoading}
-          className="w-full text-xs mb-2"
-        />
-        {pdfLoading && <p className="text-xs text-slate-500 mb-1">Parsing & saving PDF…</p>}
-        {form.cv_text?.trim() && !pdfLoading && (
-          <p className="text-xs text-green-700 mb-1">
-            {form.cv_text.length.toLocaleString()} characters
-          </p>
-        )}
-        <textarea
-          value={form.cv_text || ""}
-          onChange={(e) => update("cv_text", e.target.value, { autosaveProfile: true })}
-          rows={6}
-          placeholder="Paste your CV as plain text"
-          className="w-full border rounded p-2 font-mono text-xs"
-        />
-      </Section>
-
-      <Section title="LinkedIn profile" index={2}>
-        <p className="text-xs text-slate-500 mb-2">
-          Export your profile as PDF from LinkedIn (Me → More → Save to PDF), then upload here.
-          Blitz uses this alongside your CV for tailoring and screening answers.
-        </p>
-        <input
-          type="file"
-          accept=".pdf"
-          onChange={handlePdfUpload("linkedin_profile_text", setLinkedinPdfLoading)}
-          disabled={linkedinPdfLoading}
-          className="w-full text-xs mb-2"
-        />
-        {linkedinPdfLoading && (
-          <p className="text-xs text-slate-500 mb-1">Parsing & saving LinkedIn PDF…</p>
-        )}
-        {form.linkedin_profile_text?.trim() && (
-          <p className="text-xs text-green-700 mb-1">
-            {form.linkedin_profile_text.length.toLocaleString()} characters loaded
-            {form.linkedin_profile_text.length > 12000 ? " (will be trimmed for AI)" : ""}
-          </p>
-        )}
-        <textarea
-          value={form.linkedin_profile_text || ""}
-          onChange={(e) =>
-            update("linkedin_profile_text", e.target.value, { autosaveProfile: true })
-          }
-          rows={4}
-          placeholder="LinkedIn profile text (optional)"
-          className="w-full border rounded p-2 font-mono text-xs"
-        />
-        {form.linkedin_profile_text?.trim() ? (
-          <button
-            type="button"
-            onClick={async () => {
-              update("linkedin_profile_text", "");
-              await persistProfileTexts(form.cv_text ?? "", "");
-            }}
-            className="mt-1 text-xs text-slate-500 underline"
-          >
-            Clear LinkedIn profile
-          </button>
-        ) : null}
-      </Section>
-
-      <Section title="Profile" index={3}>
-        {[
-          ["name", "Full name"],
-          ["email", "Email"],
-          ["phone", "Phone"],
-          ["location", "Location"],
-        ].map(([key, label]) => (
-          <input
-            key={key}
-            type="text"
-            placeholder={label}
-            value={profile[key] || ""}
-            onChange={(e) => update(`user_profile.${key}`, e.target.value)}
-            className="w-full border rounded p-2 mb-2"
-          />
-        ))}
-
-        <p className="text-xs font-semibold text-blitz-700 uppercase tracking-wide mt-3 mb-2">
-          Links
-        </p>
-        {[
-          ["github", "GitHub", "https://github.com/username"],
-          ["linkedin", "LinkedIn profile URL", "https://linkedin.com/in/username"],
-          ["portfolio", "Portfolio / website", "https://yoursite.com"],
-        ].map(([key, label, placeholder]) => (
-          <label key={key} className="block mb-2">
-            <span className="text-xs text-slate-600 font-medium">{label}</span>
-            <input
-              type="text"
-              inputMode="url"
-              autoComplete="url"
-              placeholder={placeholder}
-              value={profile[key] || ""}
-              onChange={(e) => update(`user_profile.${key}`, e.target.value)}
-              className="w-full border rounded p-2 mt-0.5 text-xs"
-            />
-          </label>
-        ))}
-
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-3 mb-2">
-          Work preferences
-        </p>
-        {[
-          ["rightToWork", "Right to work"],
-          ["noticePeriod", "Notice period"],
-          ["salaryExpectation", "Salary expectation"],
-        ].map(([key, label]) => (
-          <input
-            key={key}
-            type="text"
-            placeholder={label}
-            value={profile[key] || ""}
-            onChange={(e) => update(`user_profile.${key}`, e.target.value)}
-            className="w-full border rounded p-2 mb-2"
-          />
-        ))}
-        <select
-          value={profile.remotePreference || "Hybrid"}
-          onChange={(e) => update("user_profile.remotePreference", e.target.value)}
-          className="w-full border rounded p-2"
-        >
-          <option>Remote</option>
-          <option>Hybrid</option>
-          <option>On-site</option>
-        </select>
-      </Section>
-
-      <Section title="Preferences" index={4}>
-        <label className="flex items-center gap-2 mt-2">
-          <span>Cover letter</span>
-          <select
-            value={form.preferences?.coverLetterMode || "always"}
-            onChange={(e) => update("preferences.coverLetterMode", e.target.value)}
-            className="border rounded p-1 flex-1"
-          >
-            <option value="always">Always</option>
-            <option value="never">Never</option>
-            <option value="ask">Ask</option>
-          </select>
-        </label>
-        <p className="text-xs text-slate-500 mt-2">
-          CV PDF layout is controlled by the HTML template in the section below.
-        </p>
-        <label className="flex items-center gap-2 mt-2 text-xs">
-          <input
-            type="checkbox"
-            checked={form.preferences?.autoSubmit ?? false}
-            onChange={(e) => update("preferences.autoSubmit", e.target.checked)}
-          />
-          Auto-submit after fill (LinkedIn)
-        </label>
-      </Section>
-
-      <CvTemplateSettings fullPage={fullPage} />
-
-      <Section title="License" index={5}>
-        <p className="text-xs text-slate-600 mb-2">
-          {isPro ? (
-            <span className="text-green-700 font-medium">Pro — unlimited applications</span>
-          ) : (
-            <>
-              Free tier — {used} / {FREE_APPLICATION_LIMIT} applications used
-            </>
-          )}
-        </p>
-        {!isPro && (
-          <div className="flex flex-col gap-2 mb-2">
-            <a
-              href={LEMONSQUEEZY.checkoutMonthly}
-              target="_blank"
-              rel="noreferrer"
-              className="text-center bg-blitz-600 text-white py-2 rounded text-xs"
-            >
-              Upgrade — £8/mo
-            </a>
-            <a
-              href={LEMONSQUEEZY.checkoutYearly}
-              target="_blank"
-              rel="noreferrer"
-              className="text-center border border-blitz-600 text-blitz-700 py-2 rounded text-xs"
-            >
-              Upgrade — £49/yr
-            </a>
-          </div>
-        )}
-        <input
-          type="text"
-          placeholder="License key"
-          value={licenseKey}
-          onChange={(e) => setLicenseKey(e.target.value)}
-          className="w-full border rounded p-2 mb-2"
-        />
-        <button
-          type="button"
-          onClick={handleActivateLicense}
-          disabled={validatingLicense || !licenseKey.trim()}
-          className="w-full border py-2 rounded text-xs disabled:opacity-50"
-        >
-          {validatingLicense ? "Validating…" : "Activate license"}
-        </button>
-      </Section>
-
-      <FadeUp delay={0.3}>
+  const footer = (
+    <FadeUp delay={0.1}>
+      <div className="flex flex-wrap items-center gap-3 pt-2 pb-1 border-t border-slate-200">
         <Btn
           onClick={handleSave}
-          className="w-full bg-blitz-600 text-white py-2 rounded-lg font-medium btn-shine"
+          className="bg-blitz-600 text-white px-6 py-2.5 rounded-lg font-medium btn-shine"
         >
-          Save settings
+          Save all settings
         </Btn>
+        <p className="text-xs text-slate-500">CV template saves with its own button above.</p>
         <AnimatePresence>
           {saved && (
-            <motion.p
-              className="text-green-600 text-xs text-center mt-2"
-              initial={{ opacity: 0, y: -6, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -4 }}
+            <motion.span
+              className="text-green-700 text-sm font-medium"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
               Saved.
-            </motion.p>
+            </motion.span>
           )}
         </AnimatePresence>
-      </FadeUp>
+      </div>
+    </FadeUp>
+  );
+
+  return (
+    <Stagger
+      className={`text-sm ${scrollPanelClass(fullPage, "max-h-[480px] overflow-y-auto overflow-x-hidden pr-1")}`}
+    >
+      <SettingsLayout fullPage={fullPage} footer={footer}>
+        {statusBanner}
+
+        <SettingsCard
+          id="settings-ai"
+          title="AI & API"
+          description="Bring your own key. Blitz sends job data and your CV to the model you choose."
+        >
+          <SettingsField label="Provider">
+            <SettingsSelect
+              value={form.ai_config?.provider || "anthropic"}
+              onChange={(e) => update("ai_config.provider", e.target.value)}
+            >
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openai">OpenAI</option>
+            </SettingsSelect>
+          </SettingsField>
+          <SettingsField label="API key" hint="Stored locally in your browser only.">
+            <SettingsInput
+              type="password"
+              placeholder="sk-… or Anthropic key"
+              value={form.ai_config?.apiKey || ""}
+              onChange={(e) => update("ai_config.apiKey", e.target.value)}
+            />
+          </SettingsField>
+          {form.ai_config?.provider === "openai" ? (
+            <SettingsField label="Model">
+              <SettingsSelect
+                value={form.ai_config?.model || "gpt-4o"}
+                onChange={(e) => update("ai_config.model", e.target.value)}
+                className="font-mono text-xs"
+              >
+                {OPENAI_MODEL_SUGGESTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </SettingsSelect>
+            </SettingsField>
+          ) : (
+            <>
+              <SettingsField label="Model">
+                <SettingsSelect
+                  value={form.ai_config?.model || ANTHROPIC_DEFAULT_MODEL}
+                  onChange={(e) => update("ai_config.model", e.target.value)}
+                  className="font-mono text-xs"
+                >
+                  {availableModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label || m.id}
+                    </option>
+                  ))}
+                </SettingsSelect>
+              </SettingsField>
+              <button
+                type="button"
+                onClick={refreshModels}
+                disabled={modelsLoading || !form.ai_config?.apiKey?.trim()}
+                className="text-sm text-blitz-600 font-medium hover:underline disabled:opacity-50"
+              >
+                {modelsLoading ? "Loading models…" : "Refresh models from API"}
+              </button>
+            </>
+          )}
+          <p className="text-xs text-slate-500">
+            Retired models (e.g. claude-3-5-sonnet) are remapped automatically — prefer Sonnet 4.6.
+          </p>
+          <button
+            type="button"
+            onClick={handleTestKey}
+            disabled={testing}
+            className="text-sm text-blitz-600 font-medium hover:underline disabled:opacity-50"
+          >
+            {testing ? "Testing…" : "Test API connection"}
+          </button>
+        </SettingsCard>
+
+        <SettingsCard
+          id="settings-profile"
+          title="Profile & CV sources"
+          description="Base material for tailoring. CV text is required; LinkedIn export improves screening answers."
+          className={fullPage ? "lg:col-span-2" : ""}
+        >
+          <div className={fullPage ? "grid md:grid-cols-2 gap-6" : "space-y-6"}>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-800">Master CV</h3>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfUpload("cv_text", setPdfLoading)}
+                disabled={pdfLoading}
+                className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-blitz-50 file:text-blitz-700 file:font-medium"
+              />
+              {pdfLoading && <p className="text-xs text-slate-500">Parsing PDF…</p>}
+              {form.cv_text?.trim() && !pdfLoading && (
+                <p className="text-xs text-green-700">
+                  {form.cv_text.length.toLocaleString()} characters loaded
+                </p>
+              )}
+              <textarea
+                value={form.cv_text || ""}
+                onChange={(e) => update("cv_text", e.target.value, { autosaveProfile: true })}
+                rows={fullPage ? 10 : 6}
+                placeholder="Paste your CV as plain text"
+                className="w-full border border-slate-300 rounded-lg p-3 font-mono text-xs focus:ring-2 focus:ring-blitz-200"
+              />
+            </div>
+            <div className="space-y-3 md:border-l md:border-slate-100 md:pl-6">
+              <h3 className="text-sm font-semibold text-slate-800">LinkedIn profile</h3>
+              <p className="text-xs text-slate-500">
+                LinkedIn → Me → More → Save to PDF, then upload here.
+              </p>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfUpload("linkedin_profile_text", setLinkedinPdfLoading)}
+                disabled={linkedinPdfLoading}
+                className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-50 file:text-blitz-700 file:font-medium"
+              />
+              {linkedinPdfLoading && <p className="text-xs text-slate-500">Parsing PDF…</p>}
+              {form.linkedin_profile_text?.trim() && (
+                <p className="text-xs text-green-700">
+                  {form.linkedin_profile_text.length.toLocaleString()} characters
+                  {form.linkedin_profile_text.length > 12000 ? " (trimmed for AI)" : ""}
+                </p>
+              )}
+              <textarea
+                value={form.linkedin_profile_text || ""}
+                onChange={(e) =>
+                  update("linkedin_profile_text", e.target.value, { autosaveProfile: true })
+                }
+                rows={fullPage ? 8 : 4}
+                placeholder="Optional LinkedIn export text"
+                className="w-full border border-slate-300 rounded-lg p-3 font-mono text-xs focus:ring-2 focus:ring-blitz-200"
+              />
+              {form.linkedin_profile_text?.trim() ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    update("linkedin_profile_text", "");
+                    await persistProfileTexts(form.cv_text ?? "", "");
+                  }}
+                  className="text-xs text-slate-500 hover:text-red-600 underline"
+                >
+                  Clear LinkedIn text
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          id="settings-details"
+          title="Your details"
+          description="Used for screening questions and the contact line on exported CVs."
+        >
+          <div className={fullPage ? "grid sm:grid-cols-2 gap-4" : "space-y-3"}>
+            {[
+              ["name", "Full name"],
+              ["email", "Email"],
+              ["phone", "Phone"],
+              ["location", "Location"],
+            ].map(([key, label]) => (
+              <SettingsField key={key} label={label}>
+                <SettingsInput
+                  value={profile[key] || ""}
+                  onChange={(e) => update(`user_profile.${key}`, e.target.value)}
+                />
+              </SettingsField>
+            ))}
+          </div>
+          <div className="pt-2 border-t border-slate-100">
+            <p className="text-xs font-semibold text-blitz-700 uppercase tracking-wide mb-3">Links</p>
+            <div className={fullPage ? "grid sm:grid-cols-2 gap-4" : "space-y-3"}>
+              {[
+                ["github", "GitHub", "https://github.com/username"],
+                ["linkedin", "LinkedIn", "https://linkedin.com/in/username"],
+                ["portfolio", "Portfolio", "https://yoursite.com"],
+              ].map(([key, label, placeholder]) => (
+                <SettingsField key={key} label={label}>
+                  <SettingsInput
+                    type="url"
+                    placeholder={placeholder}
+                    value={profile[key] || ""}
+                    onChange={(e) => update(`user_profile.${key}`, e.target.value)}
+                  />
+                </SettingsField>
+              ))}
+            </div>
+          </div>
+          <div className="pt-2 border-t border-slate-100">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+              Work preferences
+            </p>
+            <div className={fullPage ? "grid sm:grid-cols-2 gap-4" : "space-y-3"}>
+              {[
+                ["rightToWork", "Right to work"],
+                ["noticePeriod", "Notice period"],
+                ["salaryExpectation", "Salary expectation"],
+              ].map(([key, label]) => (
+                <SettingsField key={key} label={label}>
+                  <SettingsInput
+                    value={profile[key] || ""}
+                    onChange={(e) => update(`user_profile.${key}`, e.target.value)}
+                  />
+                </SettingsField>
+              ))}
+              <SettingsField label="Remote preference">
+                <SettingsSelect
+                  value={profile.remotePreference || "Hybrid"}
+                  onChange={(e) => update("user_profile.remotePreference", e.target.value)}
+                >
+                  <option>Remote</option>
+                  <option>Hybrid</option>
+                  <option>On-site</option>
+                </SettingsSelect>
+              </SettingsField>
+            </div>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          id="settings-app"
+          title="Application behaviour"
+          description="How Blitz generates and submits applications."
+        >
+          <SettingsField label="Cover letter">
+            <SettingsSelect
+              value={form.preferences?.coverLetterMode || "always"}
+              onChange={(e) => update("preferences.coverLetterMode", e.target.value)}
+            >
+              <option value="always">Always generate</option>
+              <option value="never">Never</option>
+              <option value="ask">Ask each time</option>
+            </SettingsSelect>
+          </SettingsField>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.preferences?.autoSubmit ?? false}
+              onChange={(e) => update("preferences.autoSubmit", e.target.checked)}
+              className="rounded border-slate-300 text-blitz-600 focus:ring-blitz-200"
+            />
+            <span className="text-sm text-slate-700">
+              Auto-submit after fill on LinkedIn (review the page first if unsure)
+            </span>
+          </label>
+        </SettingsCard>
+
+        <SettingsCard
+          id="settings-template"
+          title="CV layout & PDF template"
+          description="Visual editor, raw HTML, or import from Word. Saved separately — syncs across dashboard and extension."
+          className={fullPage ? "max-w-none" : ""}
+        >
+          <CvTemplateEditor fullPage={fullPage} embedded />
+        </SettingsCard>
+
+        <SettingsCard
+          id="settings-license"
+          title="License & billing"
+          description="Free tier includes 15 applications. Pro is unlimited."
+        >
+          <p className="text-sm">
+            {isPro ? (
+              <span className="text-green-700 font-medium">Pro active — unlimited applications</span>
+            ) : (
+              <span className="text-slate-700">
+                Free tier — <strong>{used}</strong> / {FREE_APPLICATION_LIMIT} applications used
+              </span>
+            )}
+          </p>
+          {!isPro && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <a
+                href={LEMONSQUEEZY.checkoutMonthly}
+                target="_blank"
+                rel="noreferrer"
+                className="text-center bg-blitz-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-blitz-700"
+              >
+                Upgrade — £8/mo
+              </a>
+              <a
+                href={LEMONSQUEEZY.checkoutYearly}
+                target="_blank"
+                rel="noreferrer"
+                className="text-center border border-blitz-600 text-blitz-700 py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-blitz-50"
+              >
+                Upgrade — £49/yr
+              </a>
+            </div>
+          )}
+          <SettingsField label="License key">
+            <SettingsInput
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+              placeholder="BLITZ-…"
+            />
+          </SettingsField>
+          <button
+            type="button"
+            onClick={handleActivateLicense}
+            disabled={validatingLicense || !licenseKey.trim()}
+            className="w-full sm:w-auto border border-slate-300 py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+          >
+            {validatingLicense ? "Validating…" : "Activate license"}
+          </button>
+        </SettingsCard>
+      </SettingsLayout>
     </Stagger>
   );
 }
-
-function Section({ title, children, index = 0 }) {
-  return (
-    <FadeUp delay={index * 0.05}>
-      <motion.div
-        className="rounded-lg p-1 -mx-1"
-        whileHover={{ backgroundColor: "rgba(240, 244, 255, 0.6)" }}
-        transition={{ duration: 0.2 }}
-      >
-        <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">{title}</h3>
-        {children}
-      </motion.div>
-    </FadeUp>
-  );
-}
-

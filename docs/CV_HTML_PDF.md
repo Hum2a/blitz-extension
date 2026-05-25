@@ -4,10 +4,13 @@ Blitz renders tailored CVs as **HTML** (your template + structured data), then c
 
 ## Customise layout
 
-1. Open **Settings** → **CV HTML template**
-2. Edit HTML/CSS and Mustache-style placeholders
+1. Open **Settings** → **CV layout & PDF template**
+2. Choose an editor mode:
+   - **Visual** — rich text for the CV body + optional CSS panel
+   - **HTML** — full template source with insert-variable helpers
+   - **Import Word** — upload `.docx`; converts to HTML (add `{{variables}}` after)
 3. **Save template** — stored in `chrome.storage.local` as `cv_html_template`
-4. **Preview sample** to check layout before generating
+4. **Preview with sample data** before generating
 
 The default template matches a classic UK CV layout (summary, education, skills, career blocks).
 

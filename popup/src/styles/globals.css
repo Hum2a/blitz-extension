@@ -91,6 +91,30 @@ body:has(.blitz-site-connect) {
   animation: site-fade-in 0.35s ease;
 }
 
+.cv-rich-editor h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+.cv-rich-editor h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.35rem;
+}
+.cv-rich-editor h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+}
+.cv-rich-editor ul {
+  margin: 0.35rem 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+.cv-rich-editor p {
+  margin: 0.35rem 0;
+}
+
 @keyframes site-fade-in {
   from {
     opacity: 0;
