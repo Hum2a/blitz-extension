@@ -8,9 +8,18 @@ Blitz renders tailored CVs as **HTML** (your template + structured data), then c
 2. Choose an editor mode:
    - **Visual** — rich text for the CV body + optional CSS panel
    - **HTML** — full template source with insert-variable helpers
-   - **Import Word** — upload `.docx`; converts to HTML (add `{{variables}}` after)
-3. **Save template** — stored in `chrome.storage.local` as `cv_html_template`
-4. **Preview with sample data** before generating
+   - **Import Word** — **How to export from Word** (recommended: Save As **Web Page, Filtered .htm**), upload `.htm`, `.docx`, or **Paste HTML**
+3. On **Review**, expand **PDF HTML (download layout)** to edit the exact HTML for this application’s PDF (no AI)
+4. **Save template** — stored in `chrome.storage.local` as `cv_html_template`
+5. **Preview with sample data** before generating
+
+### Match your original Word CV
+
+Word **.docx** import is convenient but layout often differs from the desktop document. For the closest HTML:
+
+1. Word → **File → Save As → Web Page, Filtered (*.htm)**
+2. Blitz → Settings → Import Word → **Upload .htm** (or copy/paste the file contents)
+3. Replace your name and sections with `{{fullName}}`, `{{#jobs}}`, etc.
 
 The default template matches a classic UK CV layout (summary, education, skills, career blocks).
 

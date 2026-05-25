@@ -8,7 +8,13 @@ export async function getCvHtmlTemplate() {
   return (stored && String(stored).trim()) || DEFAULT_CV_HTML_TEMPLATE;
 }
 
-export async function buildRenderedCvHtml({ cvDocument, tailoredCV, userProfile }) {
+export async function buildRenderedCvHtml({
+  cvDocument,
+  tailoredCV,
+  userProfile,
+  htmlOverride,
+}) {
+  if (htmlOverride?.trim()) return htmlOverride.trim();
   const doc = resolveCvDocument({ cvDocument, tailoredCV, userProfile });
   if (!doc) throw new Error("No CV content to render");
   const template = await getCvHtmlTemplate();
@@ -41,9 +47,19 @@ export function downloadBase64File(base64, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadCvPdf({ cvDocument, tailoredCV, userProfile, filename }) {
-  const html = await buildRenderedCvHtml({ cvDocument, tailoredCV, userProfile });
-  const base64 = await generateCvPdfBase64({ html });
+export async function downloadCvPdf({
+  cvDocument,
+  tailoredCV,
+  userProfile,
+  filename,
+  htmlOverride,
+  html,
+}) {
+  const resolvedHtml =
+    html?.trim() ||
+    htmlOverride?.trim() ||
+    (await buildRenderedCvHtml({ cvDocument, tailoredCV, userProfile }));
+  const base64 = await generateCvPdfBase64({ html: resolvedHtml });
   const name =
     filename ||
     `${(cvDocument?.fullName || "CV").replace(/[^\w\s-]/g, "").trim() || "CV"} - Blitz.pdf`;

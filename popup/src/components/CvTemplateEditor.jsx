@@ -14,6 +14,11 @@ import {
   TEMPLATE_VARIABLES,
 } from "../lib/cv-template-utils.js";
 import { docxFileToCvTemplate } from "../lib/docx-to-html.js";
+import {
+  htmlFileToCvTemplate,
+  rawHtmlToCvTemplate,
+  WORD_HTML_IMPORT_GUIDE,
+} from "../lib/word-html-import.js";
 import CvTemplateRichEditor from "./CvTemplateRichEditor.jsx";
 import { Btn } from "./motion.jsx";
 
@@ -64,6 +69,9 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
   const [cssBlock, setCssBlock] = useState("");
   const [wordLoading, setWordLoading] = useState(false);
   const [importNotes, setImportNotes] = useState(null);
+  const [wordSubMode, setWordSubMode] = useState("guide");
+  const [preserveWordLayout, setPreserveWordLayout] = useState(true);
+  const [pasteHtml, setPasteHtml] = useState("");
 
   useEffect(() => {
     getStorage("cv_html_template").then((stored) => {
@@ -137,13 +145,17 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
     setWordLoading(true);
     setError(null);
     try {
-      const { html, warnings } = await docxFileToCvTemplate(file);
+      const { html, warnings } = await docxFileToCvTemplate(file, {
+        preserveLayout: preserveWordLayout,
+      });
       setFullTemplate(html);
       setMode("html");
       setImportNotes(
         warnings.length
           ? `Imported with notes: ${warnings.slice(0, 3).join("; ")}`
-          : "Imported from Word. Replace your name and job text with {{variables}} (see HTML or Insert variable in Visual)."
+          : preserveWordLayout
+            ? "Imported .docx with minimal Blitz styling. For a closer match, use Web Page (.htm) import below."
+            : "Imported from Word. Replace your name and job text with {{variables}} (see HTML or Insert variable in Visual)."
       );
       setSaved(false);
     } catch (err) {
@@ -253,27 +265,144 @@ export default function CvTemplateEditor({ fullPage = false, embedded = false })
       )}
 
       {mode === "word" && (
-        <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50/50">
-          <p className="text-sm font-medium text-slate-800">Upload a Word CV (.docx)</p>
-          <p className="text-xs text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
-            Blitz converts your document to HTML and applies default PDF styling. You will need to
-            add <code className="text-blitz-700">{"{{variables}}"}</code> for tailored content — switch
-            to Visual or HTML to adjust.
-          </p>
-          <label className="inline-block mt-4">
-            <span className="cursor-pointer bg-blitz-600 hover:bg-blitz-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg">
-              {wordLoading ? "Converting…" : "Choose .docx file"}
-            </span>
-            <input
-              type="file"
-              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              className="hidden"
-              disabled={wordLoading}
-              onChange={handleWordUpload}
-            />
-          </label>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-1 p-1 bg-slate-100 rounded-lg w-fit">
+            {[
+              ["guide", "How to export from Word"],
+              ["htm", "Upload .htm"],
+              ["docx", "Upload .docx"],
+              ["paste", "Paste HTML"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setWordSubMode(id)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                  wordSubMode === id
+                    ? "bg-white text-blitz-800 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {wordSubMode === "guide" && (
+            <pre className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre-wrap leading-relaxed">
+              {WORD_HTML_IMPORT_GUIDE}
+            </pre>
+          )}
+
+          {wordSubMode === "htm" && (
+            <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/50">
+              <p className="text-sm font-medium text-slate-800">Word “Web Page, Filtered” (.htm)</p>
+              <p className="text-xs text-slate-600 mt-2 max-w-lg mx-auto leading-relaxed">
+                Keeps layout closest to your original Word document. Then add{" "}
+                <code className="text-blitz-700">{"{{variables}}"}</code> in HTML mode.
+              </p>
+              <label className="inline-block mt-4">
+                <span className="cursor-pointer bg-blitz-600 hover:bg-blitz-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg">
+                  {wordLoading ? "Importing…" : "Choose .htm / .html file"}
+                </span>
+                <input
+                  type="file"
+                  accept=".htm,.html,text/html"
+                  className="hidden"
+                  disabled={wordLoading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setWordLoading(true);
+                    setError(null);
+                    try {
+                      const { html } = await htmlFileToCvTemplate(file);
+                      setFullTemplate(html);
+                      setMode("html");
+                      setImportNotes(
+                        "Imported Word web page. Replace static text with {{variables}}."
+                      );
+                      setSaved(false);
+                    } catch (err) {
+                      setError(err.message || "Import failed");
+                    } finally {
+                      setWordLoading(false);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
+          {wordSubMode === "docx" && (
+            <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center bg-slate-50/50">
+              <p className="text-sm font-medium text-slate-800">Upload Word CV (.docx)</p>
+              <p className="text-xs text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
+                Faster, but formatting may differ from Word. Prefer .htm export for an exact layout.
+              </p>
+              <label className="flex items-center justify-center gap-2 mt-3 text-xs text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={preserveWordLayout}
+                  onChange={(e) => setPreserveWordLayout(e.target.checked)}
+                  className="rounded border-slate-300 text-blitz-600"
+                />
+                Minimal Blitz styling (preserve Word structure)
+              </label>
+              <label className="inline-block mt-4">
+                <span className="cursor-pointer bg-blitz-600 hover:bg-blitz-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg">
+                  {wordLoading ? "Converting…" : "Choose .docx file"}
+                </span>
+                <input
+                  type="file"
+                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  className="hidden"
+                  disabled={wordLoading}
+                  onChange={handleWordUpload}
+                />
+              </label>
+            </div>
+          )}
+
+          {wordSubMode === "paste" && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Paste HTML from Word (Save As web page → open in Notepad → copy all), or from any
+                editor.
+              </p>
+              <textarea
+                value={pasteHtml}
+                onChange={(e) => setPasteHtml(e.target.value)}
+                spellCheck={false}
+                className={`w-full border border-slate-300 rounded-lg p-3 font-mono text-xs ${
+                  fullPage ? "min-h-[240px]" : "min-h-[140px]"
+                }`}
+                placeholder="<!DOCTYPE html> … or <body>…"
+              />
+              <Btn
+                type="button"
+                onClick={() => {
+                  try {
+                    const html = rawHtmlToCvTemplate(pasteHtml);
+                    setFullTemplate(html);
+                    setMode("html");
+                    setImportNotes("Pasted HTML imported. Add {{variables}} for dynamic fields.");
+                    setSaved(false);
+                    setError(null);
+                  } catch (err) {
+                    setError(err.message || "Could not import pasted HTML");
+                  }
+                }}
+                className="text-sm bg-blitz-600 text-white px-4 py-2 rounded-lg hover:bg-blitz-700"
+              >
+                Import pasted HTML
+              </Btn>
+            </div>
+          )}
+
           {importNotes && (
-            <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg p-3 mt-4 text-left max-w-lg mx-auto">
+            <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
               {importNotes}
             </p>
           )}

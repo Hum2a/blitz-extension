@@ -333,6 +333,7 @@ async function handleMessage(message, sender) {
       let pdfBase64 = null;
       try {
         pdfBase64 = await generatePdfOffscreen({
+          html: application.pdfHtmlOverride,
           cvDocument: application.cvDocument,
           tailoredCV: application.tailoredCV,
           userProfile: settings.user_profile,

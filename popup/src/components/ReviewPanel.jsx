@@ -11,6 +11,7 @@ import { displayApplicationLabel } from "../lib/application-history-utils.js";
 import { scrollPanelClass } from "../lib/layout.js";
 import { getStorage } from "../lib/storage.js";
 import { buildRenderedCvHtml, downloadCvPdf } from "../lib/cv-export.js";
+import ReviewPdfHtmlEditor from "./ReviewPdfHtmlEditor.jsx";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 import { Modal, ModalButton } from "./Modal.jsx";
 import { useModal } from "../hooks/useModal.js";
@@ -36,6 +37,7 @@ export default function ReviewPanel({
   const [pdfLoading, setPdfLoading] = useState(false);
   const [cvPreviewOpen, setCvPreviewOpen] = useState(false);
   const [cvPreviewHtml, setCvPreviewHtml] = useState("");
+  const [pdfHtmlOverride, setPdfHtmlOverride] = useState(null);
   const initialCvRef = useRef("");
 
   useEffect(() => {
@@ -45,7 +47,18 @@ export default function ReviewPanel({
     initialCvRef.current = text;
     setCoverLetter(application.coverLetter || "");
     setAnswers(application.screeningAnswers || []);
+    setPdfHtmlOverride(application.pdfHtmlOverride || null);
   }, [application]);
+
+  const persistPdfHtmlOverride = async (html) => {
+    setPdfHtmlOverride(html);
+    const updated = {
+      ...application,
+      pdfHtmlOverride: html || undefined,
+    };
+    onApplicationUpdate(updated);
+    await setStorage("pending_application", updated);
+  };
 
   const cvDocumentForExport = () =>
     cv === initialCvRef.current ? application?.cvDocument : null;
@@ -63,6 +76,7 @@ export default function ReviewPanel({
         cvDocument: cvDocumentForExport(),
         tailoredCV: cv,
         userProfile,
+        htmlOverride: pdfHtmlOverride,
         filename: `${label}.pdf`,
       });
     } catch (err) {
@@ -82,6 +96,7 @@ export default function ReviewPanel({
         cvDocument: cvDocumentForExport(),
         tailoredCV: cv,
         userProfile,
+        htmlOverride: pdfHtmlOverride,
       });
       setCvPreviewHtml(html);
       setCvPreviewOpen(true);
@@ -128,6 +143,7 @@ export default function ReviewPanel({
       tailoredCV: cv,
       coverLetter,
       screeningAnswers: answers,
+      pdfHtmlOverride: pdfHtmlOverride || undefined,
     };
     await setStorage("pending_application", updated);
     onApplicationUpdate(updated);
@@ -272,6 +288,14 @@ export default function ReviewPanel({
           </FadeUp>
         ))}
       </div>
+      <ReviewPdfHtmlEditor
+        application={application}
+        cvDocument={cvDocumentForExport()}
+        tailoredCV={cv}
+        pdfHtmlOverride={pdfHtmlOverride}
+        onOverrideChange={persistPdfHtmlOverride}
+        fullPage={fullPage}
+      />
       {answers.length > 0 && (
         <FadeUp delay={0.15}>
           <p className="text-[11px] text-slate-500 mb-2 leading-snug">
