@@ -1,5 +1,13 @@
-import { buildApplicationPrompts } from "./prompts.js";
+import { buildApplicationPrompts, buildSystemPrompt } from "./prompts.js";
+import { estimateOutputTokens } from "./prompt-parts.js";
 import { getAllSettings, getStorage } from "./storage.js";
+
+const INPUT_PART_KEYS = {
+  includeBaseCv: "cv",
+  includeLinkedIn: "linkedin",
+  includeJobDescription: "job",
+  includeScreeningQuestions: "screening",
+};
 
 /** Rough token count (~4 chars per token for English). */
 export function estimateTokens(text) {
@@ -47,7 +55,94 @@ export function costFromUsage(usage, provider, model) {
   };
 }
 
-export function estimateCostFromPromptBundle(bundle, { provider, model }) {
+/**
+ * Per-toggle USD/token contribution for prompt part settings UI.
+ */
+export function computePromptPartCosts(bundle, userProfile = {}, { provider, model } = {}) {
+  const pricing = getModelPricing(provider, model);
+  const inputRate = pricing.input / 1_000_000;
+  const outputRate = pricing.output / 1_000_000;
+  const parts = bundle.parts || {};
+  const jobData = bundle.jobData || {};
+  const costs = {};
+
+  const baseSystemTokens = estimateTokens(
+    buildSystemPrompt(userProfile, {
+      includeCvPrinciples: false,
+      includeSystemProfile: false,
+    })
+  );
+
+  const principlesTokens = estimateTokens(
+    buildSystemPrompt(userProfile, {
+      includeCvPrinciples: true,
+      includeSystemProfile: false,
+    })
+  );
+  const profileTokens = estimateTokens(
+    buildSystemPrompt(userProfile, {
+      includeCvPrinciples: false,
+      includeSystemProfile: true,
+    })
+  );
+
+  const principlesDelta = Math.max(0, principlesTokens - baseSystemTokens);
+  const profileDelta = Math.max(0, profileTokens - baseSystemTokens);
+
+  costs.includeCvPrinciples = parts.includeCvPrinciples
+    ? { tokens: principlesDelta, costUsd: principlesDelta * inputRate, kind: "input" }
+    : { tokens: 0, costUsd: 0, kind: "input" };
+
+  costs.includeSystemProfile = parts.includeSystemProfile
+    ? { tokens: profileDelta, costUsd: profileDelta * inputRate, kind: "input" }
+    : { tokens: 0, costUsd: 0, kind: "input" };
+
+  for (const [prefKey, partKey] of Object.entries(INPUT_PART_KEYS)) {
+    const part = bundle.inputParts?.find((p) => p.key === partKey);
+    if (part && parts[prefKey]) {
+      const tokens = estimateTokens(part.text);
+      costs[prefKey] = { tokens, costUsd: tokens * inputRate, kind: "input" };
+    } else {
+      costs[prefKey] = { tokens: 0, costUsd: 0, kind: "input" };
+    }
+  }
+
+  const outputBase = estimateOutputTokens(
+    { ...parts, includeCoverLetter: false, includeScreeningQuestions: false },
+    jobData
+  );
+  const outputWithCover = estimateOutputTokens(
+    { ...parts, includeCoverLetter: true, includeScreeningQuestions: false },
+    jobData
+  );
+  const coverDelta = Math.max(0, outputWithCover - outputBase);
+  costs.includeCoverLetter = parts.includeCoverLetter
+    ? { tokens: coverDelta, costUsd: coverDelta * outputRate, kind: "output" }
+    : { tokens: 0, costUsd: 0, kind: "output" };
+
+  const screeningInput = costs.includeScreeningQuestions?.tokens || 0;
+  const screeningInputUsd = costs.includeScreeningQuestions?.costUsd || 0;
+  const outputWithScreen = estimateOutputTokens(
+    { ...parts, includeScreeningQuestions: true },
+    jobData
+  );
+  const outputWithoutScreen = estimateOutputTokens(
+    { ...parts, includeScreeningQuestions: false },
+    jobData
+  );
+  const screenOutDelta = Math.max(0, outputWithScreen - outputWithoutScreen);
+  if (parts.includeScreeningQuestions) {
+    costs.includeScreeningQuestions = {
+      tokens: screeningInput + screenOutDelta,
+      costUsd: screeningInputUsd + screenOutDelta * outputRate,
+      kind: "mixed",
+    };
+  }
+
+  return costs;
+}
+
+export function estimateCostFromPromptBundle(bundle, { provider, model }, userProfile = {}) {
   const pricing = getModelPricing(provider, model);
   const systemTokens = estimateTokens(bundle.systemPrompt);
   const inputPartTokens = bundle.inputParts.reduce(
@@ -79,6 +174,8 @@ export function estimateCostFromPromptBundle(bundle, { provider, model }) {
     },
   ];
 
+  const partCosts = computePromptPartCosts(bundle, userProfile, { provider, model });
+
   return {
     provider,
     model: model || "(default)",
@@ -93,6 +190,7 @@ export function estimateCostFromPromptBundle(bundle, { provider, model }) {
     isEstimate: true,
     breakdown,
     excludedParts: bundle.excludedParts,
+    partCosts,
   };
 }
 
@@ -139,7 +237,11 @@ export async function estimateCurrentApplicationCost() {
     userProfile: settings.user_profile || {},
   });
 
-  return estimateCostFromPromptBundle(bundle, { provider, model });
+  return estimateCostFromPromptBundle(
+    bundle,
+    { provider, model },
+    settings.user_profile || {}
+  );
 }
 
 export function formatUsd(amount) {

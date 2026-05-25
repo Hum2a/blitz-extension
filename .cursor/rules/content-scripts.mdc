@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Load order (manifest)
 
-Job origins: `page-context.js` early; per platform `humanise.js` → `file-upload.js` → platform script → `detector.js` → `job-widget.js` (see `manifest.json`).
+Job origins: `page-context.js` → `humanise.js` → `file-upload.js` → **platform script** → `detector.js` → `job-widget.js`. Indeed and LinkedIn each have one manifest entry with platform script before detector (no split entries).
 
 ## Modules
 
@@ -28,7 +28,7 @@ Job origins: `page-context.js` early; per platform `humanise.js` → `file-uploa
 ## Platform notes
 
 - **LinkedIn**: multi-step Easy Apply modal; click Apply on fill; optional `autoSubmit`
-- **Indeed**: block `externalApply` redirects
+- **Indeed**: block `externalApply` redirects; widget on `/jobs`, `viewjob`, `jk`/`vjk`, `smartapply.*`, `/rc/clk`; SPA via `watchSpaNavigation`
 - **Workday**: `queryDeep()` for Shadow DOM
 - **Greenhouse**: `DataTransfer` for resume upload
 

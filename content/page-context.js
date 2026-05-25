@@ -110,21 +110,49 @@
     return { pageType: PAGE_TYPES.PLATFORM, confidence: "low", hint: "LinkedIn" };
   }
 
+  function isIndeedSmartApplyHost() {
+    return /smartapply\./i.test(window.location.hostname);
+  }
+
   function indeedContext(path) {
+    if (isIndeedSmartApplyHost()) {
+      const onApplyForm = hasAny([
+        'form[action*="indeedapply"]',
+        'input[type="file"]',
+        '[data-testid*="apply"]',
+        "#ia-container",
+      ]);
+      if (onApplyForm || /indeedapply|\/beta\//i.test(path)) {
+        return {
+          pageType: PAGE_TYPES.SINGLE_JOB,
+          confidence: "high",
+          hint: "Indeed application — open Blitz to fill",
+          variant: "apply_flow",
+        };
+      }
+    }
+
     const onViewJob =
       /viewjob/i.test(path) ||
+      /\/rc\/clk/i.test(path) ||
       /[?&]jk=/i.test(path) ||
       /[?&]vjk=/i.test(path);
 
     const hasDesc = hasAny([
       "#jobDescriptionText",
       '[data-testid="jobDescriptionText"]',
+      '[data-testid="jobsearch-JobDescription"]',
       ".jobsearch-JobComponent-description",
+      "#job-details",
+      '[id="jobDescriptionText"]',
     ]);
 
     const hasTitle = hasAny([
       "h1.jobsearch-JobInfoHeader-title",
       '[data-testid="jobsearch-JobInfoHeader-title"]',
+      '[data-testid="job-title"]',
+      ".jobsearch-JobInfoHeader-title",
+      "#jobsearch-JobInfoHeader-title",
     ]);
 
     const listCards = countElements([
@@ -132,9 +160,11 @@
       '[data-testid="slider_item"]',
       ".jobsearch-ResultsList li",
       "[data-jk]",
+      '[data-testid="job-card"]',
     ]);
 
     const isSearchUrl = /\/jobs\b/i.test(path) || /[?&]q=/i.test(path);
+    const vjkSelected = /[?&]vjk=/i.test(path);
 
     if (onViewJob && (hasDesc || hasTitle)) {
       return {
@@ -145,11 +175,11 @@
       };
     }
 
-    if (isSearchUrl || listCards > 2) {
-      if (hasTitle && hasDesc) {
+    if (isSearchUrl || listCards > 0) {
+      if (hasTitle && (hasDesc || vjkSelected)) {
         return {
           pageType: PAGE_TYPES.SINGLE_JOB,
-          confidence: "medium",
+          confidence: vjkSelected ? "high" : "medium",
           hint: "Job selected in split view",
           listingCount: listCards,
           variant: "split_view",
@@ -164,11 +194,21 @@
           hasPartialDetail: true,
         };
       }
+      if (listCards > 0) {
+        return {
+          pageType: PAGE_TYPES.JOB_LIST,
+          confidence: "high",
+          hint: "Indeed search results — click a job",
+          listingCount: listCards,
+        };
+      }
+    }
+
+    if (hasTitle || hasDesc) {
       return {
-        pageType: PAGE_TYPES.JOB_LIST,
-        confidence: "high",
-        hint: "Indeed search results — click a job",
-        listingCount: listCards,
+        pageType: PAGE_TYPES.SINGLE_JOB,
+        confidence: "medium",
+        hint: "Indeed job page",
       };
     }
 
@@ -290,10 +330,40 @@
     };
   }
 
+  function watchSpaNavigation(callback) {
+    if (window.__blitzSpaWatch) return;
+    window.__blitzSpaWatch = true;
+    let lastHref = location.href;
+    const tick = () => {
+      if (location.href === lastHref) return;
+      lastHref = location.href;
+      try {
+        callback();
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener("popstate", tick);
+    const wrap = (fn) =>
+      function (...args) {
+        const out = fn.apply(this, args);
+        tick();
+        return out;
+      };
+    try {
+      history.pushState = wrap(history.pushState);
+      history.replaceState = wrap(history.replaceState);
+    } catch {
+      /* ignore */
+    }
+    setInterval(tick, 1200);
+  }
+
   window.blitzPageContext = {
     PAGE_TYPES,
     detectPlatform,
     analyze,
+    watchSpaNavigation,
     isJobListingPage(platform) {
       const ctx = analyze();
       if (platform && ctx.platform !== platform) return false;

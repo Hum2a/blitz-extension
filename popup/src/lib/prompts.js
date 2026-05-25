@@ -88,7 +88,7 @@ Human writing (all generated text: tailoredCV, coverLetter, screeningAnswers, su
 - For date ranges use a hyphen with spaces: "Jan 2020 - Present", not an em dash.
 `;
 
-function buildSystemPrompt(profile, parts) {
+export function buildSystemPrompt(profile, parts) {
   const blocks = [
     "You are an expert career coach and CV writer. You help job seekers tailor CVs and cover letters to specific job descriptions.",
     HUMAN_PUNCTUATION_RULE,
@@ -230,6 +230,7 @@ export function buildApplicationPrompts({
 
   return {
     parts,
+    jobData,
     systemPrompt,
     userPrompt,
     inputParts,

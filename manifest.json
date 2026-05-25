@@ -47,28 +47,27 @@
   ],
   "content_scripts": [
     {
-      "matches": [
-        "https://www.linkedin.com/jobs/*",
-        "https://*.indeed.com/*",
-        "https://*.indeed.co.uk/*"
-      ],
+      "matches": ["https://www.linkedin.com/jobs/*"],
       "js": [
         "content/page-context.js",
         "content/humanise.js",
         "content/file-upload.js",
+        "content/linkedin.js",
         "content/detector.js",
         "content/job-widget.js"
       ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.linkedin.com/jobs/*"],
-      "js": ["content/linkedin.js"],
-      "run_at": "document_idle"
-    },
-    {
       "matches": ["https://*.indeed.com/*", "https://*.indeed.co.uk/*"],
-      "js": ["content/indeed.js"],
+      "js": [
+        "content/page-context.js",
+        "content/humanise.js",
+        "content/file-upload.js",
+        "content/indeed.js",
+        "content/detector.js",
+        "content/job-widget.js"
+      ],
       "run_at": "document_idle"
     },
     {

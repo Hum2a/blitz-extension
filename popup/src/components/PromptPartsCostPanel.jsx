@@ -5,7 +5,12 @@ import PromptPartsSettings from "./settings/PromptPartsSettings.jsx";
 /**
  * Inline prompt-part toggles on the dashboard; saves to storage and refreshes cost estimate.
  */
-export default function PromptPartsCostPanel({ onPartsChange, fullPage = false }) {
+export default function PromptPartsCostPanel({
+  onPartsChange,
+  fullPage = false,
+  partCosts = null,
+  costLoading = false,
+}) {
   const [preferences, setPreferences] = useState(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -49,6 +54,8 @@ export default function PromptPartsCostPanel({ onPartsChange, fullPage = false }
             preferences={preferences}
             onChange={updatePreferences}
             compact={!fullPage}
+            partCosts={partCosts}
+            costLoading={costLoading}
           />
           <p className="text-[11px] text-slate-500 mt-2">
             Changes apply to the next generate. Also in Settings → Application behaviour.

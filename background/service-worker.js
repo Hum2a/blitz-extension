@@ -192,10 +192,14 @@ async function handleMessage(message, sender) {
         linkedinProfileText: settings.linkedin_profile_text,
         userProfile: settings.user_profile,
       });
-      return estimateCostFromPromptBundle(bundle, {
-        provider: settings.ai_config.provider,
-        model: settings.ai_config.model,
-      });
+      return estimateCostFromPromptBundle(
+        bundle,
+        {
+          provider: settings.ai_config.provider,
+          model: settings.ai_config.model,
+        },
+        settings.user_profile || {}
+      );
     }
 
     case "GENERATE_APPLICATION": {

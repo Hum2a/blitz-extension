@@ -327,7 +327,12 @@ export default function Dashboard({
             actualCost={lastGenerationCost}
             loading={costLoading && hasJob}
           />
-          <PromptPartsCostPanel fullPage={fullPage} onPartsChange={fetchCostEstimate} />
+          <PromptPartsCostPanel
+            fullPage={fullPage}
+            onPartsChange={fetchCostEstimate}
+            partCosts={costEstimate?.partCosts}
+            costLoading={costLoading && hasJob}
+          />
           <AnimatePresence>
             {matchedApplication && (
               <motion.div

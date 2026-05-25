@@ -122,7 +122,7 @@
 
     const canGenerate =
       ctx?.canCapture &&
-      jobData?.jobTitle &&
+      (jobData?.jobTitle || jobData?.jobDescription) &&
       !generating &&
       !jobData?.externalApply &&
       !(jobData?.platform === "linkedin" && jobData?.hasEasyApply === false);
@@ -227,32 +227,56 @@
     }
   });
 
+  function isIndeedJobSurface() {
+    const { hostname, pathname, search } = window.location;
+    if (/smartapply\./i.test(hostname)) return true;
+    const path = `${pathname}${search}`;
+    if (/\/jobs\b|viewjob|\/viewjob|\/rc\/clk|indeedapply/i.test(path)) return true;
+    if (/[?&](jk|vjk)=/i.test(search)) return true;
+    const ctx = window.blitzPageContext?.analyze?.();
+    if (ctx?.platform === "indeed" && ctx.pageType === PAGE_TYPES.SINGLE_JOB) return true;
+    return false;
+  }
+
   function shouldShowWidget() {
     const platform = window.blitzPageContext?.detectPlatform?.();
     if (!platform) return false;
     const path = `${window.location.pathname}${window.location.search}`;
     if (platform === "linkedin") return path.includes("/jobs");
-    if (platform === "indeed") {
-      return /\/jobs|viewjob|\/viewjob/i.test(path) || /[?&]jk=/i.test(path);
-    }
+    if (platform === "indeed") return isIndeedJobSurface();
     if (platform === "greenhouse") {
       return /\/jobs|job_app|\/embed/i.test(path) || Boolean(document.querySelector(".job-description, h1.app-title"));
     }
     return true;
   }
 
-  function init() {
-    if (!shouldShowWidget()) {
-      host.remove();
-      return;
-    }
-    pageContext = window.blitzPageContext.analyze();
+  function applyVisibility() {
+    const show = shouldShowWidget();
+    host.style.display = show ? "" : "none";
+    if (!show) return;
+    pageContext = window.blitzPageContext?.analyze?.() || pageContext;
     render();
-    if (!expanded) setExpanded(false);
-    else setExpanded(true);
   }
 
-  window.blitzJobWidget = { update, refresh: refreshDetection, setExpanded };
+  function onNavigate() {
+    applyVisibility();
+    if (shouldShowWidget()) refreshDetection();
+  }
+
+  function init() {
+    applyVisibility();
+    if (!shouldShowWidget()) return;
+    if (!expanded) setExpanded(false);
+    else setExpanded(true);
+    window.blitzPageContext?.watchSpaNavigation?.(onNavigate);
+  }
+
+  window.blitzJobWidget = {
+    update,
+    refresh: refreshDetection,
+    setExpanded,
+    onNavigate,
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

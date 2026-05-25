@@ -3,10 +3,42 @@ import {
   DEFAULT_PROMPT_PARTS,
   normalizePromptParts,
 } from "../../lib/prompt-parts.js";
+import { formatUsd, formatTokens } from "../../lib/cost-estimate.js";
 
 const GROUPS = ["System", "Input", "Input & output", "Output"];
 
-export default function PromptPartsSettings({ preferences, onChange, compact = false }) {
+function PartCostBadge({ partKey, checked, partCosts, loading }) {
+  if (loading) {
+    return <span className="text-[11px] text-slate-400 shrink-0 tabular-nums">…</span>;
+  }
+  if (!partCosts) {
+    return <span className="text-[11px] text-slate-400 shrink-0">—</span>;
+  }
+  const row = partCosts[partKey];
+  if (!checked || !row || row.costUsd <= 0) {
+    return (
+      <span className="text-[11px] text-slate-400 shrink-0 tabular-nums">
+        {formatUsd(0)}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="text-[11px] font-medium text-blitz-700 shrink-0 tabular-nums text-right"
+      title={`~${formatTokens(row.tokens)} tokens${row.kind === "output" ? " (output)" : row.kind === "mixed" ? " (input + output)" : " (input)"}`}
+    >
+      +{formatUsd(row.costUsd)}
+    </span>
+  );
+}
+
+export default function PromptPartsSettings({
+  preferences,
+  onChange,
+  compact = false,
+  partCosts = null,
+  costLoading = false,
+}) {
   const parts = normalizePromptParts(preferences || {});
   const coverLockedOff = preferences?.coverLetterMode === "never";
 
@@ -64,9 +96,17 @@ export default function PromptPartsSettings({ preferences, onChange, compact = f
                         onChange={(e) => setPart(opt.key, e.target.checked)}
                         className="mt-0.5 rounded border-slate-300 text-blitz-600 focus:ring-blitz-200"
                       />
-                      <span>
-                        <span className="text-sm text-slate-800 block">{opt.label}</span>
-                        <span className="text-[11px] text-slate-500">{opt.hint}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className="text-sm text-slate-800">{opt.label}</span>
+                          <PartCostBadge
+                            partKey={opt.key}
+                            checked={checked}
+                            partCosts={partCosts}
+                            loading={costLoading}
+                          />
+                        </span>
+                        <span className="text-[11px] text-slate-500 block">{opt.hint}</span>
                         {disabled && (
                           <span className="text-[11px] text-amber-700 block">
                             Off — cover letter set to Never in Application behaviour

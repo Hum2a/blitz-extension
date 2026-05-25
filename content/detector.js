@@ -27,7 +27,7 @@
     if (!handler?.scrapeJob) return { error: `No scraper for ${platform}` };
     const jobData = handler.scrapeJob();
     if (!jobData?.jobTitle && !jobData?.jobDescription) {
-      return { error: "No job data found on page" };
+      return { error: "No job data found on page — wait for the listing to load, then Refresh" };
     }
     return jobData;
   }
@@ -137,11 +137,27 @@
     setTimeout(init, 500);
   }
 
+  function onSpaNavigate() {
+    const platform = detectPlatform();
+    if (!platform) return;
+    const handler = PLATFORMS[platform]?.();
+    if (!handler?.scrapeJob) {
+      setTimeout(onSpaNavigate, 300);
+      return;
+    }
+    const context = window.blitzPageContext?.analyze?.();
+    if (context) broadcastPageState(context, null);
+    reportJobIfReady(platform);
+    window.blitzJobWidget?.onNavigate?.();
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", scheduleDetect);
   } else {
     scheduleDetect();
   }
+
+  window.blitzPageContext?.watchSpaNavigation?.(onSpaNavigate);
 
   let debounce;
   const observer = new MutationObserver(() => {
