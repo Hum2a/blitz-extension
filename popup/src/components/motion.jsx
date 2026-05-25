@@ -84,7 +84,7 @@ export function Card({ children, className = "", delay = 0, hover = true }) {
         hover
           ? {
               y: -2,
-              boxShadow: "0 12px 28px -8px rgba(47, 74, 196, 0.15)",
+              boxShadow: "0 12px 28px -8px rgba(var(--shadow-primary), var(--shadow-card))",
               transition: { duration: 0.2 },
             }
           : undefined

@@ -10,52 +10,7 @@
   };
 
   function detectPlatform() {
-    const host = window.location.hostname;
-    if (host.includes("greenhouse.io")) return "greenhouse";
-    if (host.includes("linkedin.com")) return "linkedin";
-    if (host.includes("indeed.com") || host.includes("indeed.co.uk")) return "indeed";
-    if (host.includes("myworkdayjobs.com")) return "workday";
-    return null;
-  }
-
-  function isJobListingPage(platform) {
-    if (platform === "greenhouse") {
-      return Boolean(
-        document.querySelector("h1.app-title") ||
-          document.querySelector(".job-description") ||
-          document.querySelector("#application_form") ||
-          document.querySelector("form#application_form, form[action*='apply']")
-      );
-    }
-    if (platform === "linkedin") {
-      return Boolean(
-        document.querySelector(".job-details-jobs-unified-top-card__job-title") ||
-          document.querySelector(".jobs-unified-top-card__job-title") ||
-          (window.location.pathname.includes("/jobs/view/") &&
-            document.querySelector("h1"))
-      );
-    }
-    if (platform === "indeed") {
-      const onJobView =
-        /viewjob/i.test(window.location.pathname + window.location.search) ||
-        /[?&]jk=/i.test(window.location.search);
-      return Boolean(
-        onJobView ||
-          document.querySelector("#jobDescriptionText") ||
-          document.querySelector('[data-testid="jobDescriptionText"]') ||
-          document.querySelector("h1.jobsearch-JobInfoHeader-title") ||
-          document.querySelector('[data-testid="jobsearch-JobInfoHeader-title"]') ||
-          document.querySelector(".jobsearch-JobComponent-description")
-      );
-    }
-    if (platform === "workday") {
-      return Boolean(
-        document.querySelector('[data-automation-id="jobPostingHeader"]') ||
-          document.querySelector('[data-automation-id="jobPostingDescription"]') ||
-          /\/job\//i.test(window.location.pathname)
-      );
-    }
-    return false;
+    return window.blitzPageContext?.detectPlatform?.() || null;
   }
 
   function scrapeCurrentJob(platform) {
@@ -68,10 +23,31 @@
     return jobData;
   }
 
-  function reportJob(platform) {
+  function broadcastPageState(context, jobData) {
+    window.blitzJobWidget?.update(context, jobData ?? null);
+    chrome.runtime
+      .sendMessage({
+        type: "BLITZ_PAGE_STATE",
+        payload: { context, jobData: jobData?.error ? null : jobData },
+      })
+      .catch(() => {});
+  }
+
+  function reportJobIfReady(platform) {
+    const context = window.blitzPageContext?.analyze?.() || { canCapture: false };
+    if (!context.canCapture) {
+      broadcastPageState(context, null);
+      return;
+    }
+
     const jobData = scrapeCurrentJob(platform);
-    if (jobData.error) return;
-    chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData });
+    if (jobData.error) {
+      broadcastPageState(context, null);
+      return;
+    }
+
+    broadcastPageState(context, jobData);
+    chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData }).catch(() => {});
   }
 
   async function routeFillForm(payload) {
@@ -99,11 +75,41 @@
         .catch((err) => sendResponse({ error: err.message }));
       return true;
     }
+    if (message.type === "GET_TAB_JOB_INFO") {
+      const platform = detectPlatform();
+      const context = window.blitzPageContext?.analyze?.() || null;
+      let jobData = null;
+      if (platform && context?.canCapture) {
+        jobData = scrapeCurrentJob(platform);
+      }
+      sendResponse({ context, jobData, platform });
+      return true;
+    }
+    if (message.type === "WIDGET_REFRESH_JOB") {
+      const platform = detectPlatform();
+      const context = window.blitzPageContext?.analyze?.() || null;
+      if (!platform) {
+        sendResponse({ context, error: "Unsupported page" });
+        return true;
+      }
+      if (!context.canCapture) {
+        broadcastPageState(context, null);
+        sendResponse({ context, jobData: null });
+        return true;
+      }
+      const jobData = scrapeCurrentJob(platform);
+      if (!jobData.error) {
+        chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData }).catch(() => {});
+      }
+      broadcastPageState(context, jobData.error ? null : jobData);
+      sendResponse({ context, jobData, error: jobData.error });
+      return true;
+    }
   });
 
   function init() {
     const platform = detectPlatform();
-    if (!platform || !isJobListingPage(platform)) return;
+    if (!platform) return;
 
     const handler = PLATFORMS[platform]?.();
     if (!handler) {
@@ -111,7 +117,11 @@
       return;
     }
 
-    reportJob(platform);
+    const context = window.blitzPageContext?.analyze?.();
+    if (!context) return;
+
+    broadcastPageState(context, null);
+    reportJobIfReady(platform);
   }
 
   function scheduleDetect() {
@@ -124,14 +134,20 @@
     scheduleDetect();
   }
 
-  // Indeed / SPAs update the job pane without full navigation
   let debounce;
   const observer = new MutationObserver(() => {
     clearTimeout(debounce);
     debounce = setTimeout(() => {
       const platform = detectPlatform();
-      if (platform && isJobListingPage(platform)) reportJob(platform);
+      if (!platform) return;
+      reportJobIfReady(platform);
     }, 1200);
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener("DOMContentLoaded", () => {
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+  }
 })();

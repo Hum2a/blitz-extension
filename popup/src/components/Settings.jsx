@@ -25,6 +25,7 @@ import SettingsCard, {
   SettingsSelect,
 } from "./settings/SettingsCard.jsx";
 import CvTemplateEditor from "./CvTemplateEditor.jsx";
+import AppearanceSettings from "./settings/AppearanceSettings.jsx";
 
 export default function Settings({ onSaved, fullPage = false }) {
   const { settings, loading, refresh } = useAllSettings();
@@ -314,6 +315,8 @@ export default function Settings({ onSaved, fullPage = false }) {
     >
       <SettingsLayout fullPage={fullPage} footer={footer}>
         {statusBanner}
+
+        <AppearanceSettings fullPage={fullPage} />
 
         <SettingsCard
           id="settings-ai"

@@ -7,6 +7,7 @@ import MatchScoreRing from "./MatchScoreRing.jsx";
 import { displayApplicationLabel } from "../lib/application-history-utils.js";
 import { scrollPanelClass } from "../lib/layout.js";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
+import WorkspaceTabJobs from "./WorkspaceTabJobs.jsx";
 
 const STATUS_LABELS = {
   pending: "Pending",
@@ -63,6 +64,7 @@ export default function JobQueue({ onReviewItem, fullPage = false }) {
 
   return (
     <Stagger className={`space-y-3 ${scrollPanelClass(fullPage)}`}>
+      {fullPage && <WorkspaceTabJobs compact />}
       <FadeUp>
         <Card
           className={`bg-white border rounded-xl p-5 ${fullPage ? "shadow-sm lg:max-w-2xl" : "rounded-lg p-3"}`}

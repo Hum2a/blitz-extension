@@ -8,6 +8,7 @@ import MatchScoreRing from "./MatchScoreRing.jsx";
 import ErrorPanel from "./ErrorPanel.jsx";
 import { Stagger, FadeUp, Card, Btn, PulseDots } from "./motion.jsx";
 import RecentApplications from "./RecentApplications.jsx";
+import WorkspaceTabJobs from "./WorkspaceTabJobs.jsx";
 import { scrollPanelClass } from "../lib/layout.js";
 
 function formatCompany(company) {
@@ -53,6 +54,7 @@ export default function Dashboard({
   onGenerate,
   onReview,
   onViewHistory,
+  onViewQueue,
   fullPage = false,
 }) {
   const { applications } = useApplications();
@@ -376,16 +378,19 @@ export default function Dashboard({
 
   if (fullPage) {
     return (
-      <div className="grid lg:grid-cols-12 gap-8 -mt-2">
-        <div className="lg:col-span-5 space-y-6">
-          {jobCard}
-          {matchCard}
-          {actionsBlock}
+      <div className="space-y-8 -mt-2">
+        <div className="grid lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-5 space-y-6">
+            {jobCard}
+            {matchCard}
+            {actionsBlock}
+          </div>
+          <div className="lg:col-span-7 space-y-6">
+            {statsSection}
+            {recentSection}
+          </div>
         </div>
-        <div className="lg:col-span-7 space-y-6">
-          {statsSection}
-          {recentSection}
-        </div>
+        <WorkspaceTabJobs onViewQueue={onViewQueue} />
       </div>
     );
   }

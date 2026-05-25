@@ -176,6 +176,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
             }}
         onReview={() => setView(VIEWS.review)}
         onViewHistory={() => setView(VIEWS.history)}
+        onViewQueue={() => setView(VIEWS.queue)}
         fullPage={fullPage}
       />
     ),

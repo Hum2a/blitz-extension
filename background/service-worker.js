@@ -19,6 +19,7 @@ import {
   validateLicense,
 } from "../popup/src/lib/license.js";
 import { processQueue } from "./queue-processor.js";
+import { listOpenJobTabs, queueItemsFromTabs } from "./tab-jobs.js";
 import { buildRenderedCvHtml } from "../popup/src/lib/cv-export.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
@@ -83,6 +84,64 @@ async function handleMessage(message, sender) {
       await setStorage("pending_job", message.payload);
       chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: message.payload }).catch(() => {});
       return { ok: true };
+
+    case "BLITZ_PAGE_STATE":
+      return { ok: true };
+
+    case "OPEN_BLITZ": {
+      const popupUrl = chrome.runtime.getURL("popup/dist/index.html");
+      try {
+        await chrome.action.openPopup();
+        return { ok: true, mode: "popup" };
+      } catch {
+        await chrome.tabs.create({ url: popupUrl });
+        return { ok: true, mode: "tab" };
+      }
+    }
+
+    case "WIDGET_GENERATE": {
+      const job = message.payload?.jobData;
+      if (!job?.jobTitle && !job?.jobDescription) {
+        return { error: "No job on this page" };
+      }
+      await setStorage("pending_job", job);
+      const settings = await getAllSettings();
+      if (!settings.cv_text?.trim()) {
+        return { error: "Add your CV in Settings first" };
+      }
+      if (job.externalApply) {
+        return { error: "External apply — open company site manually" };
+      }
+      if (job.platform === "linkedin" && job.hasEasyApply === false) {
+        return { error: "No Easy Apply on this listing" };
+      }
+      const report = createProgressReporter();
+      try {
+        const result = await generateApplication(
+          job,
+          settings.cv_text,
+          settings.user_profile,
+          settings.preferences,
+          settings.linkedin_profile_text,
+          report
+        );
+        report(
+          "save",
+          `Match score ${result.matchScore}%`,
+          result.cost ? `API cost ~$${result.cost.totalCostUsd?.toFixed(3)}` : ""
+        );
+        chrome.runtime.sendMessage({
+          type: "GENERATION_PROGRESS",
+          payload: progressComplete("Application ready — open Blitz to review"),
+        }).catch(() => {});
+        const application = { ...result, jobData: job };
+        await setStorage("pending_application", application);
+        chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
+        return { ok: true, matchScore: result.matchScore };
+      } catch (err) {
+        return { error: err.message || "Generation failed" };
+      }
+    }
 
     case "ESTIMATE_GENERATION_COST": {
       const settings = await getAllSettings();
@@ -219,11 +278,34 @@ async function handleMessage(message, sender) {
       await incrementApplicationCount();
       return { ok: true };
 
+    case "LIST_JOB_TABS": {
+      const tabs = await listOpenJobTabs();
+      return { tabs };
+    }
+
     case "ADD_QUEUE_URLS": {
       const existing = (await getStorage("job_queue")) || [];
       const incoming = message.payload?.items || [];
       await setStorage("job_queue", [...existing, ...incoming]);
       return { ok: true, count: existing.length + incoming.length };
+    }
+
+    case "ADD_TABS_TO_QUEUE": {
+      const tabIds = message.payload?.tabIds || [];
+      const allTabs = await listOpenJobTabs();
+      const selected = allTabs.filter((t) => tabIds.includes(t.tabId));
+      const existing = (await getStorage("job_queue")) || [];
+      const incoming = queueItemsFromTabs(selected, existing);
+      if (incoming.length === 0) {
+        return {
+          ok: false,
+          error: "No new capturable jobs to add (select Ready tabs or avoid duplicates)",
+          added: 0,
+        };
+      }
+      await setStorage("job_queue", [...existing, ...incoming]);
+      chrome.runtime.sendMessage({ type: "QUEUE_UPDATED" }).catch(() => {});
+      return { ok: true, added: incoming.length, count: existing.length + incoming.length };
     }
 
     case "GET_QUEUE": {

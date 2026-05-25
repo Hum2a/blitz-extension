@@ -7,6 +7,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "manifest.json",
   "background/service-worker.js",
+  "background/tab-jobs.js",
   "offscreen/offscreen.html",
   "offscreen/pdf-generator.js",
   "offscreen/jspdf.umd.min.js",
@@ -15,6 +16,9 @@ const required = [
   "assets/icon128.png",
   "popup/dist/index.html",
   "popup/dist/dashboard.html",
+  "content/page-context.js",
+  "content/job-widget.js",
+  "content/job-widget.css",
 ];
 
 const optional = ["popup/dist/assets"];

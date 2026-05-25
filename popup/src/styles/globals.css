@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Default tokens (Blitz light) — overridden by theme-runtime */
+:root {
+  --blitz-50: 240 244 255;
+  --blitz-100: 224 231 255;
+  --blitz-500: 79 110 247;
+  --blitz-600: 59 91 219;
+  --blitz-700: 47 74 196;
+  --blitz-800: 36 61 158;
+  --blitz-900: 26 42 108;
+  --slate-50: 248 250 252;
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+  --slate-700: 51 65 85;
+  --slate-800: 30 41 59;
+  --slate-900: 15 23 42;
+  --slate-950: 2 6 23;
+  --header-a: 47 74 196;
+  --header-b: 59 91 219;
+  --header-c: 79 110 247;
+  --shadow-primary: 47, 74, 196;
+  --shadow-card: 0.12;
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -28,15 +56,73 @@ body:has(.blitz-site-connect) {
   min-height: 100vh;
 }
 
+/* Dark mode: remap common utility combos */
+[data-mode="dark"] {
+  color-scheme: dark;
+}
+
+[data-mode="dark"] .bg-white {
+  background-color: rgb(var(--slate-100));
+}
+
+[data-mode="dark"] .bg-slate-50\/80,
+[data-mode="dark"] .bg-slate-50\/90 {
+  background-color: rgb(var(--slate-50) / 0.9);
+}
+
+[data-mode="dark"] .hover\:bg-slate-50:hover {
+  background-color: rgb(var(--slate-100));
+}
+
+[data-mode="dark"] .border-slate-100 {
+  border-color: rgb(var(--slate-200));
+}
+
+[data-mode="dark"] .text-green-800 {
+  color: rgb(134 239 172);
+}
+
+[data-mode="dark"] .bg-green-50 {
+  background-color: rgb(20 83 45 / 0.35);
+}
+
+[data-mode="dark"] .border-green-200 {
+  border-color: rgb(34 197 94 / 0.35);
+}
+
+[data-mode="dark"] .text-red-800 {
+  color: rgb(252 165 165);
+}
+
+[data-mode="dark"] .bg-red-50 {
+  background-color: rgb(127 29 29 / 0.35);
+}
+
+[data-mode="dark"] .border-red-200 {
+  border-color: rgb(248 113 113 / 0.35);
+}
+
+[data-mode="dark"] .text-amber-800 {
+  color: rgb(253 230 138);
+}
+
+[data-mode="dark"] .bg-amber-50 {
+  background-color: rgb(120 53 15 / 0.35);
+}
+
+[data-mode="dark"] .border-amber-200 {
+  border-color: rgb(251 191 36 / 0.35);
+}
+
 @layer utilities {
   .header-shine {
     background: linear-gradient(
       120deg,
-      #2f4ac4 0%,
-      #3b5bdb 35%,
-      #4f6ef7 50%,
-      #3b5bdb 65%,
-      #2f4ac4 100%
+      rgb(var(--header-a)) 0%,
+      rgb(var(--header-b)) 35%,
+      rgb(var(--header-c)) 50%,
+      rgb(var(--header-b)) 65%,
+      rgb(var(--header-a)) 100%
     );
     background-size: 200% 200%;
     animation: gradient-shift 6s ease infinite;
@@ -78,11 +164,15 @@ body:has(.blitz-site-connect) {
   }
 
   .site-topbar {
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+    box-shadow: 0 1px 0 rgb(var(--slate-900) / 0.06);
+  }
+
+  [data-mode="dark"] .site-topbar {
+    box-shadow: 0 1px 0 rgb(var(--slate-950) / 0.4);
   }
 
   .site-logo-mark {
-    box-shadow: 0 2px 8px rgba(47, 74, 196, 0.25);
+    box-shadow: 0 2px 8px rgb(var(--blitz-700) / 0.35);
   }
 }
 
@@ -115,7 +205,7 @@ body:has(.blitz-site-connect) {
   margin: 0.35rem 0;
 }
 .cv-rich-editor a {
-  color: #1a3a8c;
+  color: rgb(var(--blitz-800));
   text-decoration: underline;
   cursor: pointer;
 }

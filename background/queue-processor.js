@@ -58,11 +58,31 @@ export async function processQueue(generateApplication) {
       broadcastQueueUpdate();
 
       let tabId = null;
+      let closeWhenDone = false;
       try {
-        const tab = await chrome.tabs.create({ url: item.url, active: false });
-        tabId = tab.id;
-        await waitForTabComplete(tabId);
-        const jobData = await scrapeTab(tabId);
+        let jobData = item.jobData;
+        const hasJobData = () => jobData?.jobTitle || jobData?.jobDescription;
+
+        if (item.sourceTabId) {
+          try {
+            const existing = await chrome.tabs.get(item.sourceTabId);
+            if (existing?.url === item.url) {
+              tabId = item.sourceTabId;
+              const fresh = await scrapeTab(tabId);
+              if (fresh && !fresh.error) jobData = fresh;
+            }
+          } catch {
+            /* tab closed */
+          }
+        }
+
+        if (!hasJobData()) {
+          const tab = await chrome.tabs.create({ url: item.url, active: false });
+          tabId = tab.id;
+          closeWhenDone = true;
+          await waitForTabComplete(tabId);
+          jobData = await scrapeTab(tabId);
+        }
 
         if (jobData?.error) throw new Error(jobData.error);
         if (!jobData?.jobTitle && !jobData?.jobDescription) {
@@ -93,7 +113,7 @@ export async function processQueue(generateApplication) {
         queue = (await getStorage("job_queue")) || [];
         queue[i] = { ...item, status: "error", error: err.message };
       } finally {
-        if (tabId) chrome.tabs.remove(tabId).catch(() => {});
+        if (tabId && closeWhenDone) chrome.tabs.remove(tabId).catch(() => {});
       }
 
       await setStorage("job_queue", queue);

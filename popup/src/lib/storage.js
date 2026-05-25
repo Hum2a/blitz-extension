@@ -33,6 +33,10 @@ const DEFAULTS = {
     dailyLimit: 25,
     cvTemplate: "modern",
   },
+  appearance: {
+    mode: "system",
+    theme: "blitz",
+  },
   cv_html_template: null,
   pending_job: null,
   pending_application: null,
