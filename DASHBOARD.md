@@ -4,6 +4,16 @@ Use a **full website-style workspace** instead of reopening the small popup. Sid
 
 The **420px popup** stays unchanged for quick actions on job pages.
 
+## On-page widget (job sites)
+
+On supported sites (Greenhouse, LinkedIn Jobs, Indeed, Workday), a **Blitz floating panel** appears bottom-right. It detects:
+
+- **Ready** — single job listing (can tailor immediately)
+- **Job list** — search or multiple listings (select one first)
+- **Select job** — title visible but description not loaded yet
+
+Use **Tailor application** on the widget, **Open Blitz**, or minimize to the pill. Reload the extension after `npm run build`.
+
 ## Option A — Extension dashboard (recommended)
 
 No extra setup. Same storage as the popup automatically.
@@ -36,7 +46,7 @@ Keep the extension installed; the site is only a window into the same background
 | Job queue | `chrome.storage.local` | Yes |
 | Application history (History tab) | IndexedDB (per origin) | Same on extension popup + extension dashboard; **not** on localhost web |
 
-**Home** shows stats + a short recent-applications list. **History** is the full log with search, filters, and CV/cover letter snapshots.
+**Home** shows stats + a short recent-applications list. **Open job tabs** (workspace only) lists every supported job tab in your browser, marks which are **Ready** vs need you to select a listing, and lets you add several to the **Queue** at once. **History** is the full log with search, filters, and CV/cover letter snapshots.
 
 ## CV PDF (HTML template)
 

@@ -1,0 +1,10 @@
+# Default reviewers for all changes
+* @Hum2a
+
+# License worker and deployment
+/license-worker/ @Hum2a
+
+# Extension core
+/background/ @Hum2a
+/content/ @Hum2a
+/popup/ @Hum2a
