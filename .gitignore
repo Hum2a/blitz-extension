@@ -29,3 +29,7 @@ coverage/
 
 # Pack artifacts (CI uploads these; keep local zips untracked)
 dist/*.zip
+
+# Generated LOC reports (regenerate with npm run loc)
+reports/loc-report.json
+reports/loc-report.md

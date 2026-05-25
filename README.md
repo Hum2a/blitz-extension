@@ -70,6 +70,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for message flows and module bo
 | `npm run build` | Production build popup |
 | `npm run build:check` | Build + validate required files |
 | `npm run validate` | Check manifest, assets, dist exist |
+| `npm run loc` | Lines-of-code report (console + `reports/loc-report.md`) |
+| `npm run loc:json` | LOC report as JSON on stdout |
 | `npm run test` | Validate + license worker smoke test |
 | `npm run clean` | Remove `popup/dist` and pack output |
 | `npm run rebuild` | Clean + build |
