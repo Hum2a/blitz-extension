@@ -73,3 +73,5 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY` to the admin frontend.
 - **Users** — emails + roles
 - **Licenses** — set Pro / Free
 - **Roles** — developer-only role assignment
+
+**Roadmap:** full feature list and phased plan → [ADMIN_ROADMAP.md](ADMIN_ROADMAP.md)
