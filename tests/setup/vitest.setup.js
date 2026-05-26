@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import "@testing-library/jest-dom/vitest";
 import { webcrypto } from "node:crypto";
 import { afterEach, beforeEach, vi } from "vitest";

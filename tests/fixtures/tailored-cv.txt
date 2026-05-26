@@ -1,0 +1,18 @@
+Jane Doe
+London • +44 7700 900000 • jane@example.com
+
+PROFESSIONAL SUMMARY
+Experienced engineer with a focus on distributed systems.
+
+EDUCATION
+University of Example – 2018 - 2022
+BSc Computer Science
+
+TECHNICAL SKILLS
+Languages: TypeScript, Python
+Cloud: AWS, GCP
+
+CAREER
+Acme Corp | Senior Engineer | Jan 2022 - Present | London
+- Reduced API latency by 40% by introducing edge caching
+- Led migration to Kubernetes for 12 services

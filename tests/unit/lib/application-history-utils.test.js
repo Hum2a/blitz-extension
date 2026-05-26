@@ -4,6 +4,7 @@ import {
   computeHistorySummary,
   displayApplicationLabel,
   filterApplications,
+  historyDisplayDate,
   STATUS_LABELS,
 } from "../../../popup/src/lib/application-history-utils.js";
 
@@ -58,6 +59,19 @@ describe("application-history-utils", () => {
     it("sorts newest first", () => {
       const sorted = filterApplications(applications, { statusFilter: "all", search: "" });
       expect(sorted[0].id).toBe("app-1");
+    });
+  });
+
+  describe("historyDisplayDate", () => {
+    it("formats updatedAt when present", () => {
+      const label = historyDisplayDate({
+        updatedAt: "2026-05-20T10:00:00.000Z",
+      });
+      expect(label.length).toBeGreaterThan(5);
+    });
+
+    it("returns empty string without dates", () => {
+      expect(historyDisplayDate({})).toBe("");
     });
   });
 

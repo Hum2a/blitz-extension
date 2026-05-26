@@ -35,7 +35,7 @@ tests/
 2. **Storage / license** — use `seedStorage()` from `tests/helpers/fake-storage.js` before calling storage APIs.
 3. **Fetch / network** — `vi.stubGlobal("fetch", vi.fn())` in the test file; never use real API keys.
 4. **React** — add `*.test.jsx` under `tests/unit/components/`; import components via `@/components/…`.
-5. **Content / background** — add `tests/unit/content/` or `tests/unit/background/` when extracting testable helpers.
+5. **Content / background** — DOM scrapers use fixtures under `tests/fixtures/` and helpers in `tests/helpers/` (keep in sync with `content/*.js`). Background tests live in `tests/unit/background/`.
 
 ### Example
 

@@ -39,6 +39,7 @@ import {
   handleSyncAuthMessage,
   initSyncBackground,
 } from "./sync-messages.js";
+import { scriptsForUrl, safeHostname } from "../popup/src/lib/content-scripts.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -424,28 +425,7 @@ async function handleMessage(message, sender) {
   }
 }
 
-function scriptsForUrl(url) {
-  const u = (url || "").toLowerCase();
-  const base = [
-    "content/page-context.js",
-    "content/humanise.js",
-    "content/file-upload.js",
-  ];
-  const tail = ["content/detector.js", "content/job-widget.js"];
-  if (u.includes("greenhouse.io")) {
-    return [...base, "content/greenhouse.js", ...tail];
-  }
-  if (u.includes("linkedin.com") && u.includes("/jobs")) {
-    return [...base, "content/linkedin.js", ...tail];
-  }
-  if (u.includes("indeed.com") || u.includes("indeed.co.uk")) {
-    return [...base, "content/indeed.js", ...tail];
-  }
-  if (u.includes("myworkdayjobs.com")) {
-    return [...base, "content/workday.js", ...tail];
-  }
-  return null;
-}
+import { scriptsForUrl, safeHostname } from "../popup/src/lib/content-scripts.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -521,14 +501,6 @@ async function generatePdfOffscreen(payload) {
   });
   if (result?.error) throw new Error(result.error);
   return result.base64;
-}
-
-function safeHostname(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url.slice(0, 40);
-  }
 }
 
 async function generateApplication(
