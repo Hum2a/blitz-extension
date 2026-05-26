@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const licenseEndpoint =
       Deno.env.get("LICENSE_ENDPOINT") ||
-      "https://blitz-license.humzab1711.workers.dev";
+      "https://license.blitzai.online";
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },

@@ -5,6 +5,7 @@ license-worker/node_modules/
 # Build outputs
 popup/dist/
 admin-dist/
+web-dist/
 dist/
 
 # Cloudflare / secrets

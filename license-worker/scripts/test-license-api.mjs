@@ -3,7 +3,7 @@
  *
  * Default key: BLITZ-TEST-PRO-001 (create with npm run license:add -- BLITZ-TEST-PRO-001)
  */
-const DEFAULT_URL = "https://blitz-license.humzab1711.workers.dev";
+const DEFAULT_URL = "https://license.blitzai.online";
 const DEFAULT_KEY = "BLITZ-TEST-PRO-001";
 
 const args = process.argv.slice(2);

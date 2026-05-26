@@ -65,7 +65,7 @@ Deploy from `blitz-extension/`:
 ```bash
 npx supabase login
 npx supabase link --project-ref YOUR_REF
-npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... LICENSE_ENDPOINT=https://blitz-license.humzab1711.workers.dev
+npx supabase secrets set SUPABASE_SERVICE_ROLE_KEY=... LICENSE_ENDPOINT=https://license.blitzai.online
 npx supabase functions deploy link-license
 npx supabase functions deploy delete-account
 ```

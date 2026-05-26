@@ -3,7 +3,7 @@ import { logAdminAction } from "./audit.js";
 
 const LICENSE_ENDPOINT =
   import.meta.env.VITE_LICENSE_ENDPOINT ||
-  "https://blitz-license.humzab1711.workers.dev";
+  "https://license.blitzai.online";
 
 export async function validateLicenseKey(key) {
   const res = await fetch(LICENSE_ENDPOINT, {

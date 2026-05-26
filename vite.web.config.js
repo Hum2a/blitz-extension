@@ -12,7 +12,7 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
-    outDir: "web-dist",
+    outDir: resolve(__dirname, "web-dist"),
     emptyOutDir: true,
   },
   resolve: {

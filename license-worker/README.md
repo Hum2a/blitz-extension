@@ -14,7 +14,7 @@ npm install
 1. Log in to Cloudflare: `npx wrangler login`
 2. Create a KV namespace: `npm run kv:create`
 3. Copy the namespace `id` from the output into `wrangler.toml` (replace `REPLACE_WITH_YOUR_KV_NAMESPACE_ID`)
-4. Deploy: `npm run deploy` — note the URL in the output (e.g. `https://blitz-license.<your-subdomain>.workers.dev`)
+4. Deploy from repo root: `npm run deploy:license` (or `npm run deploy` in this folder) — `https://license.blitzai.online`
 
 5. Add a license key (PowerShell-safe):
 
@@ -35,11 +35,11 @@ npm run test
 # Or test a specific key:
 npm run test -- BLITZ-TEST-PRO-001
 # Or URL + key:
-npm run test -- https://blitz-license.humzab1711.workers.dev YOUR-KEY
+npm run test -- https://license.blitzai.online YOUR-KEY
 ```
 
 Default test key is `BLITZ-TEST-PRO-001`. Add keys with `npm run license:add -- YOUR-KEY`.
-5. Route `license.blitz.workers.dev` to this worker (or update `LICENSE_ENDPOINT` in `popup/src/lib/config.js`)
+5. Ensure DNS for `license.blitzai.online` points at your Cloudflare zone and the production route is active.
 
 ## API
 

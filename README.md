@@ -16,7 +16,7 @@
 - **Bulk job queue** — paste URLs, batch-generate applications
 - **Freemium** — 15 free applications; Pro via license key
 - **Optional cloud sync** — encrypted backup across devices (Supabase); API keys stay local ([docs/SYNC_AND_AUTH.md](docs/SYNC_AND_AUTH.md))
-- **Admin dashboard** — separate deploy for staff (`user` / `admin` / `developer` roles) — [docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md)
+- **Admin dashboard** — separate deploy for staff (`user` / `admin` / `developer` roles) — [docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md) · [Deploy commands](docs/DEPLOY.md)
 - **Dashboard** — full-tab workspace ([DASHBOARD.md](DASHBOARD.md))
 
 ## Supported platforms
@@ -89,7 +89,13 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for message flows and module bo
 | `npm run version:sync` | Copy version from `package.json` → `manifest.json` |
 | `npm run changelog:add -- "Fixed X"` | Add entry to `CHANGELOG.md` |
 | `npm run release:pack` | Bump patch + create store zip |
-| `npm run deploy:worker` | Deploy Cloudflare license worker |
+| `npm run deploy:license` | Deploy license API (`license.blitzai.online`) |
+| `npm run deploy:admin` | Build + deploy admin dashboard (`admin.blitzai.online`) |
+| `npm run deploy:web` | Build + deploy web workspace (`app.blitzai.online`) |
+| `npm run deploy:cloudflare` | Deploy license, admin, and web |
+| `npm run deploy:supabase` | Deploy Supabase Edge Functions |
+| `npm run deploy:all` | Extension build check + all Cloudflare deploys |
+| `npm run deploy:worker` | Alias for `deploy:license` |
 | `npm run license:add -- KEY` | Add license key to KV |
 | `npm run license:test` | Hit license API |
 

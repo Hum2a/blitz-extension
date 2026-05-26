@@ -53,6 +53,22 @@ npm run admin:build
 
 Output: `admin-dist/`. Host on Vercel, Cloudflare Pages, or S3+CDN for `admin.blitz.com`.
 
+### Deploy on Cloudflare Workers (static assets)
+
+If you want the admin dashboard at `https://admin.blitzai.online/`, this repo also supports deploying `admin-dist/` using Wrangler Static Assets.
+
+```bash
+# one-time (per machine)
+npx wrangler login
+
+# build + deploy
+npm run deploy:admin
+```
+
+Admin UI still needs these env vars at build time (CI secrets):
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY` or `VITE_SUPABASE_PUBLISHABLE_KEY`
+
 Env vars at build time (CI secrets):
 
 - `VITE_SUPABASE_URL`

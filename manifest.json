@@ -21,7 +21,7 @@
     "https://*.myworkdayjobs.com/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
-    "https://blitz-license.humzab1711.workers.dev/*",
+    "https://license.blitzai.online/*",
     "https://*.supabase.co/*"
   ],
   "background": {
@@ -33,7 +33,11 @@
     "open_in_tab": true
   },
   "externally_connectable": {
-    "matches": ["http://localhost:*/*", "http://127.0.0.1:*/*"]
+    "matches": [
+      "http://localhost:*/*",
+      "http://127.0.0.1:*/*",
+      "https://app.blitzai.online/*"
+    ]
   },
   "action": {
     "default_popup": "popup/dist/index.html",

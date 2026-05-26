@@ -56,6 +56,20 @@ See [docs/CV_HTML_PDF.md](docs/CV_HTML_PDF.md).
 
 ## Development
 
+## Deploy web workspace on Cloudflare Workers (static assets)
+
+The hosted web workspace is served by `web-worker/` and points to the same data as your Chrome extension.
+
+```bash
+# one-time (per machine)
+npx wrangler login
+
+# build + deploy
+npm run deploy:web
+```
+
+After deploying, open `https://app.blitzai.online/`, paste your extension ID from `chrome://extensions`, and click **Connect**.
+
 ```bash
 npm install
 npm run build      # popup + extension dashboard

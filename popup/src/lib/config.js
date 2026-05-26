@@ -7,7 +7,7 @@ export const LEMONSQUEEZY = {
   checkoutYearly: "https://getblitz.lemonsqueezy.com/checkout/buy/yearly",
 };
 
-export const LICENSE_ENDPOINT = "https://blitz-license.humzab1711.workers.dev";
+export const LICENSE_ENDPOINT = "https://license.blitzai.online";
 
 /**
  * Supabase (Auth + cloud sync). Values come from .env via config.secrets.js (gitignored).

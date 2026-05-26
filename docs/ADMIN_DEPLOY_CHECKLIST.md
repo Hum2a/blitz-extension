@@ -3,7 +3,7 @@
 After pulling admin changes:
 
 1. `npm run db:migrate`
-2. `npm run admin:build` (or `admin:dev` locally)
+2. `npm run deploy:admin` (or `admin:dev` locally, then `npm run admin:build`)
 3. Deploy Edge Functions:
    - `admin-delete-user` (developer)
    - `admin-revoke-sessions` (admin+)
