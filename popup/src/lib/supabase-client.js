@@ -84,10 +84,16 @@ export async function refreshSession(refreshToken) {
   });
 }
 
-export async function signInWithOtp(email, redirectTo) {
+/**
+ * Passwordless email sign-in. Whether the user gets a 6-digit code or a link is
+ * controlled by Supabase email templates (Magic Link / Confirm signup), not this call.
+ */
+export async function signInWithOtp(email, { redirectTo } = {}) {
+  const options = { should_create_user: true };
+  if (redirectTo) options.email_redirect_to = redirectTo;
   return authRequest("/otp", {
     method: "POST",
-    body: { email, create_user: true, options: { email_redirect_to: redirectTo } },
+    body: { email, create_user: true, options },
   });
 }
 

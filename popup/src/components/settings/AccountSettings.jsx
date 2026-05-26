@@ -100,7 +100,10 @@ export default function AccountSettings() {
     if (!otpEmail.trim()) return;
     await run("AUTH_SEND_OTP", { email: otpEmail.trim() });
     setOtpSent(true);
-    await showAlert("Check your email for a 6-digit sign-in code.", { title: "Email sent" });
+    await showAlert(
+      "Check your email for a 6-digit code and enter it below. If you only received a confirmation link (e.g. to localhost), update Supabase email templates — see docs/SYNC_AND_AUTH.md → Email OTP.",
+      { title: "Email sent" }
+    );
   }
 
   async function handleVerifyOtp() {

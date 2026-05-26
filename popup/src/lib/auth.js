@@ -132,8 +132,8 @@ export async function signInWithGoogle() {
 
 export async function sendMagicLinkOtp(email) {
   if (!SUPABASE_CONFIGURED) throw new Error("Supabase is not configured in config.js");
-  const redirectTo = getSupabaseRedirectUrl();
-  await signInWithOtp(email.trim(), redirectTo);
+  // If the email template includes a link, send users to the extension (not Site URL / localhost).
+  await signInWithOtp(email.trim(), { redirectTo: getSupabaseRedirectUrl() });
   return { ok: true };
 }
 
