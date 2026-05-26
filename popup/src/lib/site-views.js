@@ -23,12 +23,19 @@ export const SITE_VIEWS = {
     title: "Application history",
     subtitle: "Every role you applied to through Blitz — snapshots, status, and notes.",
   },
-  usage: {
-    id: "usage",
-    label: "API usage",
-    title: "API usage",
+  analytics: {
+    id: "analytics",
+    label: "Analytics",
+    title: "Analytics",
     subtitle:
-      "Log of every AI API call from this extension — tokens and estimated cost, stored only on your device.",
+      "Applications, AI usage, match scores, and cloud backup stats — charts and tables from your local data and account.",
+  },
+  usage: {
+    id: "analytics",
+    label: "Analytics",
+    title: "Analytics",
+    subtitle:
+      "Applications, AI usage, match scores, and cloud backup stats — charts and tables from your local data and account.",
   },
   settings: {
     id: "settings",
@@ -38,4 +45,4 @@ export const SITE_VIEWS = {
   },
 };
 
-export const SITE_NAV_ORDER = ["dashboard", "queue", "history", "usage", "settings"];
+export const SITE_NAV_ORDER = ["dashboard", "queue", "history", "analytics", "settings"];

@@ -23,7 +23,7 @@ function SummaryPill({ label, value }) {
   );
 }
 
-export default function ApiUsageHistory({ fullPage = false }) {
+export default function ApiUsageHistory({ fullPage = false, embedded = false }) {
   const { records, loading, refresh } = useApiUsage();
   const { showConfirm } = useModal();
   const [expandedId, setExpandedId] = useState(null);
@@ -60,7 +60,7 @@ export default function ApiUsageHistory({ fullPage = false }) {
       className={`space-y-4 ${scrollPanelClass(fullPage, "max-h-[440px] overflow-y-auto pr-1")}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        {!fullPage && (
+        {!fullPage && !embedded && (
           <div>
             <h2 className="text-base font-bold text-slate-900">API usage</h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -69,7 +69,7 @@ export default function ApiUsageHistory({ fullPage = false }) {
             </p>
           </div>
         )}
-        <div className="flex flex-wrap gap-2 ml-auto">
+        <div className={`flex flex-wrap gap-2 ${embedded || fullPage ? "w-full justify-end" : "ml-auto"}`}>
           <Btn
             onClick={() => exportApiUsageToCsv(records)}
             disabled={records.length === 0}

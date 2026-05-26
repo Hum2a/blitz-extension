@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Dashboard from "./components/Dashboard.jsx";
 import ReviewPanel from "./components/ReviewPanel.jsx";
 import ApplicationHistory from "./components/ApplicationHistory.jsx";
-import ApiUsageHistory from "./components/ApiUsageHistory.jsx";
+import Analytics from "./components/Analytics.jsx";
 import JobQueue from "./components/JobQueue.jsx";
 import Settings from "./components/Settings.jsx";
 import LicenseGate from "./components/LicenseGate.jsx";
@@ -28,7 +28,7 @@ const VIEWS = {
   review: "review",
   queue: "queue",
   history: "history",
-  usage: "usage",
+  analytics: "analytics",
   settings: "settings",
 };
 
@@ -92,8 +92,9 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     (async () => {
       const ui = await getUiState();
       if (cancelled) return;
-      if (ui.popupView && VIEWS[ui.popupView]) {
-        setView(ui.popupView);
+      const legacy = ui.popupView === "usage" ? "analytics" : ui.popupView;
+      if (legacy && VIEWS[legacy]) {
+        setView(legacy);
       }
       popupViewHydrated.current = true;
     })();
@@ -332,7 +333,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     [VIEWS.dashboard, "Home"],
     [VIEWS.queue, "Queue"],
     [VIEWS.history, "History"],
-    [VIEWS.usage, "API usage"],
+    [VIEWS.analytics, "Analytics"],
     [VIEWS.settings, "Settings"],
   ];
 
@@ -441,7 +442,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     [VIEWS.history]: (
       <ApplicationHistory fullPage={fullPage} onOpenReview={loadFromHistory} />
     ),
-    [VIEWS.usage]: <ApiUsageHistory fullPage={fullPage} />,
+    [VIEWS.analytics]: <Analytics fullPage={fullPage} />,
     [VIEWS.settings]: (
       <Settings fullPage={fullPage} onSaved={() => license.refresh()} />
     ),
