@@ -6,6 +6,7 @@ license-worker/node_modules/
 popup/dist/
 admin-dist/
 web-dist/
+marketing-dist/
 dist/
 
 # Cloudflare / secrets

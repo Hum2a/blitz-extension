@@ -1,0 +1,12 @@
+name = "blitz-marketing"
+main = "src/index.js"
+compatibility_date = "2026-05-26"
+
+[assets]
+directory = "../marketing-dist/"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[env.production]
+name = "blitz-marketing"
+route = "https://blitzai.online/*"

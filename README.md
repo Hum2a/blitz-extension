@@ -89,6 +89,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for message flows and module bo
 | `npm run version:sync` | Copy version from `package.json` → `manifest.json` |
 | `npm run changelog:add -- "Fixed X"` | Add entry to `CHANGELOG.md` |
 | `npm run release:pack` | Bump patch + create store zip |
+| `npm run marketing:dev` | Local marketing site preview (port 3788) |
+| `npm run deploy:marketing` | Build + deploy landing page (`blitzai.online`) |
 | `npm run deploy:license` | Deploy license API (`license.blitzai.online`) |
 | `npm run deploy:admin` | Build + deploy admin dashboard (`admin.blitzai.online`) |
 | `npm run deploy:web` | Build + deploy web workspace (`app.blitzai.online`) |

@@ -16,7 +16,11 @@ const scale = (prefix) => ({
 });
 
 export default {
-  content: ["./popup/**/*.{html,jsx,js}", "./web/**/*.{html,jsx,js}"],
+  content: [
+    "./popup/**/*.{html,jsx,js}",
+    "./web/**/*.{html,jsx,js}",
+    "./marketing/**/*.{html,jsx,js}",
+  ],
   theme: {
     extend: {
       colors: {
