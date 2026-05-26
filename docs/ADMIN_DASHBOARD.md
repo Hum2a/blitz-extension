@@ -69,9 +69,24 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY` to the admin frontend.
 
 ## Pages
 
-- **Dashboard** — aggregate counts
-- **Users** — emails + roles
-- **Licenses** — set Pro / Free
-- **Roles** — developer-only role assignment
+- **Dashboard** — KPIs, signup chart, sync health signals
+- **Analytics** — trends, doc-key breakdown, top users, niche metrics
+- **Users** — search, pagination, user detail (usage, license actions, sync metadata)
+- **Licenses** — Pro/Free, reset usage, expiry
+- **Audit log** — filter, export CSV
+- **Roles** — developer-only role + email-login toggle
+
+Requires migrations through `006_app_config_telemetry.sql` (`npm run db:migrate`).
+
+### Deploy Edge Functions (staff actions + billing)
+
+```bash
+npx supabase functions deploy admin-delete-user
+npx supabase functions deploy admin-revoke-sessions
+npx supabase functions deploy lemonsqueezy-webhook
+# Set secret: LEMONSQUEEZY_WEBHOOK_SECRET (optional, verifies X-Signature)
+```
+
+Existing: `link-license`, `delete-account` (user self-delete from extension).
 
 **Roadmap:** full feature list and phased plan → [ADMIN_ROADMAP.md](ADMIN_ROADMAP.md)

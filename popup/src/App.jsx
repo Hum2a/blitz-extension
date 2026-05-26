@@ -19,6 +19,8 @@ import { GENERATION_STATUS_KEY } from "./lib/generation-status.js";
 import { openDashboard } from "./lib/open-dashboard.js";
 import { isExtensionPage, isLocalWeb } from "./lib/extension-env.js";
 import { getUiState, patchUiState } from "./lib/ui-state.js";
+import { fetchAppConfig, compareVersions } from "./lib/app-config.js";
+import { recordClientEvent } from "./lib/telemetry.js";
 import SiteShell from "./components/site/SiteShell.jsx";
 
 const VIEWS = {
@@ -43,6 +45,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
   const [lastGenerationCost, setLastGenerationCost] = useState(null);
   const [generationProgress, setGenerationProgress] = useState(null);
   const license = useLicense();
+  const [appBanner, setAppBanner] = useState(null);
 
   const navigate = useCallback(
     (nextView) => {
@@ -53,6 +56,35 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     },
     [fullPage]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const config = await fetchAppConfig();
+      if (cancelled) return;
+      const manifest = chrome.runtime.getManifest?.();
+      const currentVersion = manifest?.version || "0";
+      const needsUpdate =
+        config.min_extension_version &&
+        compareVersions(currentVersion, config.min_extension_version) < 0;
+      if (config.maintenance_mode || config.banner_message || needsUpdate) {
+        const parts = [];
+        if (config.maintenance_mode) parts.push("Blitz is in maintenance mode.");
+        if (config.banner_message) parts.push(config.banner_message);
+        if (needsUpdate) {
+          parts.push(`Please update Blitz to ${config.min_extension_version} or newer.`);
+        }
+        setAppBanner(parts.join(" "));
+      }
+      recordClientEvent("extension_opened", {
+        version: currentVersion,
+        view: fullPage ? "dashboard" : "popup",
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fullPage]);
 
   useEffect(() => {
     if (fullPage) return;
@@ -476,7 +508,14 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         </nav>
       </motion.header>
 
-      <main className="flex-1 p-4 relative">{mainContent}</main>
+      <main className="flex-1 p-4 relative">
+        {appBanner && (
+          <div className="app-banner" role="status">
+            {appBanner}
+          </div>
+        )}
+        {mainContent}
+      </main>
 
       <motion.footer
         className="px-4 py-2 border-t bg-white space-y-1"

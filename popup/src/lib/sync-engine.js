@@ -48,6 +48,44 @@ async function updateSyncState(patch) {
   await mergeStorage({ sync_state: { ...prev, ...patch } }, { skipSync: true });
 }
 
+async function assertAccountActive(token) {
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import("./config.js");
+  const statusRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_account_status`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+  const status = statusRes.ok ? await statusRes.json() : "active";
+  if (status === "suspended") {
+    throw new Error("Your account has been suspended. Contact support.");
+  }
+}
+
+async function recordSyncError(token, message) {
+  try {
+    const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import("./config.js");
+    const session = await getStorage("auth_session");
+    const userId = session?.user?.id;
+    if (!userId) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/user_sync_meta?user_id=eq.${userId}`, {
+      method: "PATCH",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ last_error: String(message).slice(0, 500) }),
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 async function requireSyncReady(passphrase) {
   if (!SUPABASE_CONFIGURED) throw new Error("Cloud sync is not configured");
   const syncEnabled = await getStorage("sync_enabled");
@@ -60,6 +98,7 @@ async function requireSyncReady(passphrase) {
   }
   const token = await getValidAccessToken();
   if (!token) throw new Error("Sign in to sync");
+  await assertAccountActive(token);
   return { token, meta, passphrase };
 }
 
@@ -187,6 +226,7 @@ export async function pushCloudSync({ passphrase } = {}) {
     await upsertUserSyncMeta(token);
     return { ok: true, pushed: rows.length };
   } catch (err) {
+    await recordSyncError(token, err.message);
     await updateSyncState({
       lastError: err.message,
       lastSyncAt: new Date().toISOString(),

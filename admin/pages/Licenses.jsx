@@ -1,98 +1,121 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "../lib/supabase.js";
-import { canManageRoles } from "../lib/roles.js";
+import { useAdminQuery } from "../hooks/useAdminQuery.js";
+import PageHeader from "../components/PageHeader.jsx";
+import DataTable from "../components/DataTable.jsx";
+import Loading from "../components/Loading.jsx";
+import Alert from "../components/Alert.jsx";
+import { formatDate } from "../lib/format.js";
+import { resetApplicationsUsed, setLicenseExpiry, setUserLicenseTier } from "../lib/license-admin.js";
 
-export default function Licenses({ role }) {
-  const [rows, setRows] = useState([]);
-  const [error, setError] = useState(null);
+export default function Licenses({ onOpenUser }) {
+  const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(null);
+  const [err, setErr] = useState(null);
 
-  async function load() {
-    const { data, error: err } = await supabase
-      .from("license_entitlements")
-      .select("user_id, tier, source, applications_used, expires_at, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(200);
-    if (err) setError(err.message);
-    else setRows(data || []);
-  }
-
-  useEffect(() => {
-    load();
+  const { data: rows, error, loading, reload } = useAdminQuery(async () => {
+    const { data, error: e } = await supabase
+      .from("admin_user_summary")
+      .select("user_id, email, tier, applications_used, license_source, license_expires_at, license_updated_at")
+      .not("tier", "is", null)
+      .order("license_updated_at", { ascending: false, nullsFirst: false })
+      .limit(500);
+    if (e) throw e;
+    return data || [];
   }, []);
 
-  async function setTier(userId, tier) {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows || [];
+    return (rows || []).filter(
+      (r) => r.email?.toLowerCase().includes(q) || r.user_id?.toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
+  async function act(userId, fn) {
     setBusy(userId);
-    const { error: err } = await supabase
-      .from("license_entitlements")
-      .upsert(
-        {
-          user_id: userId,
-          tier,
-          source: "admin_dashboard",
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" }
-      );
-    if (err) setError(err.message);
-    else {
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("admin_audit_log").insert({
-        actor_id: user?.id,
-        action: "license_tier_change",
-        target_user_id: userId,
-        meta: { tier },
-      });
-      await load();
+    setErr(null);
+    try {
+      await fn();
+      reload();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(null);
     }
-    setBusy(null);
   }
 
   return (
     <div>
-      <h1>Licenses</h1>
-      {error && <p className="error">{error}</p>}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Tier</th>
-            <th>Used</th>
-            <th>Source</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.user_id}>
-              <td className="mono small">{r.user_id}</td>
-              <td>{r.tier}</td>
-              <td>{r.applications_used}</td>
-              <td>{r.source}</td>
-              <td className="actions">
-                <button
-                  type="button"
-                  className="btn small"
-                  disabled={busy === r.user_id}
-                  onClick={() => setTier(r.user_id, "pro")}
-                >
-                  Set Pro
+      <PageHeader title="Licenses" subtitle="Pro / Free entitlements">
+        <button type="button" className="btn small" onClick={reload}>
+          Refresh
+        </button>
+      </PageHeader>
+
+      <div className="toolbar">
+        <input
+          type="search"
+          placeholder="Search email or ID…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {err && <Alert>{err}</Alert>}
+      {loading && <Loading />}
+      {error && <Alert>{error}</Alert>}
+      {!loading && !error && (
+        <DataTable
+          columns={[
+            {
+              label: "Email",
+              render: (r) => (
+                <button type="button" className="link-btn" onClick={() => onOpenUser(r.user_id)}>
+                  {r.email || "—"}
                 </button>
-                <button
-                  type="button"
-                  className="btn small ghost"
-                  disabled={busy === r.user_id}
-                  onClick={() => setTier(r.user_id, "free")}
-                >
-                  Set Free
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {canManageRoles(role) && (
-        <p className="muted small">Developers can delete license rows via SQL if needed.</p>
+              ),
+            },
+            { label: "Tier", key: "tier" },
+            { label: "Used", key: "applications_used" },
+            { label: "Source", key: "license_source" },
+            { label: "Expires", render: (r) => formatDate(r.license_expires_at) },
+            {
+              label: "Actions",
+              render: (r) => (
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn small"
+                    disabled={busy === r.user_id}
+                    onClick={() => act(r.user_id, () => setUserLicenseTier(r.user_id, "pro"))}
+                  >
+                    Pro
+                  </button>
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    disabled={busy === r.user_id}
+                    onClick={() => act(r.user_id, () => setUserLicenseTier(r.user_id, "free"))}
+                  >
+                    Free
+                  </button>
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    disabled={busy === r.user_id}
+                    onClick={() => act(r.user_id, () => resetApplicationsUsed(r.user_id))}
+                  >
+                    Reset used
+                  </button>
+                </div>
+              ),
+            },
+          ]}
+          rows={filtered}
+          rowKey="user_id"
+          emptyMessage="No license rows — users without entitlements appear only on Users."
+        />
       )}
     </div>
   );

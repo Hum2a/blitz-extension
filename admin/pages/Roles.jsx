@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase.js";
 import { ROLES } from "../lib/roles.js";
+import PageHeader from "../components/PageHeader.jsx";
+import Alert from "../components/Alert.jsx";
 
 export default function Roles({ session }) {
   const [rows, setRows] = useState([]);
@@ -86,9 +88,11 @@ export default function Roles({ session }) {
 
   return (
     <div>
-      <h1>Roles</h1>
-      <p className="muted">Developer only. Hierarchy: user &lt; admin &lt; developer.</p>
-      {error && <p className="error">{error}</p>}
+      <PageHeader
+        title="Roles"
+        subtitle="Developer only. Hierarchy: user < admin < developer."
+      />
+      {error && <Alert>{error}</Alert>}
       <table className="table">
         <thead>
           <tr>

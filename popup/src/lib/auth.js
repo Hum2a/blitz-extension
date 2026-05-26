@@ -1,6 +1,8 @@
 import { getStorage, setStorage, mergeStorage } from "./storage.js";
 import {
   SUPABASE_CONFIGURED,
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
   getSupabaseRedirectUrl,
 } from "./config.js";
 import {
@@ -170,6 +172,19 @@ export async function signOut() {
   return { ok: true };
 }
 
+async function touchLastSeen(accessToken) {
+  if (!SUPABASE_CONFIGURED || !accessToken) return;
+  await fetch(`${SUPABASE_URL}/rest/v1/rpc/touch_admin_last_seen`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+}
+
 export async function getAuthStatus() {
   if (!SUPABASE_CONFIGURED) {
     return {
@@ -192,9 +207,32 @@ export async function getAuthStatus() {
   const syncEnabled = await getStorage("sync_enabled");
   const syncState = (await getStorage("sync_state")) || {};
 
+  if (session?.access_token) {
+    touchLastSeen(session.access_token).catch(() => {});
+  }
+
+  let accountStatus = "active";
+  if (session?.access_token) {
+    try {
+      const statusRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_my_account_status`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+      if (statusRes.ok) accountStatus = await statusRes.json();
+    } catch {
+      /* ignore */
+    }
+  }
+
   return {
     configured: true,
     signedIn: Boolean(session?.access_token),
+    accountStatus,
     email: session?.user?.email || null,
     userId: session?.user?.id || null,
     syncEnabled: Boolean(syncEnabled),

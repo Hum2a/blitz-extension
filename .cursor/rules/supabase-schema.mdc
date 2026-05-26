@@ -7,7 +7,7 @@ alwaysApply: true
 
 **Update this file whenever you add or change** `supabase/migrations/*.sql`.
 
-Last aligned with: `001_initial.sql`, `002_roles_and_admin.sql`, `003_admin_email_login.sql`
+Last aligned with: `001`–`006` migrations (through `006_app_config_telemetry.sql`)
 
 ## ER diagram
 
@@ -40,7 +40,18 @@ erDiagram
     text email
     boolean allow_email_login "developer admin-portal OTP"
     timestamptz created_at
-    timestamptz last_seen_at
+    timestamptz last_seen_at "extension/admin heartbeat"
+  }
+
+  admin_user_summary {
+    view "RLS via security_invoker"
+    uuid user_id
+    text email
+    app_role role
+    int sync_doc_count
+    int synced_app_count
+    int device_count
+    text tier
   }
 
   user_sync_meta {
@@ -94,6 +105,39 @@ erDiagram
     jsonb meta
     timestamptz created_at
   }
+
+  support_notes {
+    uuid id PK
+    uuid user_id FK
+    uuid author_id FK
+    text note
+    timestamptz created_at
+  }
+
+  app_config {
+    int id PK "singleton=1"
+    boolean maintenance_mode
+    text banner_message
+    text min_extension_version
+    jsonb feature_flags
+  }
+
+  client_events {
+    uuid id PK
+    uuid user_id FK
+    text event_type
+    jsonb meta
+    timestamptz created_at
+  }
+
+  billing_events {
+    uuid id PK
+    text provider
+    text event_name
+    text customer_email
+    uuid user_id FK
+    jsonb payload
+  }
 ```
 
 ## Extension sync keys (`sync_documents.doc_key`)
@@ -118,6 +162,12 @@ Encrypted client-side (see `popup/src/lib/sync-payload.js`):
 - `public.get_my_role()` → `app_role`
 - `public.has_min_role(required)` → admin+ for reads across users
 - `public.is_developer()` → role management
+
+## Admin RPCs (`004_admin_analytics.sql`)
+
+- `admin_stats_overview()` → dashboard/analytics JSON (admin+)
+- `admin_user_usage(uuid)` → per-user metadata JSON (admin+)
+- `touch_admin_last_seen()` → updates `admin_profiles.last_seen_at`
 
 ## Related apps
 

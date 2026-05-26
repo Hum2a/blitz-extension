@@ -13,3 +13,19 @@ export function canAccessAdmin(role) {
 export function canManageRoles(role) {
   return role === "developer";
 }
+
+export function canManageConfig(role) {
+  return role === "developer";
+}
+
+export function canDeleteUsers(role) {
+  return role === "developer";
+}
+
+export function canResetSync(role) {
+  return role === "developer";
+}
+
+export function canModerateUsers(role) {
+  return roleRank(role) >= roleRank("admin");
+}
