@@ -81,36 +81,19 @@ export async function resolvePdfHtmlForExport({
   cvDocument,
   tailoredCV,
   userProfile,
-  pdfLayoutHtml,
   htmlOverride,
   useManualOverride = false,
-  autoApplyIfMissing = true,
 }) {
   if (useManualOverride && htmlOverride?.trim()) {
     return { html: htmlOverride.trim(), source: "manual" };
   }
-  if (pdfLayoutHtml?.trim()) {
-    const doc = resolveCvDocument({ cvDocument, tailoredCV, userProfile });
-    const snippet = (doc?.summary || tailoredCV || "").replace(/\s+/g, " ").trim().slice(0, 24);
-    if (snippet && pdfLayoutHtml.includes(snippet)) {
-      return { html: pdfLayoutHtml.trim(), source: "applied" };
-    }
-  }
-  if (autoApplyIfMissing) {
-    const applied = await applyTailoredCvToPdfLayout({
-      cvDocument,
-      tailoredCV,
-      userProfile,
-    });
-    return { html: applied.html, source: "auto-applied" };
-  }
-  const html = await buildRenderedCvHtml({
+
+  const applied = await applyTailoredCvToPdfLayout({
     cvDocument,
     tailoredCV,
     userProfile,
-    useManualOverride: false,
   });
-  return { html, source: "live" };
+  return { html: applied.html, source: "applied" };
 }
 
 export async function generateCvPdfBase64(payload) {
@@ -145,7 +128,6 @@ export async function downloadCvPdf({
   userProfile,
   filename,
   htmlOverride,
-  pdfLayoutHtml,
   useManualOverride = false,
   html,
 }) {
@@ -156,10 +138,8 @@ export async function downloadCvPdf({
         cvDocument,
         tailoredCV,
         userProfile,
-        pdfLayoutHtml,
         htmlOverride,
         useManualOverride,
-        autoApplyIfMissing: !useManualOverride,
       })
     ).html;
 

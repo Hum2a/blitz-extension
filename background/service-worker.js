@@ -23,7 +23,11 @@ import {
 import { processQueue } from "./queue-processor.js";
 import { startBackgroundGeneration } from "./generation-runner.js";
 import { listOpenJobTabs, queueItemsFromTabs, findJobTabForScrape } from "./tab-jobs.js";
-import { buildRenderedCvHtml } from "../popup/src/lib/cv-export.js";
+import {
+  applyTailoredCvToPdfLayout,
+  resolvePdfHtmlForExport,
+} from "../popup/src/lib/cv-export.js";
+import { integrateNewGeneration } from "../popup/src/lib/application-versions.js";
 import {
   applicationMatchesJob,
   withListingKey,
@@ -72,7 +76,21 @@ async function logGenerateApiCall(settings, jobData, result, error) {
 }
 
 async function savePendingApplication(result, jobData) {
-  const application = withListingKey({ ...result, jobData }, jobData);
+  const prev = await getStorage("pending_application");
+  const application = integrateNewGeneration(prev, result, jobData);
+  try {
+    const settings = await getAllSettings();
+    const { html } = await applyTailoredCvToPdfLayout({
+      cvDocument: application.cvDocument,
+      tailoredCV: application.tailoredCV,
+      userProfile: settings.user_profile,
+    });
+    application.pdfLayoutHtml = html;
+    application.pdfLayoutUpdatedAt = new Date().toISOString();
+    application.pdfHtmlOverride = undefined;
+  } catch {
+    /* Review panel can apply manually; download still re-merges on export */
+  }
   await setStorage("pending_application", application);
   return application;
 }
@@ -488,18 +506,18 @@ async function ensureOffscreenDocument() {
 
 async function generatePdfOffscreen(payload) {
   await ensureOffscreenDocument();
-  let html = payload.html?.trim() || payload.pdfLayoutHtml?.trim();
+  let html = payload.html?.trim();
   if (!html) {
-    html = await buildRenderedCvHtml({
+    const resolved = await resolvePdfHtmlForExport({
       cvDocument: payload.cvDocument,
       tailoredCV: payload.tailoredCV,
       userProfile: payload.userProfile,
-      pdfLayoutHtml: payload.pdfLayoutHtml,
       htmlOverride: payload.htmlOverride,
       useManualOverride: Boolean(
-        payload.useManualOverride ?? (payload.htmlOverride && !payload.pdfLayoutHtml)
+        payload.useManualOverride ?? Boolean(payload.htmlOverride?.trim())
       ),
     });
+    html = resolved.html;
   }
   const result = await chrome.runtime.sendMessage({
     type: "GENERATE_PDF_OFFSCREEN",

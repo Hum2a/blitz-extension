@@ -12,14 +12,20 @@ import { scrollPanelClass } from "../lib/layout.js";
 import { getStorage } from "../lib/storage.js";
 import {
   applyTailoredCvToPdfLayout,
-  buildRenderedCvHtml,
   downloadCvPdf,
   resolvePdfHtmlForExport,
 } from "../lib/cv-export.js";
 import ReviewPdfHtmlEditor from "./ReviewPdfHtmlEditor.jsx";
+import ApplicationVersionsBar from "./ApplicationVersionsBar.jsx";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 import { Modal, ModalButton } from "./Modal.jsx";
 import { useModal } from "../hooks/useModal.js";
+import {
+  archiveDraftToVersions,
+  applyVersionToApplication,
+  listVersions,
+  restoreLatestSnapshot,
+} from "../lib/application-versions.js";
 
 export default function ReviewPanel({
   application,
@@ -47,20 +53,74 @@ export default function ReviewPanel({
   const [pdfLayoutUpdatedAt, setPdfLayoutUpdatedAt] = useState(null);
   const [useManualPdfHtml, setUseManualPdfHtml] = useState(false);
   const [pdfApplying, setPdfApplying] = useState(false);
+  const [activeVersionId, setActiveVersionId] = useState(null);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareLeftId, setCompareLeftId] = useState("");
+  const [compareRightId, setCompareRightId] = useState("draft");
   const initialCvRef = useRef("");
+
+  const applyToEditor = (app) => {
+    const text = app.tailoredCV || "";
+    setCv(text);
+    initialCvRef.current = text;
+    setCoverLetter(app.coverLetter || "");
+    setAnswers(app.screeningAnswers || []);
+    setPdfHtmlOverride(app.pdfHtmlOverride || null);
+    setPdfLayoutHtml(app.pdfLayoutHtml || null);
+    setPdfLayoutUpdatedAt(app.pdfLayoutUpdatedAt || null);
+    setUseManualPdfHtml(Boolean(app.pdfHtmlOverride?.trim()));
+    setActiveVersionId(app.activeVersionId || null);
+  };
+
+  const buildDraft = () => ({
+    tailoredCV: cv,
+    coverLetter,
+    screeningAnswers: answers,
+    pdfLayoutHtml,
+    pdfLayoutUpdatedAt,
+    pdfHtmlOverride,
+  });
+
+  const persistApplication = async (updated) => {
+    onApplicationUpdate(updated);
+    await setStorage("pending_application", updated);
+  };
 
   useEffect(() => {
     if (!application) return;
-    const text = application.tailoredCV || "";
-    setCv(text);
-    initialCvRef.current = text;
-    setCoverLetter(application.coverLetter || "");
-    setAnswers(application.screeningAnswers || []);
-    setPdfHtmlOverride(application.pdfHtmlOverride || null);
-    setPdfLayoutHtml(application.pdfLayoutHtml || null);
-    setPdfLayoutUpdatedAt(application.pdfLayoutUpdatedAt || null);
-    setUseManualPdfHtml(Boolean(application.pdfHtmlOverride?.trim()));
+    applyToEditor(application);
   }, [application]);
+
+  const versionList = listVersions(application);
+
+  const handleRestoreVersion = async (versionId) => {
+    const archived = archiveDraftToVersions(application, buildDraft());
+    const restored = versionId
+      ? applyVersionToApplication(archived, versionId)
+      : restoreLatestSnapshot(archived);
+    applyToEditor(restored);
+    await persistApplication(restored);
+  };
+
+  const openCompare = () => {
+    const items = versionList;
+    setCompareLeftId(items.length ? items[items.length - 1].id : "draft");
+    setCompareRightId("draft");
+    setCompareOpen(true);
+  };
+
+  const compareText = (id) => {
+    if (id === "draft") return cv;
+    const v = versionList.find((x) => x.id === id);
+    return v?.tailoredCV || "";
+  };
+
+  const handleRegenerateClick = async () => {
+    const archived = archiveDraftToVersions(application, buildDraft());
+    await persistApplication(archived);
+    setActiveVersionId(null);
+    await onRegenerate();
+  };
 
   const persistPdfHtmlOverride = async (html, manual = true) => {
     setPdfHtmlOverride(html);
@@ -138,11 +198,13 @@ export default function ReviewPanel({
         cvDocument,
         tailoredCV,
         userProfile,
-        pdfLayoutHtml,
         htmlOverride: pdfHtmlOverride,
         useManualOverride: useManualPdfHtml,
-        autoApplyIfMissing: true,
       });
+      if (!useManualPdfHtml) {
+        await persistPdfLayout(pdfHtml);
+        initialCvRef.current = cv.trim();
+      }
       await downloadCvPdf({
         cvDocument,
         tailoredCV,
@@ -169,11 +231,13 @@ export default function ReviewPanel({
         cvDocument,
         tailoredCV,
         userProfile,
-        pdfLayoutHtml,
         htmlOverride: pdfHtmlOverride,
         useManualOverride: useManualPdfHtml,
-        autoApplyIfMissing: true,
       });
+      if (!useManualPdfHtml) {
+        await persistPdfLayout(html);
+        initialCvRef.current = cv.trim();
+      }
       setCvPreviewHtml(html);
       setCvPreviewOpen(true);
     } catch (err) {
@@ -345,8 +409,9 @@ export default function ReviewPanel({
             </>
           ) : (
             <>
-              Click <strong>Update PDF from tailored CV</strong> before preview/download so your
-              Word template gets the edited text (not the raw upload).
+              Preview and download merge your <strong>Tailored CV</strong> into your Word layout
+              automatically. Use <strong>Update PDF from tailored CV</strong> to refresh the HTML
+              editor below.
             </>
           )}
         </p>
@@ -370,7 +435,7 @@ export default function ReviewPanel({
         </div>
         <div className="flex gap-2">
           <Btn
-            onClick={onRegenerate}
+            onClick={handleRegenerateClick}
             disabled={generating}
             className="flex-1 border border-slate-300 py-2 rounded-lg text-sm hover:bg-white bg-white disabled:opacity-50"
           >
@@ -389,6 +454,14 @@ export default function ReviewPanel({
 
   const editors = (
     <div className="space-y-4">
+      <ApplicationVersionsBar
+        versions={application?.versions}
+        activeVersionId={activeVersionId}
+        hasLatestSnapshot={Boolean(application?.latestSnapshot)}
+        onRestoreLatest={() => handleRestoreVersion(null)}
+        onRestore={handleRestoreVersion}
+        onCompare={openCompare}
+      />
       <div className={`grid gap-4 ${fullPage ? "grid-cols-1" : "grid-cols-1 gap-3"}`}>
         {[
           ["Tailored CV", cv, setCv, fullPage ? 14 : 8, "font-mono"],
@@ -496,6 +569,59 @@ export default function ReviewPanel({
           className="w-full min-h-[480px] border-0 bg-slate-100 rounded-lg"
           sandbox="allow-same-origin"
         />
+      </Modal>
+
+      <Modal
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        title="Compare CV versions"
+        size="lg"
+        footer={<ModalButton onClick={() => setCompareOpen(false)}>Close</ModalButton>}
+      >
+        <div className="flex flex-wrap gap-3 mb-3 text-xs">
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold text-slate-600">Left</span>
+            <select
+              value={compareLeftId}
+              onChange={(e) => setCompareLeftId(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value="draft">Current draft</option>
+              {versionList.map((v, i) => (
+                <option key={v.id} value={v.id}>
+                  v{i + 1} — {v.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-semibold text-slate-600">Right</span>
+            <select
+              value={compareRightId}
+              onChange={(e) => setCompareRightId(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value="draft">Current draft</option>
+              {versionList.map((v, i) => (
+                <option key={v.id} value={v.id}>
+                  v{i + 1} — {v.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="grid md:grid-cols-2 gap-3">
+          <textarea
+            readOnly
+            value={compareText(compareLeftId)}
+            className="w-full h-64 text-xs font-mono border rounded-lg p-2 bg-slate-50"
+          />
+          <textarea
+            readOnly
+            value={compareText(compareRightId)}
+            className="w-full h-64 text-xs font-mono border rounded-lg p-2 bg-slate-50"
+          />
+        </div>
       </Modal>
     </Stagger>
   );

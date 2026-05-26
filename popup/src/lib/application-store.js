@@ -6,6 +6,7 @@ import {
 } from "./db.js";
 import { listingKey } from "./job-listing.js";
 import { displayApplicationLabel } from "./application-history-utils.js";
+import { archiveApplicationSnapshot, VERSION_SOURCES } from "./application-versions.js";
 
 export const HISTORY_EVENT_TYPES = {
   GENERATED: "generated",
@@ -48,9 +49,38 @@ export function buildHistoryRecord(application, jobData, options = {}) {
   const now = new Date().toISOString();
   const key = listingKey(job);
 
+  let versions = existing?.versions || [];
+
+  if (
+    existing?.cvSnapshot &&
+    application?.tailoredCV &&
+    existing.cvSnapshot.trim() !== application.tailoredCV.trim()
+  ) {
+    versions = archiveApplicationSnapshot(
+      versions,
+      {
+        tailoredCV: existing.cvSnapshot,
+        coverLetter: existing.coverLetterSnapshot,
+        screeningAnswers: existing.screeningAnswers,
+        matchScore: existing.matchScore,
+        matchRationale: existing.matchRationale,
+        cvDocument: existing.cvDocument,
+      },
+      { source: VERSION_SOURCES.REGENERATED }
+    );
+  }
+
+  if (application?.versions?.length) {
+    for (const v of application.versions) {
+      if (!versions.some((x) => x.id === v.id)) versions.push(v);
+    }
+    versions = versions.slice(-20);
+  }
+
   const record = {
     id: existing?.id || crypto.randomUUID(),
     listingKey: key,
+    versions,
     applicationTitle: displayApplicationLabel({
       applicationTitle: application?.applicationTitle,
       role: job.jobTitle || application?.jobData?.jobTitle,
@@ -76,6 +106,7 @@ export function buildHistoryRecord(application, jobData, options = {}) {
       platform: job.platform,
     },
     events: appendEvent(existing?.events, eventType),
+    latestSnapshot: application?.latestSnapshot || existing?.latestSnapshot || null,
   };
 
   return record;
@@ -169,6 +200,10 @@ export async function loadApplicationIntoPending(record) {
     matchRationale: record.matchRationale,
     listingKey: record.listingKey,
     jobData: job,
+    versions: record.versions || [],
+    activeVersionId: null,
+    latestSnapshot: record.latestSnapshot || null,
+    cvDocument: record.cvDocument,
   };
 
   return { job, application };
