@@ -20,7 +20,7 @@ export default function Nav() {
           </span>
           Blitz
         </a>
-        <ul className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
+        <ul className="hidden items-center gap-6 text-sm font-medium text-white/90 md:flex">
           {links.map((l) => (
             <li key={l.href}>
               <a href={l.href} className="transition-colors hover:text-white">

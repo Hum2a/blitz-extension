@@ -18,7 +18,8 @@ export default function MeshBackground() {
         animate={{ x: [0, 30, 0], y: [0, -35, 0] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#06060c_72%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#080810_55%)]" />
+      <div className="absolute inset-0 bg-[#080810]/30" />
     </div>
   );
 }

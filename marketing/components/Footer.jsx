@@ -1,4 +1,4 @@
-import { APP_WORKSPACE_URL, GITHUB_REPO_URL } from "../lib/config.js";
+import { APP_WORKSPACE_URL, SUPPORT_MAILTO } from "../lib/config.js";
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -12,22 +12,22 @@ export default function Footer() {
           </span>
           Blitz · {year}
         </div>
-        <nav className="flex flex-wrap justify-center gap-6 text-sm text-slate-500">
-          <a href="#features" className="hover:text-slate-300">
+        <nav className="flex flex-wrap justify-center gap-6 text-sm font-medium text-white/85">
+          <a href="#features" className="hover:text-white">
             Features
           </a>
-          <a href={APP_WORKSPACE_URL} className="hover:text-slate-300">
+          <a href="#install" className="hover:text-white">
+            Get Blitz
+          </a>
+          <a href={APP_WORKSPACE_URL} className="hover:text-white">
             Web app
           </a>
-          <a href="https://admin.blitzai.online" className="hover:text-slate-300">
-            Admin
-          </a>
-          <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-slate-300">
-            GitHub
+          <a href={SUPPORT_MAILTO} className="hover:text-white">
+            Contact
           </a>
         </nav>
       </div>
-      <p className="mx-auto mt-8 max-w-xl text-center text-xs text-slate-600">
+      <p className="mx-auto mt-8 max-w-xl text-center text-sm text-white/70">
         Blitz is not affiliated with LinkedIn, Indeed, Greenhouse, or Workday. Use responsibly and review every
         application before submitting.
       </p>

@@ -32,7 +32,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.16 }}
-          className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg"
+          className="mx-auto mt-6 max-w-2xl text-body"
         >
           Blitz tailors your CV and cover letter to every job in seconds — with your own API key.
           Review everything, then fill Greenhouse, LinkedIn, Indeed, and Workday forms in one click.
@@ -61,7 +61,7 @@ export default function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="mt-8 text-xs text-slate-500 sm:text-sm"
+          className="mt-8 text-caption"
         >
           15 free applications · Bring your own Anthropic or OpenAI key · Data stays in your browser
         </motion.p>
@@ -79,7 +79,7 @@ export default function Hero() {
               <span className="h-3 w-3 rounded-full bg-red-500/80" />
               <span className="h-3 w-3 rounded-full bg-amber-500/80" />
               <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
-              <span className="ml-3 text-xs text-slate-500">Blitz — Review application</span>
+              <span className="ml-3 text-sm text-white/80">Blitz — Review application</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               {[
@@ -91,12 +91,12 @@ export default function Hero() {
                   key={stat.label}
                   className="rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3 text-left"
                 >
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500">{stat.label}</p>
-                  <p className={`mt-1 text-xl font-bold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-xs uppercase tracking-wider text-white/75">{stat.label}</p>
+                  <p className={`mt-1 text-2xl font-bold ${stat.color}`}>{stat.value}</p>
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-lg border border-dashed border-white/10 bg-black/20 px-4 py-6 text-center text-sm text-slate-500">
+            <div className="mt-4 rounded-lg border border-dashed border-white/15 bg-black/30 px-4 py-6 text-center text-base text-white/85">
               Your tailored application — edit, export PDF, approve &amp; fill the job form
             </div>
           </div>

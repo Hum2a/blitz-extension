@@ -24,7 +24,7 @@ Then rebuild before deploy:
 npm run marketing:build
 ```
 
-Without this variable, the site shows developer install instructions and links to GitHub.
+Without this variable, the install section shows a “coming soon” message with a contact link for early access (`VITE_SUPPORT_EMAIL`, default `support@getblitz.io`).
 
 ## Deploy
 

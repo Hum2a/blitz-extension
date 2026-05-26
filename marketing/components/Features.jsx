@@ -44,10 +44,13 @@ export default function Features() {
     <section id="features" className="relative px-4 py-24 sm:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="mb-14 text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">Features</p>
+          <p className="text-label">Features</p>
           <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
             Everything you need to <span className="text-gradient-mint">apply at scale</span>
           </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-muted">
+            Tailor, review, export, and fill — without leaving your browser.
+          </p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f, i) => (
@@ -65,7 +68,7 @@ export default function Features() {
                 {f.icon}
               </div>
               <h3 className="text-lg font-semibold text-white">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">{f.body}</p>
+              <p className="mt-3 text-base leading-relaxed text-slate-300">{f.body}</p>
             </motion.article>
           ))}
         </div>

@@ -23,8 +23,9 @@ export default function HowItWorks() {
     <section id="how" className="relative px-4 py-24 sm:px-6">
       <div className="mx-auto max-w-5xl">
         <div className="mb-14 text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-fuchsia-400">How it works</p>
+          <p className="text-label text-fuchsia-300">How it works</p>
           <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">Three steps to a tailored application</h2>
+          <p className="mx-auto mt-4 max-w-xl text-muted">From install to submit — you stay in control at every step.</p>
         </div>
         <div className="grid gap-8 md:grid-cols-3">
           {steps.map((s, i) => (
@@ -38,7 +39,7 @@ export default function HowItWorks() {
             >
               <span className="text-4xl font-black text-gradient opacity-90">{s.n}</span>
               <h3 className="mt-4 text-xl font-semibold text-white">{s.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">{s.body}</p>
+              <p className="mt-3 text-base leading-relaxed text-slate-300">{s.body}</p>
             </motion.div>
           ))}
         </div>
