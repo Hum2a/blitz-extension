@@ -7,6 +7,7 @@ import {
 import { PROMPTS, formatApplicationTitle, buildApplicationPrompts } from "../popup/src/lib/prompts.js";
 import { estimateCostFromPromptBundle } from "../popup/src/lib/cost-estimate.js";
 import { callAI, parseApplicationResponse } from "../popup/src/lib/ai.js";
+import { applyProfileCvHeader } from "../popup/src/lib/cv-header.js";
 import { costFromUsage } from "../popup/src/lib/cost-estimate.js";
 import {
   fetchAnthropicModels,
@@ -630,10 +631,11 @@ async function generateApplication(
   );
 
   const parsed = parseApplicationResponse(text);
+  const withHeader = applyProfileCvHeader(parsed, userProfile);
   const cost = costFromUsage(usage, aiConfig.provider, usedModel || aiConfig.model);
   return {
-    ...parsed,
-    applicationTitle: formatApplicationTitle(jobData, parsed.applicationTitle),
+    ...withHeader,
+    applicationTitle: formatApplicationTitle(jobData, withHeader.applicationTitle),
     usage,
     cost,
   };

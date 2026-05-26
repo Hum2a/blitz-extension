@@ -6,6 +6,10 @@ import {
   buildContactLineHtml,
   enrichCvDocumentRichFields,
 } from "./cv-html.js";
+import {
+  applyCvDocumentProfileHeader,
+  stripLeadingCvHeader,
+} from "./cv-header.js";
 import { htmlToPlainText } from "./document-rich-text.js";
 
 export { buildContactLineHtml };
@@ -63,14 +67,20 @@ export function resolveCvDocument({ cvDocument, tailoredCV, userProfile }) {
     doc = { ...cvDocument };
   }
   if (tailoredCV?.trim()) {
-    const textForParse = htmlToPlainText(tailoredCV) || tailoredCV;
+    const textForParse = stripLeadingCvHeader(
+      htmlToPlainText(tailoredCV) || tailoredCV
+    );
     const parsed = parseTailoredCvText(textForParse, userProfile);
     doc = doc ? mergeParsedTailoredCv(doc, parsed) : parsed;
   }
   if (!doc) return null;
 
-  if (!doc.fullName?.trim() && userProfile?.name) doc.fullName = userProfile.name;
-  if (!doc.contactLine?.trim()) doc.contactLine = buildContactLineInline(userProfile);
+  if (userProfile && (userProfile.name || userProfile.email)) {
+    doc = applyCvDocumentProfileHeader(doc, userProfile);
+  } else {
+    if (!doc.fullName?.trim() && userProfile?.name) doc.fullName = userProfile.name;
+    if (!doc.contactLine?.trim()) doc.contactLine = buildContactLineInline(userProfile);
+  }
 
   return enrichCvDocumentRichFields(doc, userProfile);
 }
