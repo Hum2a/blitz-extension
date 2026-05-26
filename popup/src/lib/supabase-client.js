@@ -24,7 +24,7 @@ function restHeaders(accessToken, extra = {}) {
 
 export async function authRequest(
   path,
-  { method = "GET", body, accessToken, fetchImpl = fetch } = {}
+  { method = "GET", body, accessToken, fetchImpl = fetchWithTimeout } = {}
 ) {
   assertConfigured();
   const headers = {

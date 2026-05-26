@@ -33,6 +33,17 @@ async function getPreferredJobTabId() {
  * (same path as workspace — tab resolution + script injection).
  */
 export async function scrapeActiveTab() {
+  if (isExtensionPage() && typeof location !== "undefined") {
+    const path = location.pathname || "";
+    if (path.includes("dashboard.html") || path.includes("index.html")) {
+      return {
+        error: "Unsupported page",
+        code: "extension_ui",
+        url: location.href,
+      };
+    }
+  }
+
   const tabId = await getPreferredJobTabId();
 
   const result = await withTimeout(

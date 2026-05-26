@@ -104,6 +104,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         const hasStoredJob = Boolean(stored?.jobTitle || stored?.jobDescription);
         const workspaceOnly =
           job.code === "no_job_tab" ||
+          job.code === "extension_ui" ||
           (job.error && /dashboard\.html|chrome:\/\/extensions/i.test(job.error));
 
         if (hasStoredJob) {

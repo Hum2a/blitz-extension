@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import SettingsCard, { SettingsField, SettingsInput } from "./SettingsCard.jsx";
 import SyncPassphraseModal from "./SyncPassphraseModal.jsx";
 import { SUPABASE_CONFIGURED } from "../../lib/config.js";
-import { sendExtensionMessage } from "../../lib/extension-messages.js";
+import { accountRequest } from "../../lib/account-api.js";
 import { useModal } from "../../hooks/useModal.js";
 
 const DEFAULT_STATUS = {
@@ -32,7 +32,7 @@ export default function AccountSettings() {
 
     setLoading(true);
     try {
-      const res = await sendExtensionMessage({ type: "ACCOUNT_GET_STATUS" });
+      const res = await accountRequest("ACCOUNT_GET_STATUS");
       if (res?.error) throw new Error(res.error);
       setStatus({ ...DEFAULT_STATUS, ...res, sync: { ...DEFAULT_STATUS.sync, ...res?.sync } });
     } catch (err) {
@@ -53,8 +53,7 @@ export default function AccountSettings() {
   async function run(type, payload) {
     setBusy(true);
     try {
-      const msg = payload !== undefined ? { type, payload } : { type };
-      const result = await sendExtensionMessage(msg);
+      const result = await accountRequest(type, payload);
       if (result?.error) throw new Error(result.error);
       await refresh();
       return result;
