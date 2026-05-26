@@ -59,6 +59,20 @@ if (roleErr) {
   process.exit(1);
 }
 
+const { error: profileErr } = await admin.from("admin_profiles").upsert(
+  {
+    user_id: user.id,
+    email,
+    allow_email_login: true,
+  },
+  { onConflict: "user_id" }
+);
+
+if (profileErr) {
+  console.error(profileErr.message);
+  process.exit(1);
+}
+
 await admin.from("admin_audit_log").insert({
   actor_id: user.id,
   action: "seed_developer",

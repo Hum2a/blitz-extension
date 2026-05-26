@@ -19,15 +19,41 @@ export default function Roles({ session }) {
     const ids = roles.map((r) => r.user_id);
     const { data: profiles } = await supabase
       .from("admin_profiles")
-      .select("user_id, email")
+      .select("user_id, email, allow_email_login")
       .in("user_id", ids);
-    const emailMap = Object.fromEntries((profiles || []).map((p) => [p.user_id, p.email]));
-    setRows(roles.map((r) => ({ ...r, email: emailMap[r.user_id] })));
+    const profileMap = Object.fromEntries((profiles || []).map((p) => [p.user_id, p]));
+    setRows(
+      roles.map((r) => ({
+        ...r,
+        email: profileMap[r.user_id]?.email,
+        allow_email_login: Boolean(profileMap[r.user_id]?.allow_email_login),
+      }))
+    );
   }
 
   useEffect(() => {
     load();
   }, []);
+
+  async function toggleEmailLogin(userId, enabled) {
+    setBusy(userId);
+    setError(null);
+    const { error: err } = await supabase
+      .from("admin_profiles")
+      .update({ allow_email_login: enabled })
+      .eq("user_id", userId);
+    if (err) setError(err.message);
+    else {
+      await supabase.from("admin_audit_log").insert({
+        actor_id: session.user.id,
+        action: "admin_email_login",
+        target_user_id: userId,
+        meta: { allow_email_login: enabled },
+      });
+      await load();
+    }
+    setBusy(null);
+  }
 
   async function assignRole(userId, role) {
     if (userId === session.user.id && role !== "developer") {
@@ -69,6 +95,7 @@ export default function Roles({ session }) {
             <th>Email</th>
             <th>Role</th>
             <th>Assign</th>
+            <th>Email login</th>
           </tr>
         </thead>
         <tbody>
@@ -90,6 +117,20 @@ export default function Roles({ session }) {
                     {role}
                   </button>
                 ))}
+              </td>
+              <td>
+                {r.role === "developer" ? (
+                  <button
+                    type="button"
+                    className={r.allow_email_login ? "btn small primary" : "btn small"}
+                    disabled={busy === r.user_id}
+                    onClick={() => toggleEmailLogin(r.user_id, !r.allow_email_login)}
+                  >
+                    {r.allow_email_login ? "Email on" : "Email off"}
+                  </button>
+                ) : (
+                  <span className="muted small">—</span>
+                )}
               </td>
             </tr>
           ))}

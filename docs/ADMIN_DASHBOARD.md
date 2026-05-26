@@ -14,11 +14,13 @@ Enforced in Postgres via RLS (`002_roles_and_admin.sql`).
 
 ## Setup
 
+**Google OAuth:** step-by-step in [ADMIN_GOOGLE_AUTH.md](ADMIN_GOOGLE_AUTH.md).
+
 1. Apply migrations:
    ```bash
    npm run db:migrate
    ```
-2. Sign in once (extension **Account & sync** or admin app) so your user exists in `auth.users`.
+2. Sign in once with **Google** (extension **Account & sync** or this admin app) so your user exists in `auth.users`.
 3. Grant yourself developer:
    ```bash
    # .env: DEVELOPER_EMAIL=your@email.com + SUPABASE_SERVICE_ROLE_KEY
@@ -39,7 +41,9 @@ Add to **Authentication → URL configuration**:
 | Local | `http://localhost:3790` |
 | Production | `https://admin.blitz.com` |
 
-Same Google / email OTP providers as the extension.
+**Providers:** enable **Google** (required). Optional **developer email OTP** for staff with `admin_profiles.allow_email_login` — see [ADMIN_GOOGLE_AUTH.md](ADMIN_GOOGLE_AUTH.md) §6.
+
+Anyone who signs in but only has the default **user** role sees **Access denied** until a developer promotes them in `user_roles`.
 
 ## Deploy (static)
 

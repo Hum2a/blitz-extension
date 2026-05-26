@@ -78,11 +78,22 @@ export default function App() {
   if (!canAccessAdmin(role)) {
     return (
       <div className="center">
-        <h1>Access denied</h1>
-        <p>Your account has the <strong>{role || "user"}</strong> role. Admin or developer required.</p>
-        <button type="button" className="btn" onClick={() => supabase.auth.signOut()}>
-          Sign out
-        </button>
+        <div className="card login-card">
+          <h1>Access denied</h1>
+          <p>
+            Signed in as <strong>{session.user.email}</strong> with role{" "}
+            <strong>{role || "user"}</strong>. This portal is for staff with{" "}
+            <strong>admin</strong> or <strong>developer</strong> only.
+          </p>
+          <p className="muted small">
+            Roles are assigned in the database or by a developer in the Roles page — not via this
+            login screen. Ask a developer to run <code>npm run db:seed:developer</code> or promote
+            you after you have signed in once with Google.
+          </p>
+          <button type="button" className="btn" onClick={() => supabase.auth.signOut()}>
+            Sign out
+          </button>
+        </div>
       </div>
     );
   }

@@ -30,7 +30,7 @@ Create separate **dev** and **prod** projects at [supabase.com](https://supabase
 | Email says “Confirm email address” with a **localhost** link | **Site URL** is set to localhost. Change it to `https://<EXTENSION_ID>.chromiumapp.org/` (see above). |
 | Link instead of a 6-digit code | **Authentication → Email Templates → Magic Link**: include `{{ .Token }}` and remove `{{ .ConfirmationURL }}` (see [Supabase passwordless docs](https://supabase.com/docs/guides/auth/auth-email-passwordless)). |
 | First-time signup sends “Confirm signup” | **Providers → Email**: turn off **Confirm email**, *or* edit the **Confirm signup** template to show `{{ .Token }}` instead of only a link. |
-| Admin login link to localhost | Run `npm run admin:dev` and keep Site URL / redirect as `http://localhost:3790`, or use OTP in the admin UI. |
+| Admin login link to localhost | Admin uses **Google only** — add `http://localhost:3790` to redirect URLs and run `npm run admin:dev` |
 
 After changing templates or Site URL, use **Send code** again and enter the **6-digit code** in Blitz (you do not need to click the email link).
 
