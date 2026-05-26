@@ -34,6 +34,17 @@ describe("e2ee-crypto", () => {
     expect(decrypted).toEqual(plaintext);
   });
 
+  it("encrypts large payloads without stack overflow", async () => {
+    clearSessionCryptoKey();
+    const meta = await setupSyncCrypto(passphrase);
+    const large = "x".repeat(400_000);
+    const encrypted = await encryptPayload({ cv_text: large }, { passphrase, syncCryptoMeta: meta });
+    clearSessionCryptoKey();
+    await unlockSyncCrypto(passphrase, meta);
+    const decrypted = await decryptPayload(encrypted, { passphrase, syncCryptoMeta: meta });
+    expect(decrypted.cv_text).toBe(large);
+  });
+
   it("rejects decrypt with wrong passphrase", async () => {
     const meta = await setupSyncCrypto(passphrase);
     const encrypted = await encryptPayload({ a: 1 }, { passphrase, syncCryptoMeta: meta });

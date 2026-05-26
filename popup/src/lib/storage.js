@@ -65,6 +65,7 @@ const DEFAULTS = {
     pendingDocKeys: [],
     pendingApplicationIds: [],
     pendingOps: [],
+    applicationsBackfillDone: false,
   },
 };
 

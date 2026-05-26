@@ -28,6 +28,32 @@ export async function ensureDeviceId() {
   return deviceId;
 }
 
+/** Queue every local application for upload (e.g. after sync enable or backfill). */
+export async function markAllApplicationsPending() {
+  const syncEnabled = await getStorage("sync_enabled");
+  if (!syncEnabled) return { count: 0 };
+
+  const { getAllApplications } = await import("./db.js");
+  const apps = await getAllApplications();
+  if (!apps.length) return { count: 0 };
+
+  const state = { ...DEFAULT_SYNC_STATE, ...((await getStorage("sync_state")) || {}) };
+  const pending = new Set(state.pendingApplicationIds || []);
+  for (const app of apps) {
+    if (app?.id) pending.add(app.id);
+  }
+  state.pendingApplicationIds = [...pending];
+  await mergeStorage({ sync_state: state }, { skipSync: true });
+
+  try {
+    chrome.runtime.sendMessage({ type: "SYNC_SCHEDULE_PUSH" }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+
+  return { count: apps.length };
+}
+
 /** Queue every user setting for upload (e.g. after first sync enable). */
 export async function markAllSettingsPending() {
   const syncEnabled = await getStorage("sync_enabled");

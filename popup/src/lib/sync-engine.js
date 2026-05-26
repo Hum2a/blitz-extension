@@ -115,10 +115,26 @@ export async function enableCloudSync({ passphrase, rememberOnDevice = true }) {
   await setStorage("sync_unlocked", rememberOnDevice, { skipSync: true });
   await ensureDeviceId();
   await pullCloudSync({ passphrase });
-  const { markAllSettingsPending } = await import("./sync-markers.js");
+  const { markAllSettingsPending, markAllApplicationsPending } = await import("./sync-markers.js");
   await markAllSettingsPending();
+  await markAllApplicationsPending();
   await schedulePush();
   return { ok: true };
+}
+
+/** One-time queue for apps that existed before sync was enabled. */
+async function ensureApplicationsBackfill() {
+  const state = (await getStorage("sync_state")) || {};
+  if (state.applicationsBackfillDone) return;
+
+  const apps = await getAllApplications();
+  if (!apps.length) {
+    await updateSyncState({ applicationsBackfillDone: true });
+    return;
+  }
+
+  const { markAllApplicationsPending } = await import("./sync-markers.js");
+  await markAllApplicationsPending();
 }
 
 export async function unlockCloudSync(passphrase, rememberOnDevice = true) {
@@ -259,13 +275,20 @@ async function pushApplications(token, meta, passphrase, deviceId, state) {
     });
   }
 
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    await restUpsert("synced_applications", token, rows.slice(i, i + BATCH_SIZE), {
-      onConflict: "id",
-    });
+  if (rows.length) {
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      await restUpsert("synced_applications", token, rows.slice(i, i + BATCH_SIZE), {
+        onConflict: "id",
+      });
+    }
   }
 
-  await updateSyncState({ pendingApplicationIds: [] });
+  const patch = { pendingApplicationIds: [] };
+  const localApps = await getAllApplications();
+  if (!localApps.length || rows.length > 0) {
+    patch.applicationsBackfillDone = true;
+  }
+  await updateSyncState(patch);
 }
 
 async function processPendingOps(token, deviceId) {
@@ -481,6 +504,7 @@ export async function resetCloudSyncData() {
     pendingDocKeys: [],
     pendingApplicationIds: [],
     pendingOps: [],
+    applicationsBackfillDone: false,
   });
   return { ok: true };
 }

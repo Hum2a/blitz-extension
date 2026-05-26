@@ -4,9 +4,16 @@ const IV_BYTES = 12;
 
 let sessionCryptoKey = null;
 
+/** Avoid spread on large Uint8Arrays — causes "Maximum call stack size exceeded". */
 function bytesToBase64(bytes) {
-  const bin = String.fromCharCode(...bytes);
-  return btoa(bin);
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (!u8.length) return btoa("");
+  const CHUNK = 8192;
+  let binary = "";
+  for (let i = 0; i < u8.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, u8.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
 }
 
 function base64ToBytes(b64) {
