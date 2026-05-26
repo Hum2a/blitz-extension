@@ -13,7 +13,7 @@ export default function ConfirmDialog({
       <div className="card modal-card">
         <h2>{title}</h2>
         <p className="muted">{message}</p>
-        <div className="actions-row" style={{ marginTop: "1rem" }}>
+        <div className="actions-row modal-actions">
           <button type="button" className="btn ghost" onClick={onCancel}>
             Cancel
           </button>

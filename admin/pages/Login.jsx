@@ -108,7 +108,7 @@ export default function Login() {
 
         <hr />
 
-        <p className="muted" style={{ marginTop: "1rem", fontWeight: 600 }}>
+        <p className="muted login-section-title">
           Staff email (developers only)
         </p>
         <p className="muted small">
@@ -155,7 +155,7 @@ export default function Login() {
         {emailCheckError && <p className="error">{emailCheckError}</p>}
         {error && <p className="error">{error}</p>}
 
-        <p className="muted small" style={{ marginTop: "1.25rem" }}>
+        <p className="muted small login-footer-note">
           Roles are assigned in the database or <strong>Roles</strong> page — not via this login.
           Google setup: <code>docs/ADMIN_GOOGLE_AUTH.md</code>
         </p>
