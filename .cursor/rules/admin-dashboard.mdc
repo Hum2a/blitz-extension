@@ -1,0 +1,24 @@
+---
+description: Blitz admin web app (admin.blitz.com)
+globs: admin/**/*,vite.admin.config.js,docs/ADMIN_DASHBOARD.md
+alwaysApply: false
+---
+
+# Admin dashboard
+
+- Source: `admin/` — Vite React app, **not** bundled into the Chrome extension.
+- Commands: `npm run admin:dev` (port 3790), `npm run admin:build` → `admin-dist/`.
+- Auth: `@supabase/supabase-js` + same Supabase project as extension.
+- Access: JWT + RLS; only `admin` and `developer` roles pass the UI gate (`admin/lib/roles.js`).
+
+## Do not
+
+- Embed service role key in admin frontend.
+- Display decrypted CV/profile (E2EE — not on server).
+- Add admin routes to `popup/` or extension service worker.
+
+## Roles
+
+`user` < `admin` < `developer`. Role changes: **Roles** page (developer only) or `npm run db:seed:developer`.
+
+See [docs/ADMIN_DASHBOARD.md](../docs/ADMIN_DASHBOARD.md).

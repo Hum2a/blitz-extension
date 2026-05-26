@@ -1,6 +1,12 @@
 import { getStorage, setStorage, mergeStorage, getAllSettings } from "./storage.js";
 import { getValidAccessToken } from "./auth.js";
-import { SYNCABLE_STORAGE_KEYS } from "./sync-allowlist.js";
+import {
+  SYNCABLE_STORAGE_KEYS,
+  SYNCABLE_USER_SETTINGS_KEYS,
+  serializeForCloud,
+  mergeFromCloud,
+  prepareForCloud,
+} from "./sync-payload.js";
 import { encryptPayload, decryptPayload, hashForSync } from "./e2ee-crypto.js";
 import { ensureDeviceId, markStorageKeyPending } from "./sync-markers.js";
 import {
@@ -70,6 +76,8 @@ export async function enableCloudSync({ passphrase, rememberOnDevice = true }) {
   await setStorage("sync_unlocked", rememberOnDevice, { skipSync: true });
   await ensureDeviceId();
   await pullCloudSync({ passphrase });
+  const { markAllSettingsPending } = await import("./sync-markers.js");
+  await markAllSettingsPending();
   await schedulePush();
   return { ok: true };
 }
@@ -104,7 +112,7 @@ async function upsertUserSyncMeta(token) {
     token,
     {
       user_id: userId,
-      schema_version: 1,
+      schema_version: 2,
       encryption_version: "v1",
       last_full_sync_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -130,8 +138,7 @@ export async function pushCloudSync({ passphrase } = {}) {
     const rows = [];
     for (const key of pendingKeys) {
       const value = await getStorage(key);
-      const serialized =
-        value === null || value === undefined ? "" : JSON.stringify(value);
+      const serialized = serializeForCloud(key, value);
       const content_hash = await hashForSync(serialized);
       const docMeta = state.documents?.[key] || {};
       if (docMeta.hash === content_hash && !docMeta.pendingPush) continue;
@@ -162,8 +169,7 @@ export async function pushCloudSync({ passphrase } = {}) {
     const nextDocs = { ...(state.documents || {}) };
     for (const key of pendingKeys) {
       const value = await getStorage(key);
-      const serialized =
-        value === null || value === undefined ? "" : JSON.stringify(value);
+      const serialized = serializeForCloud(key, value);
       nextDocs[key] = {
         ...(nextDocs[key] || {}),
         hash: await hashForSync(serialized),
@@ -280,15 +286,17 @@ export async function pullCloudSync({ passphrase, fullMerge = false } = {}) {
     if (winner === "local" && !fullMerge) continue;
 
     const plain = await decryptPayload(row.ciphertext, { passphrase: pp, syncCryptoMeta: meta });
-    let value = plain;
+    let remoteValue = plain;
     if (typeof plain === "string" && plain.length) {
       try {
-        value = JSON.parse(plain);
+        remoteValue = JSON.parse(plain);
       } catch {
-        value = plain;
+        remoteValue = plain;
       }
     }
-    await setStorage(row.doc_key, value, { skipSync: true });
+    const localValue = await getStorage(row.doc_key);
+    const merged = mergeFromCloud(row.doc_key, localValue, remoteValue);
+    await setStorage(row.doc_key, merged, { skipSync: true });
     docMeta[row.doc_key] = {
       hash: row.content_hash,
       remoteUpdatedAt: row.updated_at,
@@ -409,16 +417,13 @@ export async function exportCloudData({ passphrase } = {}) {
   await pullCloudSync({ passphrase, fullMerge: true });
   const settings = await getAllSettings();
   const applications = await getAllApplications();
+  const exportedSettings = {};
+  for (const key of SYNCABLE_USER_SETTINGS_KEYS) {
+    exportedSettings[key] = prepareForCloud(key, settings[key]);
+  }
   return {
     exportedAt: new Date().toISOString(),
-    settings: {
-      cv_text: settings.cv_text,
-      linkedin_profile_text: settings.linkedin_profile_text,
-      user_profile: settings.user_profile,
-      preferences: settings.preferences,
-      appearance: settings.appearance,
-      cv_html_template: settings.cv_html_template,
-    },
+    settings: exportedSettings,
     applications,
   };
 }

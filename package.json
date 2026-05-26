@@ -37,6 +37,8 @@
     "dev": "npm run copy:offscreen && vite build --watch",
     "web:dev": "vite --config vite.web.config.js",
     "web:build": "vite build --config vite.web.config.js",
+    "admin:dev": "vite --config vite.admin.config.js",
+    "admin:build": "vite build --config vite.admin.config.js",
     "build": "npm run copy:offscreen && vite build",
     "build:check": "npm run build && npm run validate",
     "clean": "node scripts/clean.mjs",
@@ -80,9 +82,11 @@
     "db:migrate": "node scripts/run-migrations.mjs",
     "db:migrate:status": "node scripts/run-migrations.mjs --status",
     "db:migrate:dry": "node scripts/run-migrations.mjs --dry-run",
+    "db:seed:developer": "node scripts/seed-developer-role.mjs",
     "load": "echo Open chrome://extensions → Developer mode → Load unpacked → select this folder"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
     "framer-motion": "^12.40.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",

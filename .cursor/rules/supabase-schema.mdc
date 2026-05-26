@@ -1,0 +1,127 @@
+---
+description: Blitz Supabase database schema diagram — update when migrations change
+alwaysApply: true
+---
+
+# Blitz Supabase schema (source of truth)
+
+**Update this file whenever you add or change** `supabase/migrations/*.sql`.
+
+Last aligned with: `001_initial.sql`, `002_roles_and_admin.sql`
+
+## ER diagram
+
+```mermaid
+erDiagram
+  auth_users ||--o| user_roles : has
+  auth_users ||--o| admin_profiles : has
+  auth_users ||--o| user_sync_meta : has
+  auth_users ||--o{ sync_documents : owns
+  auth_users ||--o{ synced_applications : owns
+  auth_users ||--o| license_entitlements : has
+  auth_users ||--o{ admin_audit_log : actor
+  auth_users ||--o{ admin_audit_log : target
+
+  auth_users {
+    uuid id PK
+    text email
+  }
+
+  user_roles {
+    uuid user_id PK_FK
+    app_role role "user|admin|developer"
+    uuid granted_by FK
+    timestamptz granted_at
+    timestamptz updated_at
+  }
+
+  admin_profiles {
+    uuid user_id PK_FK
+    text email
+    timestamptz created_at
+    timestamptz last_seen_at
+  }
+
+  user_sync_meta {
+    uuid user_id PK_FK
+    int schema_version
+    timestamptz last_full_sync_at
+    text encryption_version
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  sync_documents {
+    uuid id PK
+    uuid user_id FK
+    text doc_key "cv_text|preferences|ai_config|..."
+    text ciphertext "E2EE JSON blob"
+    text content_hash
+    timestamptz updated_at
+    text device_id
+    timestamptz deleted_at
+    timestamptz created_at
+  }
+
+  synced_applications {
+    uuid id PK_FK
+    uuid user_id FK
+    text ciphertext "E2EE application record"
+    text content_hash
+    timestamptz updated_at
+    text device_id
+    timestamptz deleted_at
+    timestamptz created_at
+  }
+
+  license_entitlements {
+    uuid user_id PK_FK
+    text tier "free|pro"
+    text source
+    timestamptz expires_at
+    int applications_used
+    text license_key_hash
+    timestamptz updated_at
+    timestamptz created_at
+  }
+
+  admin_audit_log {
+    uuid id PK
+    uuid actor_id FK
+    text action
+    uuid target_user_id FK
+    jsonb meta
+    timestamptz created_at
+  }
+```
+
+## Extension sync keys (`sync_documents.doc_key`)
+
+Encrypted client-side (see `popup/src/lib/sync-payload.js`):
+
+| doc_key | Notes |
+|---------|--------|
+| `cv_text` | Base CV |
+| `linkedin_profile_text` | LinkedIn export text |
+| `user_profile` | Name, contact, work auth, skills |
+| `preferences` | Cover letter mode, prompt parts, daily limit, template id |
+| `appearance` | Theme / mode |
+| `cv_html_template` | PDF HTML template |
+| `ai_config` | **provider + model only** (no API key) |
+| `license` | **tier + usage** (no license key string) |
+
+**Local-only:** `ai_config.apiKey`, `license.key`, pending job/queue, auth session, sync crypto state.
+
+## RLS helpers
+
+- `public.get_my_role()` → `app_role`
+- `public.has_min_role(required)` → admin+ for reads across users
+- `public.is_developer()` → role management
+
+## Related apps
+
+| App | Auth | DB access |
+|-----|------|-----------|
+| Chrome extension | User JWT | `sync_*` own rows; E2EE |
+| Admin dashboard (`admin/`) | Staff JWT | RLS `admin` / `developer` |
+| Edge Functions | Service role | `license_entitlements`, account delete |

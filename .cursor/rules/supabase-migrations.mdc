@@ -1,0 +1,44 @@
+---
+description: Supabase SQL migrations must enable RLS and define policies
+globs: supabase/migrations/**/*.sql
+alwaysApply: false
+---
+
+# Supabase migrations — RLS required
+
+Every migration that creates or alters a **user-facing** `public` table must include Row Level Security.
+
+## Checklist (each new/changed table)
+
+1. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`
+2. At least one policy per operation the app uses (`SELECT`, `INSERT`, `UPDATE`, `DELETE`).
+3. Default-deny: no broad `USING (true)` unless documented (e.g. read-only reference data).
+4. Use helpers from `002_roles_and_admin.sql` when staff access is needed:
+   - `public.has_min_role('admin')` — admin + developer
+   - `public.is_developer()` — developer only
+   - `auth.uid() = user_id` — end-user owns row
+5. `DROP POLICY IF EXISTS ...` before `CREATE POLICY` when replacing policies.
+6. `service_role` bypasses RLS — never rely on it from the extension; Edge Functions only.
+
+## Role hierarchy
+
+`user` < `admin` < `developer` (developer highest).
+
+| Role | Typical access |
+|------|----------------|
+| user | Own rows only |
+| admin | Read cross-user metadata; manage licenses; audit log |
+| developer | Full data + role assignment |
+
+## E2EE reminder
+
+Cloud rows store **ciphertext** only. Admin policies allow metadata reads, not plaintext CV (client-decrypted).
+
+## New migration file naming
+
+`supabase/migrations/NNN_description.sql` — run with `npm run db:migrate`.
+
+## After every migration
+
+1. Update [supabase-schema.mdc](supabase-schema.mdc) — ER diagram + table list must match SQL.
+2. Note new `sync_documents.doc_key` values in that file if the extension gains settings.

@@ -5,6 +5,7 @@
 | Path | Purpose |
 |------|---------|
 | `migrations/001_initial.sql` | Tables + RLS for sync and entitlements |
+| `migrations/002_roles_and_admin.sql` | Roles (user/admin/developer) + admin RLS |
 | `functions/link-license` | Validate license key → `license_entitlements` |
 | `functions/delete-account` | GDPR-style cloud + auth user delete |
 

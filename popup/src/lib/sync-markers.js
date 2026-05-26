@@ -1,5 +1,8 @@
 import { getStorage, mergeStorage } from "./storage.js";
-import { isSyncableStorageKey } from "./sync-allowlist.js";
+import {
+  isSyncableStorageKey,
+  SYNCABLE_USER_SETTINGS_KEYS,
+} from "./sync-payload.js";
 
 const DEFAULT_SYNC_STATE = {
   deviceId: null,
@@ -23,6 +26,32 @@ export async function ensureDeviceId() {
     { skipSync: true }
   );
   return deviceId;
+}
+
+/** Queue every user setting for upload (e.g. after first sync enable). */
+export async function markAllSettingsPending() {
+  const syncEnabled = await getStorage("sync_enabled");
+  if (!syncEnabled) return;
+
+  const state = { ...DEFAULT_SYNC_STATE, ...((await getStorage("sync_state")) || {}) };
+  const pending = new Set(state.pendingDocKeys || []);
+  for (const key of SYNCABLE_USER_SETTINGS_KEYS) {
+    pending.add(key);
+    state.documents = state.documents || {};
+    state.documents[key] = {
+      ...(state.documents[key] || {}),
+      pendingPush: true,
+      localUpdatedAt: new Date().toISOString(),
+    };
+  }
+  state.pendingDocKeys = [...pending];
+  await mergeStorage({ sync_state: state }, { skipSync: true });
+
+  try {
+    chrome.runtime.sendMessage({ type: "SYNC_SCHEDULE_PUSH" }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function markStorageKeyPending(key) {

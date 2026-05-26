@@ -19,6 +19,7 @@ When you **add, remove, or materially change** a user-facing feature or cross-la
 3. **`docs/ARCHITECTURE.md`** — Short section or diagram update for non-trivial flows (queue-from-tabs, PDF pipeline, external web bridge, etc.).
 4. **`AGENTS.md`** — One-line bullet in “Feature index” when the feature is agent-relevant.
 5. **`.cursor/README.md`** — Only if you add a **new** `.mdc` rule file.
+6. **`supabase-schema.mdc`** — When changing `supabase/migrations/*.sql` (ER diagram + tables).
 
 ## When to add a new `.mdc` file
 

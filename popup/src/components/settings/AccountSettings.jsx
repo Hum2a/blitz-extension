@@ -2,11 +2,20 @@ import { useState, useEffect, useCallback } from "react";
 import SettingsCard, { SettingsField, SettingsInput } from "./SettingsCard.jsx";
 import SyncPassphraseModal from "./SyncPassphraseModal.jsx";
 import { SUPABASE_CONFIGURED } from "../../lib/config.js";
+import { sendExtensionMessage } from "../../lib/extension-messages.js";
 import { useModal } from "../../hooks/useModal.js";
+
+const DEFAULT_STATUS = {
+  configured: SUPABASE_CONFIGURED,
+  signedIn: false,
+  email: null,
+  syncEnabled: false,
+  sync: { enabled: false, lastSyncAt: null, lastError: null, pendingCount: 0 },
+};
 
 export default function AccountSettings() {
   const { showAlert, showConfirm } = useModal();
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(DEFAULT_STATUS);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
@@ -15,12 +24,23 @@ export default function AccountSettings() {
   const [passphraseModal, setPassphraseModal] = useState(null);
 
   const refresh = useCallback(async () => {
+    if (!SUPABASE_CONFIGURED) {
+      setStatus(DEFAULT_STATUS);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await chrome.runtime.sendMessage({ type: "AUTH_GET_STATUS" });
-      const sync = await chrome.runtime.sendMessage({ type: "SYNC_STATUS" });
-      setStatus({ ...res, sync });
+      const res = await sendExtensionMessage({ type: "ACCOUNT_GET_STATUS" });
+      if (res?.error) throw new Error(res.error);
+      setStatus({ ...DEFAULT_STATUS, ...res, sync: { ...DEFAULT_STATUS.sync, ...res?.sync } });
     } catch (err) {
-      setStatus({ configured: SUPABASE_CONFIGURED, error: err.message });
+      setStatus({
+        ...DEFAULT_STATUS,
+        configured: true,
+        error: err.message || "Could not load account status",
+      });
     } finally {
       setLoading(false);
     }
@@ -34,7 +54,7 @@ export default function AccountSettings() {
     setBusy(true);
     try {
       const msg = payload !== undefined ? { type, payload } : { type };
-      const result = await chrome.runtime.sendMessage(msg);
+      const result = await sendExtensionMessage(msg);
       if (result?.error) throw new Error(result.error);
       await refresh();
       return result;
@@ -92,9 +112,9 @@ export default function AccountSettings() {
 
   async function handleEnableSync() {
     const { passphrase, rememberOnDevice } = await openPassphraseModal(
-      status?.sync?.enabled ? "unlock" : "setup"
+      status?.syncEnabled ? "unlock" : "setup"
     );
-    if (status?.sync?.enabled) {
+    if (status?.syncEnabled) {
       await run("SYNC_UNLOCK", { passphrase, rememberOnDevice });
     } else {
       await run("SYNC_ENABLE", { passphrase, rememberOnDevice });
@@ -161,14 +181,6 @@ export default function AccountSettings() {
     URL.revokeObjectURL(url);
   }
 
-  if (loading) {
-    return (
-      <SettingsCard id="settings-account" title="Account & sync" description="Loading…">
-        <p className="text-sm text-slate-500">Loading account status…</p>
-      </SettingsCard>
-    );
-  }
-
   if (!SUPABASE_CONFIGURED) {
     return (
       <SettingsCard
@@ -188,143 +200,166 @@ export default function AccountSettings() {
     );
   }
 
-  const signedIn = status?.signedIn;
-  const syncEnabled = status?.syncEnabled;
+  const signedIn = Boolean(status?.signedIn);
+  const syncEnabled = Boolean(status?.syncEnabled);
 
   return (
     <>
       <SettingsCard
         id="settings-account"
         title="Account & sync"
-        description="Encrypt CV and settings in the cloud. AI API keys stay on this device only."
+        description={
+          loading
+            ? "Checking sign-in status…"
+            : "Encrypt CV and settings in the cloud. AI API keys stay on this device only."
+        }
       >
-        {signedIn ? (
-          <p className="text-sm text-green-700 font-medium">Signed in as {status.email}</p>
+        {loading ? (
+          <p className="text-sm text-slate-500">Loading account status…</p>
         ) : (
-          <p className="text-sm text-slate-600">
-            Continue using Blitz locally, or sign in to sync encrypted data across devices.
-          </p>
-        )}
-
-        {!signedIn && (
-          <div className="space-y-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleGoogleSignIn}
-              className="w-full sm:w-auto bg-blitz-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-blitz-700 disabled:opacity-50"
-            >
-              Sign in with Google
-            </button>
-            <div className="pt-2 border-t border-slate-100 space-y-2">
-              <SettingsField label="Email one-time code">
-                <SettingsInput
-                  type="email"
-                  value={otpEmail}
-                  onChange={(e) => setOtpEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </SettingsField>
-              <div className="flex flex-wrap gap-2">
+          <>
+            {status?.error && (
+              <p className="text-sm text-amber-800 mb-3">
+                {status.error}
                 <button
                   type="button"
-                  disabled={busy || !otpEmail.trim()}
-                  onClick={handleSendOtp}
-                  className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
+                  className="ml-2 underline"
+                  onClick={() => refresh()}
                 >
-                  Send code
+                  Retry
                 </button>
-                {otpSent && (
-                  <>
+              </p>
+            )}
+
+            {signedIn ? (
+              <p className="text-sm text-green-700 font-medium">Signed in as {status.email}</p>
+            ) : (
+              <p className="text-sm text-slate-600">
+                Continue using Blitz locally, or sign in to sync encrypted data across devices.
+              </p>
+            )}
+
+            {!signedIn && (
+              <div className="space-y-3 mt-3">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleGoogleSignIn}
+                  className="w-full sm:w-auto bg-blitz-600 text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-blitz-700 disabled:opacity-50"
+                >
+                  Sign in with Google
+                </button>
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <SettingsField label="Email one-time code">
                     <SettingsInput
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      placeholder="6-digit code"
-                      className="max-w-[140px]"
+                      type="email"
+                      value={otpEmail}
+                      onChange={(e) => setOtpEmail(e.target.value)}
+                      placeholder="you@example.com"
                     />
+                  </SettingsField>
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={busy || otpCode.length < 4}
-                      onClick={handleVerifyOtp}
-                      className="bg-blitz-600 text-white py-2 px-3 rounded-lg text-sm disabled:opacity-50"
+                      disabled={busy || !otpEmail.trim()}
+                      onClick={handleSendOtp}
+                      className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
                     >
-                      Verify
+                      Send code
                     </button>
-                  </>
-                )}
+                    {otpSent && (
+                      <>
+                        <SettingsInput
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value)}
+                          placeholder="6-digit code"
+                          className="max-w-[140px]"
+                        />
+                        <button
+                          type="button"
+                          disabled={busy || otpCode.length < 4}
+                          onClick={handleVerifyOtp}
+                          className="bg-blitz-600 text-white py-2 px-3 rounded-lg text-sm disabled:opacity-50"
+                        >
+                          Verify
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {signedIn && (
-          <div className="space-y-3 pt-2">
-            <p className="text-xs text-slate-500">
-              {syncEnabled
-                ? status.sync?.lastSyncAt
-                  ? `Last sync: ${new Date(status.sync.lastSyncAt).toLocaleString()}`
-                  : "Sync enabled — waiting for first upload"
-                : "Sign-in complete — enable sync with a passphrase below"}
-              {status.sync?.lastError && (
-                <span className="block text-amber-700 mt-1">Error: {status.sync.lastError}</span>
-              )}
-              {status.sync?.pendingCount > 0 && (
-                <span className="block mt-1">{status.sync.pendingCount} change(s) pending upload</span>
-              )}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleEnableSync}
-                className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
-              >
-                {syncEnabled ? "Unlock sync passphrase" : "Enable encrypted sync"}
-              </button>
-              <button
-                type="button"
-                disabled={busy || !syncEnabled}
-                onClick={handleSyncNow}
-                className="bg-blitz-600 text-white py-2 px-3 rounded-lg text-sm disabled:opacity-50"
-              >
-                Sync now
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleExport}
-                className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
-              >
-                Export data
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleSignOut}
-                className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
-              >
-                Sign out
-              </button>
-            </div>
-            <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleResetCloud}
-                className="text-sm text-amber-800 hover:underline disabled:opacity-50"
-              >
-                Reset cloud data
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleDeleteAccount}
-                className="text-sm text-red-700 hover:underline disabled:opacity-50"
-              >
-                Delete cloud account
-              </button>
-            </div>
-          </div>
+            {signedIn && (
+              <div className="space-y-3 pt-2">
+                <p className="text-xs text-slate-500">
+                  {syncEnabled
+                    ? status.sync?.lastSyncAt
+                      ? `Last sync: ${new Date(status.sync.lastSyncAt).toLocaleString()}`
+                      : "Sync enabled — waiting for first upload"
+                    : "Sign-in complete — enable sync with a passphrase below"}
+                  {status.sync?.lastError && (
+                    <span className="block text-amber-700 mt-1">Error: {status.sync.lastError}</span>
+                  )}
+                  {status.sync?.pendingCount > 0 && (
+                    <span className="block mt-1">{status.sync.pendingCount} change(s) pending upload</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleEnableSync}
+                    className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {syncEnabled ? "Unlock sync passphrase" : "Enable encrypted sync"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !syncEnabled}
+                    onClick={handleSyncNow}
+                    className="bg-blitz-600 text-white py-2 px-3 rounded-lg text-sm disabled:opacity-50"
+                  >
+                    Sync now
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleExport}
+                    className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Export data
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleSignOut}
+                    className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Sign out
+                  </button>
+                </div>
+                <div className="pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleResetCloud}
+                    className="text-sm text-amber-800 hover:underline disabled:opacity-50"
+                  >
+                    Reset cloud data
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={handleDeleteAccount}
+                    className="text-sm text-red-700 hover:underline disabled:opacity-50"
+                  >
+                    Delete cloud account
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </SettingsCard>
 

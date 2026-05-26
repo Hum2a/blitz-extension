@@ -57,7 +57,19 @@ npx supabase functions deploy delete-account
 - **link-license**: Validates key against existing Cloudflare license worker, upserts `license_entitlements` (service role).
 - **delete-account**: Removes user rows + auth user (GDPR-style cloud delete).
 
-## 4. User flows
+## 4. What syncs to the database
+
+All user **settings** from `storage.js` are stored in `sync_documents` (encrypted). See [supabase-schema.mdc](../.cursor/rules/supabase-schema.mdc).
+
+| Synced | Stays local only |
+|--------|------------------|
+| CV, profile, preferences, appearance, CV template | API key |
+| AI provider + model | License key string |
+| License tier + usage count | Pending job, queue, auth session |
+
+After enabling sync, run **Sync now** or edit a setting to upload. `npm run config:sync` + rebuild required after `.env` changes.
+
+## 5. User flows
 
 | Action | Behaviour |
 |--------|-----------|
@@ -69,14 +81,14 @@ npx supabase functions deploy delete-account
 | Sign out | Local data kept; session cleared; sync stops |
 | Lost passphrase | Cloud data **not recoverable** — reset cloud data or delete account |
 
-## 5. Security model
+## 6. Security model
 
 - TLS + Supabase RLS (`auth.uid() = user_id`)
 - Client-side encryption for `sync_documents` and `synced_applications`
 - `ai_config.apiKey` excluded from sync allowlist
 - No logging of tokens, passphrase, CV plaintext, or ciphertext decoding in production code
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
@@ -85,6 +97,14 @@ npx supabase functions deploy delete-account
 | Pull returns empty | Enable sync + passphrase; check RLS policies applied |
 | Pro not syncing | Activate license while signed in; deploy `link-license` function |
 
-## 7. Chrome Web Store
+## 8. Roles & admin dashboard
+
+After `002_roles_and_admin.sql`:
+
+- New signups get role **user** automatically.
+- Bootstrap first **developer**: `npm run db:seed:developer` (see [ADMIN_DASHBOARD.md](ADMIN_DASHBOARD.md)).
+- Admin app: `npm run admin:dev` / deploy `admin-dist/` to `admin.blitz.com`.
+
+## 9. Chrome Web Store
 
 Update privacy disclosure: account email (auth provider), encrypted career documents, Supabase as processor. New permissions: `identity`, `alarms`, `https://*.supabase.co/*`.

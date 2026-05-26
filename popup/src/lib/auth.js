@@ -78,6 +78,7 @@ export function isSessionExpired(session) {
 }
 
 export async function refreshSessionIfNeeded() {
+  if (!SUPABASE_CONFIGURED) return null;
   const session = await getAuthSession();
   if (!session?.refresh_token) return null;
   if (!isSessionExpired(session)) return session;
@@ -86,7 +87,8 @@ export async function refreshSessionIfNeeded() {
     const next = sessionFromTokenResponse(data);
     return saveAuthSession(next);
   } catch {
-    return session;
+    await clearAuthSession();
+    return null;
   }
 }
 
@@ -169,16 +171,44 @@ export async function signOut() {
 }
 
 export async function getAuthStatus() {
+  if (!SUPABASE_CONFIGURED) {
+    return {
+      configured: false,
+      signedIn: false,
+      email: null,
+      userId: null,
+      syncEnabled: false,
+      sync: {
+        configured: false,
+        enabled: false,
+        lastSyncAt: null,
+        lastError: null,
+        pendingCount: 0,
+      },
+    };
+  }
+
   const session = await refreshSessionIfNeeded();
   const syncEnabled = await getStorage("sync_enabled");
-  const syncState = await getStorage("sync_state");
+  const syncState = (await getStorage("sync_state")) || {};
+
   return {
-    configured: SUPABASE_CONFIGURED,
+    configured: true,
     signedIn: Boolean(session?.access_token),
     email: session?.user?.email || null,
     userId: session?.user?.id || null,
     syncEnabled: Boolean(syncEnabled),
     lastSyncAt: syncState?.lastSyncAt || null,
     lastError: syncState?.lastError || null,
+    sync: {
+      configured: true,
+      enabled: Boolean(syncEnabled),
+      lastSyncAt: syncState?.lastSyncAt || null,
+      lastError: syncState?.lastError || null,
+      pendingCount:
+        (syncState.pendingDocKeys?.length || 0) +
+        (syncState.pendingApplicationIds?.length || 0) +
+        (syncState.pendingOps?.length || 0),
+    },
   };
 }

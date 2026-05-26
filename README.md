@@ -16,6 +16,7 @@
 - **Bulk job queue** — paste URLs, batch-generate applications
 - **Freemium** — 15 free applications; Pro via license key
 - **Optional cloud sync** — encrypted backup across devices (Supabase); API keys stay local ([docs/SYNC_AND_AUTH.md](docs/SYNC_AND_AUTH.md))
+- **Admin dashboard** — separate deploy for staff (`user` / `admin` / `developer` roles) — [docs/ADMIN_DASHBOARD.md](docs/ADMIN_DASHBOARD.md)
 - **Dashboard** — full-tab workspace ([DASHBOARD.md](DASHBOARD.md))
 
 ## Supported platforms

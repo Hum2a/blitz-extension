@@ -22,14 +22,17 @@ function restHeaders(accessToken, extra = {}) {
   };
 }
 
-export async function authRequest(path, { method = "GET", body, accessToken } = {}) {
+export async function authRequest(
+  path,
+  { method = "GET", body, accessToken, fetchImpl = fetch } = {}
+) {
   assertConfigured();
   const headers = {
     apikey: SUPABASE_ANON_KEY,
     "Content-Type": "application/json",
   };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-  const res = await fetch(`${SUPABASE_URL}/auth/v1${path}`, {
+  const res = await fetchImpl(`${SUPABASE_URL}/auth/v1${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -61,10 +64,23 @@ export async function exchangeCodeForSession(code, codeVerifier) {
   });
 }
 
+const AUTH_FETCH_TIMEOUT_MS = 10_000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = AUTH_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function refreshSession(refreshToken) {
   return authRequest("/token?grant_type=refresh_token", {
     method: "POST",
     body: { refresh_token: refreshToken },
+    fetchImpl: fetchWithTimeout,
   });
 }
 

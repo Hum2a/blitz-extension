@@ -37,6 +37,7 @@ export async function handleSyncAuthMessage(message) {
       return signOut();
 
     case "AUTH_GET_STATUS":
+    case "ACCOUNT_GET_STATUS":
       return getAuthStatus();
 
     case "SYNC_ENABLE":
