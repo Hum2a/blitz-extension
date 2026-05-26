@@ -70,7 +70,7 @@ function formatLinkedInSection(linkedinProfileText) {
       : text;
   return `
 
-LinkedIn profile export (skills, experience, education, certifications; use for screening answers and to enrich the tailored CV; do not invent details not present in Base CV or LinkedIn profile):
+LinkedIn profile export (skills, experience, certifications; use mainly for screening answers and to enrich the tailored CV; do not invent details not present in Base CV or LinkedIn profile). IMPORTANT: Do NOT replace the Education section with contact/location/link lines from this export.
 ${truncated}`;
 }
 
@@ -115,6 +115,28 @@ User profile for screening questions:
 
   blocks.push("\nAlways respond with valid JSON only. No markdown, no preamble.");
   return blocks.join("\n");
+}
+
+const HUMZA_CANONICAL_EDUCATION = `Education (canonical, must be used verbatim for Humza Butt):
+- University of Portsmouth – 2019 – 2023
+  - MEng Engineering in Computer Science (Hons) - Merit
+  - (Including BSc Computer Science (Hons) – 1st Class)
+- Wallington County Grammar School - 2017 – 2019
+  - A-levels: Physics – A / Maths – A / Chemistry – C
+- Wallington County Grammar School - 2012 – 2017
+  - GCSE’S: 12A* - B’s`;
+
+function isHumzaProfile(userProfile = {}) {
+  const name = String(userProfile?.name || "").toLowerCase();
+  const email = String(userProfile?.email || "").toLowerCase();
+  const github = String(userProfile?.github || "").toLowerCase();
+  const linkedin = String(userProfile?.linkedin || "").toLowerCase();
+  return (
+    name.includes("humza") ||
+    email.includes("humzabutt1711") ||
+    github.includes("hum2a") ||
+    linkedin.includes("humza-butt")
+  );
 }
 
 function buildResponseSchema(jobData, parts) {
@@ -218,8 +240,22 @@ export function buildApplicationPrompts({
     ? "Apply all CV writing rules above when tailoring."
     : "Tailor the CV to the job listing.";
 
+  const bespokeConstraints = [];
+  if (isHumzaProfile(userProfile)) {
+    bespokeConstraints.push(HUMZA_CANONICAL_EDUCATION);
+    bespokeConstraints.push(
+      "Education rules (critical): The Education section in both tailoredCV and cvDocument.education MUST match the canonical entries above. Do not derive education from LinkedIn export, and never put contact/location/link lines under Education."
+    );
+  } else {
+    bespokeConstraints.push(
+      "Education rules: Prefer Education from Base CV. Only use LinkedIn education when Base CV does not contain education. Never put contact/location/link lines under Education."
+    );
+  }
+
   const userPrompt = [
     ...inputParts.map((p) => p.text),
+    "",
+    ...bespokeConstraints,
     "",
     `${tailoringNote} Do not fabricate experience, metrics, or employers. Do not use em dashes (—) in any field.`,
     "",
