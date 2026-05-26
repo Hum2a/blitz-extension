@@ -32,6 +32,7 @@ export const LOCAL_ONLY_STORAGE_KEYS = new Set([
   "sync_crypto_meta",
   "sync_enabled",
   "sync_unlocked",
+  "ui_state",
 ]);
 
 export function isSyncableStorageKey(key) {

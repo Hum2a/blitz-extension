@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Dashboard from "./components/Dashboard.jsx";
 import ReviewPanel from "./components/ReviewPanel.jsx";
@@ -18,6 +18,7 @@ import { progressFromStage } from "./lib/generation-progress.js";
 import { GENERATION_STATUS_KEY } from "./lib/generation-status.js";
 import { openDashboard } from "./lib/open-dashboard.js";
 import { isExtensionPage, isLocalWeb } from "./lib/extension-env.js";
+import { getUiState, patchUiState } from "./lib/ui-state.js";
 import SiteShell from "./components/site/SiteShell.jsx";
 
 const VIEWS = {
@@ -31,6 +32,7 @@ const VIEWS = {
 
 export default function App({ fullPage = false, bridgeMode = false }) {
   const [view, setView] = useState(VIEWS.dashboard);
+  const popupViewHydrated = useRef(false);
   const [pendingJob, setPendingJob] = useState(null);
   const [application, setApplication] = useState(null);
   const [generating, setGenerating] = useState(false);
@@ -41,6 +43,32 @@ export default function App({ fullPage = false, bridgeMode = false }) {
   const [lastGenerationCost, setLastGenerationCost] = useState(null);
   const [generationProgress, setGenerationProgress] = useState(null);
   const license = useLicense();
+
+  const navigate = useCallback(
+    (nextView) => {
+      setView(nextView);
+      if (!fullPage && popupViewHydrated.current && VIEWS[nextView]) {
+        patchUiState({ popupView: nextView }).catch(() => {});
+      }
+    },
+    [fullPage]
+  );
+
+  useEffect(() => {
+    if (fullPage) return;
+    let cancelled = false;
+    (async () => {
+      const ui = await getUiState();
+      if (cancelled) return;
+      if (ui.popupView && VIEWS[ui.popupView]) {
+        setView(ui.popupView);
+      }
+      popupViewHydrated.current = true;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fullPage]);
 
   const reconcileApplication = async (job) => {
     const stored = await getStorage("pending_application");
@@ -70,10 +98,10 @@ export default function App({ fullPage = false, bridgeMode = false }) {
       setApplication(result.application);
       await setStorage("pending_job", result.job);
       await setStorage("pending_application", result.application);
-      setView(VIEWS.review);
+      navigate(VIEWS.review);
     } catch (err) {
       setGenerateError(err.message || "Could not load application");
-      setView(VIEWS.dashboard);
+      navigate(VIEWS.dashboard);
     }
   };
 
@@ -201,9 +229,9 @@ export default function App({ fullPage = false, bridgeMode = false }) {
       pendingJob &&
       !applicationMatchesJob(application, pendingJob)
     ) {
-      setView(VIEWS.dashboard);
+      navigate(VIEWS.dashboard);
     }
-  }, [view, application, pendingJob]);
+  }, [view, application, pendingJob, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,7 +273,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         setGenerationProgress(null);
         setGenerateError(null);
         if (message.payload?.cost) setLastGenerationCost(message.payload.cost);
-        setView(VIEWS.review);
+        navigate(VIEWS.review);
       }
       if (message.type === "GENERATION_FAILED") {
         setGenerating(false);
@@ -265,7 +293,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
   const showPaywall = !license.loading && !license.allowed && license.tier !== "pro";
 
   if (showPaywall && view !== VIEWS.settings) {
-    return <LicenseGate onSettings={() => setView(VIEWS.settings)} />;
+    return <LicenseGate onSettings={() => navigate(VIEWS.settings)} />;
   }
 
   const navItems = [
@@ -314,7 +342,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
                 if (result?.tailoredCV || result?.jobData) {
                   setLastGenerationCost(result.cost ?? null);
                   setApplication(result);
-                  setView(VIEWS.review);
+                  navigate(VIEWS.review);
                   setGenerating(false);
                   setGenerationProgress(null);
                 }
@@ -324,9 +352,9 @@ export default function App({ fullPage = false, bridgeMode = false }) {
                 setGenerationProgress(null);
               }
             }}
-        onReview={() => setView(VIEWS.review)}
-        onViewHistory={() => setView(VIEWS.history)}
-        onViewQueue={() => setView(VIEWS.queue)}
+        onReview={() => navigate(VIEWS.review)}
+        onViewHistory={() => navigate(VIEWS.history)}
+        onViewQueue={() => navigate(VIEWS.queue)}
         onLoadFromHistory={loadFromHistory}
         fullPage={fullPage}
       />
@@ -336,7 +364,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         application={application}
         pendingJob={pendingJob}
         fullPage={fullPage}
-        onBack={() => setView(VIEWS.dashboard)}
+        onBack={() => navigate(VIEWS.dashboard)}
         generating={generating}
         lastGenerationCost={lastGenerationCost}
         generationProgress={generationProgress}
@@ -374,7 +402,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         onReviewItem={(app, job) => {
           setApplication(app);
           setPendingJob(job);
-          setView(VIEWS.review);
+          navigate(VIEWS.review);
         }}
       />
     ),
@@ -399,10 +427,10 @@ export default function App({ fullPage = false, bridgeMode = false }) {
     return (
       <SiteShell
         view={view}
-        onNavigate={setView}
+        onNavigate={navigate}
         license={license}
         bridgeMode={bridgeMode || isLocalWeb()}
-        reviewBack={() => setView(VIEWS.dashboard)}
+        reviewBack={() => navigate(VIEWS.dashboard)}
       >
         {mainContent}
       </SiteShell>
@@ -431,7 +459,7 @@ export default function App({ fullPage = false, bridgeMode = false }) {
         </motion.h1>
         <nav className="flex gap-1 text-sm items-center flex-wrap justify-end">
           {navItems.map(([id, label]) => (
-            <NavTab key={id} active={view === id} onClick={() => setView(id)}>
+            <NavTab key={id} active={view === id} onClick={() => navigate(id)}>
               {label}
             </NavTab>
           ))}

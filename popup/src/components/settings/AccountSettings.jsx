@@ -3,6 +3,8 @@ import SettingsCard, { SettingsField, SettingsInput } from "./SettingsCard.jsx";
 import SyncPassphraseModal from "./SyncPassphraseModal.jsx";
 import { SUPABASE_CONFIGURED } from "../../lib/config.js";
 import { accountRequest } from "../../lib/account-api.js";
+import { clearAccountUiState } from "../../lib/ui-state.js";
+import { usePersistedUiSlice } from "../../hooks/usePersistedUiSlice.js";
 import { useModal } from "../../hooks/useModal.js";
 
 const DEFAULT_STATUS = {
@@ -18,9 +20,17 @@ export default function AccountSettings() {
   const [status, setStatus] = useState(DEFAULT_STATUS);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [accountUi, setAccountUi] = usePersistedUiSlice("account", {
+    otpEmail: "",
+    otpCode: "",
+    otpSent: false,
+    otpSentAt: null,
+  });
+  const { otpEmail, otpCode, otpSent } = accountUi;
+  const setOtpEmail = (v) =>
+    setAccountUi((u) => ({ ...u, otpEmail: typeof v === "function" ? v(u.otpEmail) : v }));
+  const setOtpCode = (v) =>
+    setAccountUi((u) => ({ ...u, otpCode: typeof v === "function" ? v(u.otpCode) : v }));
   const [passphraseModal, setPassphraseModal] = useState(null);
 
   const refresh = useCallback(async () => {
@@ -49,6 +59,12 @@ export default function AccountSettings() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!status.signedIn) return;
+    clearAccountUiState().catch(() => {});
+    setAccountUi({ otpEmail: "", otpCode: "", otpSent: false, otpSentAt: null });
+  }, [status.signedIn, setAccountUi]);
 
   async function run(type, payload) {
     setBusy(true);
@@ -99,7 +115,7 @@ export default function AccountSettings() {
   async function handleSendOtp() {
     if (!otpEmail.trim()) return;
     await run("AUTH_SEND_OTP", { email: otpEmail.trim() });
-    setOtpSent(true);
+    setAccountUi((u) => ({ ...u, otpSent: true, otpSentAt: Date.now() }));
     await showAlert(
       "Check your email for a 6-digit code and enter it below. If you only received a confirmation link (e.g. to localhost), update Supabase email templates — see docs/SYNC_AND_AUTH.md → Email OTP.",
       { title: "Email sent" }
@@ -108,8 +124,8 @@ export default function AccountSettings() {
 
   async function handleVerifyOtp() {
     await run("AUTH_VERIFY_OTP", { email: otpEmail.trim(), token: otpCode.trim() });
-    setOtpSent(false);
-    setOtpCode("");
+    await clearAccountUiState();
+    setAccountUi({ otpEmail: "", otpCode: "", otpSent: false, otpSentAt: null });
   }
 
   async function handleEnableSync() {
@@ -271,6 +287,9 @@ export default function AccountSettings() {
                     </button>
                     {otpSent && (
                       <>
+                        <p className="text-xs text-slate-500 w-full">
+                          Code sent — you can close the popup and return here to enter it.
+                        </p>
                         <SettingsInput
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value)}
