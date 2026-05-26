@@ -28,6 +28,7 @@ import {
   resolvePdfHtmlForExport,
 } from "../popup/src/lib/cv-export.js";
 import { integrateNewGeneration } from "../popup/src/lib/application-versions.js";
+import { htmlToPlainText } from "../popup/src/lib/document-rich-text.js";
 import {
   applicationMatchesJob,
   withListingKey,
@@ -334,8 +335,8 @@ async function handleMessage(message, sender) {
       await chrome.tabs.sendMessage(tabId, {
         type: "FILL_FORM",
         payload: {
-          tailoredCV: application.tailoredCV,
-          coverLetter: application.coverLetter,
+          tailoredCV: htmlToPlainText(application.tailoredCV) || application.tailoredCV,
+          coverLetter: htmlToPlainText(application.coverLetter) || application.coverLetter,
           screeningAnswers: application.screeningAnswers,
           userProfile: settings.user_profile,
           pdfBase64,

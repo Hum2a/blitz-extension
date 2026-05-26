@@ -6,6 +6,7 @@ import {
   buildContactLineHtml,
   enrichCvDocumentRichFields,
 } from "./cv-html.js";
+import { htmlToPlainText } from "./document-rich-text.js";
 
 export { buildContactLineHtml };
 
@@ -62,7 +63,8 @@ export function resolveCvDocument({ cvDocument, tailoredCV, userProfile }) {
     doc = { ...cvDocument };
   }
   if (tailoredCV?.trim()) {
-    const parsed = parseTailoredCvText(tailoredCV, userProfile);
+    const textForParse = htmlToPlainText(tailoredCV) || tailoredCV;
+    const parsed = parseTailoredCvText(textForParse, userProfile);
     doc = doc ? mergeParsedTailoredCv(doc, parsed) : parsed;
   }
   if (!doc) return null;

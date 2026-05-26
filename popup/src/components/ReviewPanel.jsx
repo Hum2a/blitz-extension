@@ -17,6 +17,8 @@ import {
 } from "../lib/cv-export.js";
 import ReviewPdfHtmlEditor from "./ReviewPdfHtmlEditor.jsx";
 import ApplicationVersionsBar from "./ApplicationVersionsBar.jsx";
+import ReviewDocumentEditor from "./ReviewDocumentEditor.jsx";
+import { htmlToPlainText } from "../lib/document-rich-text.js";
 import { Stagger, FadeUp, Card, Btn } from "./motion.jsx";
 import { Modal, ModalButton } from "./Modal.jsx";
 import { useModal } from "../hooks/useModal.js";
@@ -62,7 +64,7 @@ export default function ReviewPanel({
   const applyToEditor = (app) => {
     const text = app.tailoredCV || "";
     setCv(text);
-    initialCvRef.current = text;
+    initialCvRef.current = htmlToPlainText(text);
     setCoverLetter(app.coverLetter || "");
     setAnswers(app.screeningAnswers || []);
     setPdfHtmlOverride(app.pdfHtmlOverride || null);
@@ -110,9 +112,8 @@ export default function ReviewPanel({
   };
 
   const compareText = (id) => {
-    if (id === "draft") return cv;
-    const v = versionList.find((x) => x.id === id);
-    return v?.tailoredCV || "";
+    const raw = id === "draft" ? cv : versionList.find((x) => x.id === id)?.tailoredCV || "";
+    return htmlToPlainText(raw) || raw;
   };
 
   const handleRegenerateClick = async () => {
@@ -151,7 +152,7 @@ export default function ReviewPanel({
 
   const pdfLayoutStale =
     Boolean(pdfLayoutHtml) &&
-    cv.trim() !== (initialCvRef.current || "").trim();
+    htmlToPlainText(cv).trim() !== (initialCvRef.current || "").trim();
 
   const handleApplyPdfLayout = async () => {
     setPdfApplying(true);
@@ -203,7 +204,7 @@ export default function ReviewPanel({
       });
       if (!useManualPdfHtml) {
         await persistPdfLayout(pdfHtml);
-        initialCvRef.current = cv.trim();
+        initialCvRef.current = htmlToPlainText(cv).trim();
       }
       await downloadCvPdf({
         cvDocument,
@@ -236,7 +237,7 @@ export default function ReviewPanel({
       });
       if (!useManualPdfHtml) {
         await persistPdfLayout(html);
-        initialCvRef.current = cv.trim();
+        initialCvRef.current = htmlToPlainText(cv).trim();
       }
       setCvPreviewHtml(html);
       setCvPreviewOpen(true);
@@ -324,6 +325,36 @@ export default function ReviewPanel({
     license.remaining !== Infinity &&
     license.remaining <= 3;
 
+  const exportBasename = displayApplicationLabel({
+    applicationTitle: application.applicationTitle,
+    role: pendingJob?.jobTitle || application.jobData?.jobTitle,
+    company: pendingJob?.company || application.jobData?.company,
+  });
+
+  const handleCvPdfWithLayout = async (editorValue) => {
+    const userProfile = (await getStorage("user_profile")) || {};
+    const tailoredCV = editorValue ?? cv;
+    const { cvDocument } = exportCvPayload();
+    const { html: pdfHtml } = await resolvePdfHtmlForExport({
+      cvDocument,
+      tailoredCV,
+      userProfile,
+      htmlOverride: pdfHtmlOverride,
+      useManualOverride: useManualPdfHtml,
+    });
+    if (!useManualPdfHtml) {
+      await persistPdfLayout(pdfHtml);
+      initialCvRef.current = htmlToPlainText(tailoredCV).trim();
+    }
+    await downloadCvPdf({
+      cvDocument,
+      tailoredCV,
+      userProfile,
+      html: pdfHtml,
+      filename: `${exportBasename}.pdf`,
+    });
+  };
+
   const sidebar = (
     <>
       <FadeUp>
@@ -385,7 +416,7 @@ export default function ReviewPanel({
         <Btn
           onClick={handleApplyPdfLayout}
           loading={pdfApplying}
-          disabled={pdfApplying || !cv.trim()}
+          disabled={pdfApplying || !htmlToPlainText(cv).trim()}
           className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2.5 rounded-lg text-sm btn-shine disabled:opacity-50"
         >
           {pdfApplying ? "Updating PDF layout…" : "Update PDF from tailored CV"}
@@ -462,25 +493,26 @@ export default function ReviewPanel({
         onRestore={handleRestoreVersion}
         onCompare={openCompare}
       />
-      <div className={`grid gap-4 ${fullPage ? "grid-cols-1" : "grid-cols-1 gap-3"}`}>
-        {[
-          ["Tailored CV", cv, setCv, fullPage ? 14 : 8, "font-mono"],
-          ["Cover letter", coverLetter, setCoverLetter, fullPage ? 10 : 6, ""],
-        ].map(([label, value, setter, rows, extra], i) => (
-          <FadeUp key={label} delay={0.06 + i * 0.05}>
-            <motion.label className="block" whileFocus={{ scale: 1.01 }} transition={{ duration: 0.15 }}>
-              <span className="text-xs font-semibold text-slate-500 uppercase">{label}</span>
-              <motion.textarea
-                value={value}
-                onChange={(e) => setter(e.target.value)}
-                rows={rows}
-                className={`mt-1 w-full text-sm border rounded-lg p-3 focus:ring-2 focus:ring-blitz-200 focus:border-blitz-400 transition-shadow ${extra}`}
-                layout
-              />
-            </motion.label>
-          </FadeUp>
-        ))}
-      </div>
+      <FadeUp delay={0.06}>
+        <ReviewDocumentEditor
+          label="Tailored CV"
+          value={cv}
+          onChange={setCv}
+          fullPage={fullPage}
+          exportBasename={exportBasename}
+          onExportPdfWithLayout={handleCvPdfWithLayout}
+          mono
+        />
+      </FadeUp>
+      <FadeUp delay={0.1}>
+        <ReviewDocumentEditor
+          label="Cover letter"
+          value={coverLetter}
+          onChange={setCoverLetter}
+          fullPage={fullPage}
+          exportBasename={`${exportBasename} - Cover letter`}
+        />
+      </FadeUp>
       <ReviewPdfHtmlEditor
         application={application}
         cvDocument={application?.cvDocument ?? null}
