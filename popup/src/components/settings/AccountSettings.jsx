@@ -4,6 +4,11 @@ import SyncPassphraseModal from "./SyncPassphraseModal.jsx";
 import { SUPABASE_CONFIGURED } from "../../lib/config.js";
 import { accountRequest } from "../../lib/account-api.js";
 import { clearAccountUiState } from "../../lib/ui-state.js";
+import {
+  isEmailRateLimitError,
+  rateLimitCooldownMs,
+  formatRateLimitMessage,
+} from "../../lib/auth-errors.js";
 import { usePersistedUiSlice } from "../../hooks/usePersistedUiSlice.js";
 import { useModal } from "../../hooks/useModal.js";
 
@@ -25,8 +30,20 @@ export default function AccountSettings() {
     otpCode: "",
     otpSent: false,
     otpSentAt: null,
+    otpCooldownUntil: null,
   });
-  const { otpEmail, otpCode, otpSent } = accountUi;
+  const { otpEmail, otpCode, otpSent, otpCooldownUntil } = accountUi;
+  const [clock, setClock] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const otpCooldownSec = Math.max(
+    0,
+    Math.ceil(((otpCooldownUntil || 0) - clock) / 1000)
+  );
   const setOtpEmail = (v) =>
     setAccountUi((u) => ({ ...u, otpEmail: typeof v === "function" ? v(u.otpEmail) : v }));
   const setOtpCode = (v) =>
@@ -63,7 +80,13 @@ export default function AccountSettings() {
   useEffect(() => {
     if (!status.signedIn) return;
     clearAccountUiState().catch(() => {});
-    setAccountUi({ otpEmail: "", otpCode: "", otpSent: false, otpSentAt: null });
+    setAccountUi({
+      otpEmail: "",
+      otpCode: "",
+      otpSent: false,
+      otpSentAt: null,
+      otpCooldownUntil: null,
+    });
   }, [status.signedIn, setAccountUi]);
 
   async function run(type, payload) {
@@ -113,19 +136,50 @@ export default function AccountSettings() {
   }
 
   async function handleSendOtp() {
-    if (!otpEmail.trim()) return;
-    await run("AUTH_SEND_OTP", { email: otpEmail.trim() });
-    setAccountUi((u) => ({ ...u, otpSent: true, otpSentAt: Date.now() }));
-    await showAlert(
-      "Check your email for a 6-digit code and enter it below. If you only received a confirmation link (e.g. to localhost), update Supabase email templates — see docs/SYNC_AND_AUTH.md → Email OTP.",
-      { title: "Email sent" }
-    );
+    if (!otpEmail.trim() || otpCooldownSec > 0) return;
+    setBusy(true);
+    try {
+      const result = await accountRequest("AUTH_SEND_OTP", { email: otpEmail.trim() });
+      if (result?.error) throw new Error(result.error);
+      setAccountUi((u) => ({
+        ...u,
+        otpSent: true,
+        otpSentAt: Date.now(),
+        otpCooldownUntil: null,
+      }));
+      await showAlert(
+        "Check your email for a 6-digit code and enter it below. If you only received a confirmation link (e.g. to localhost), update Supabase email templates — see docs/SYNC_AND_AUTH.md → Email OTP.",
+        { title: "Email sent" }
+      );
+    } catch (err) {
+      if (isEmailRateLimitError(err)) {
+        const until = Date.now() + rateLimitCooldownMs(err);
+        setAccountUi((u) => ({
+          ...u,
+          otpSent: true,
+          otpCooldownUntil: until,
+        }));
+        await showAlert(formatRateLimitMessage(Math.ceil(rateLimitCooldownMs(err) / 1000)), {
+          title: "Too many emails",
+        });
+      } else {
+        await showAlert(err.message || "Request failed", { title: "Account" });
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleVerifyOtp() {
     await run("AUTH_VERIFY_OTP", { email: otpEmail.trim(), token: otpCode.trim() });
     await clearAccountUiState();
-    setAccountUi({ otpEmail: "", otpCode: "", otpSent: false, otpSentAt: null });
+    setAccountUi({
+      otpEmail: "",
+      otpCode: "",
+      otpSent: false,
+      otpSentAt: null,
+      otpCooldownUntil: null,
+    });
   }
 
   async function handleEnableSync() {
@@ -276,29 +330,42 @@ export default function AccountSettings() {
                       placeholder="you@example.com"
                     />
                   </SettingsField>
-                  <div className="flex flex-wrap gap-2">
+                  {otpCooldownSec > 0 && (
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      {formatRateLimitMessage(otpCooldownSec)}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2 items-center">
                     <button
                       type="button"
-                      disabled={busy || !otpEmail.trim()}
+                      disabled={busy || !otpEmail.trim() || otpCooldownSec > 0}
                       onClick={handleSendOtp}
                       className="border border-slate-300 py-2 px-3 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
                     >
-                      Send code
+                      {otpCooldownSec > 0
+                        ? `Resend in ${otpCooldownSec >= 3600 ? `${Math.ceil(otpCooldownSec / 60)}m` : `${otpCooldownSec}s`}`
+                        : otpSent
+                          ? "Resend code"
+                          : "Send code"}
                     </button>
-                    {otpSent && (
+                    {(otpSent || otpEmail.trim()) && (
                       <>
-                        <p className="text-xs text-slate-500 w-full">
-                          Code sent — you can close the popup and return here to enter it.
-                        </p>
+                        {otpSent && otpCooldownSec === 0 && (
+                          <p className="text-xs text-slate-500 w-full">
+                            Code sent — you can close the popup and return here to enter it.
+                          </p>
+                        )}
                         <SettingsInput
                           value={otpCode}
                           onChange={(e) => setOtpCode(e.target.value)}
                           placeholder="6-digit code"
                           className="max-w-[140px]"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
                         />
                         <button
                           type="button"
-                          disabled={busy || otpCode.length < 4}
+                          disabled={busy || otpCode.trim().length < 4}
                           onClick={handleVerifyOtp}
                           className="bg-blitz-600 text-white py-2 px-3 rounded-lg text-sm disabled:opacity-50"
                         >

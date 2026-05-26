@@ -110,6 +110,7 @@ After enabling sync, run **Sync now** or edit a setting to upload. `npm run conf
 |-------|-----|
 | OAuth redirect mismatch | Add exact `chromiumapp.org` URL for this extension ID |
 | Email link goes to localhost / connection refused | Fix **Site URL** (not localhost); use Magic Link template with `{{ .Token }}`; enter code in Blitz |
+| `email rate limit exceeded` | Wait (often 60s–1h). Enter an existing code and tap **Verify**, or use **Google** sign-in. Dev: **Authentication → Rate Limits** — raise OTP/email limits for your project |
 | `Cloud sync is not configured` | Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` |
 | Pull returns empty | Enable sync + passphrase; check RLS policies applied |
 | Pro not syncing | Activate license while signed in; deploy `link-license` function |

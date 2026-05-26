@@ -14,6 +14,8 @@ const DEFAULT_ACCOUNT_UI = {
   otpCode: "",
   otpSent: false,
   otpSentAt: null,
+  /** Epoch ms — disable "Send code" until this time (Supabase rate limit). */
+  otpCooldownUntil: null,
 };
 
 function normalizeAccountUi(account) {
@@ -30,7 +32,21 @@ function normalizeAccountUi(account) {
     otpSent = false;
   }
 
-  return { otpEmail, otpCode, otpSent, otpSentAt: otpSent ? otpSentAt : null };
+  let otpCooldownUntil =
+    typeof account.otpCooldownUntil === "number" && account.otpCooldownUntil > 0
+      ? account.otpCooldownUntil
+      : null;
+  if (otpCooldownUntil && Date.now() >= otpCooldownUntil) {
+    otpCooldownUntil = null;
+  }
+
+  return {
+    otpEmail,
+    otpCode,
+    otpSent,
+    otpSentAt: otpSent ? otpSentAt : null,
+    otpCooldownUntil,
+  };
 }
 
 export async function getUiState() {
