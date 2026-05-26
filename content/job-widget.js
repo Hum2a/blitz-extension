@@ -179,7 +179,17 @@
       return;
     }
     if (action === "open") {
-      chrome.runtime.sendMessage({ type: "OPEN_BLITZ" });
+      chrome.runtime.sendMessage({ type: "OPEN_BLITZ" }, (res) => {
+        if (chrome.runtime.lastError) {
+          progressText = chrome.runtime.lastError.message;
+          render();
+          return;
+        }
+        if (res?.error) {
+          progressText = res.error;
+          render();
+        }
+      });
       return;
     }
     if (action === "generate") {

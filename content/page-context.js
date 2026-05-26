@@ -132,20 +132,26 @@
       }
     }
 
-    const onViewJob =
+    const helpers = window.blitzIndeedHelpers;
+    const onViewJob = helpers?.isIndeedViewJobUrl?.(path) ?? (
       /viewjob/i.test(path) ||
       /\/rc\/clk/i.test(path) ||
       /[?&]jk=/i.test(path) ||
-      /[?&]vjk=/i.test(path);
+      /[?&]vjk=/i.test(path)
+    );
 
-    const hasDesc = hasAny([
+    const descSelectors = helpers?.DESCRIPTION_SELECTORS || [
       "#jobDescriptionText",
       '[data-testid="jobDescriptionText"]',
       '[data-testid="jobsearch-JobDescription"]',
       ".jobsearch-JobComponent-description",
       "#job-details",
       '[id="jobDescriptionText"]',
-    ]);
+    ];
+
+    const hasDesc =
+      hasAny(descSelectors) ||
+      Boolean(helpers?.parseJobPostingJsonLd?.()?.description);
 
     const hasTitle = hasAny([
       "h1.jobsearch-JobInfoHeader-title",
@@ -171,6 +177,15 @@
         pageType: PAGE_TYPES.SINGLE_JOB,
         confidence: "high",
         hint: "Indeed job posting",
+        listingCount: listCards || undefined,
+      };
+    }
+
+    if (onViewJob && /[?&]jk=/i.test(path)) {
+      return {
+        pageType: PAGE_TYPES.SINGLE_JOB,
+        confidence: "medium",
+        hint: "Indeed job — wait for page load or tap Refresh detection",
         listingCount: listCards || undefined,
       };
     }

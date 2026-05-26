@@ -44,6 +44,8 @@ function getIndeedCompany() {
   return "";
 }
 
+const H = () => window.blitzIndeedHelpers || {};
+
 function firstText(selectors) {
   for (const sel of selectors) {
     const el = document.querySelector(sel);
@@ -54,39 +56,60 @@ function firstText(selectors) {
 }
 
 function getIndeedJobTitle() {
-  return firstText([
+  const selectors = H().TITLE_SELECTORS || [
     '[data-testid="jobsearch-JobInfoHeader-title"]',
-    '[data-testid="jobsearch-JobInfoHeader-title"] span',
-    '[data-testid="job-title"]',
-    "h1.jobsearch-JobInfoHeader-title",
-    ".jobsearch-JobInfoHeader-title",
-    "#jobsearch-JobInfoHeader-title",
-    "#ia-JobHeader-title",
-    "main h1",
     "h1",
-  ]);
+  ];
+  const fromDom = firstText(selectors);
+  if (fromDom) return fromDom;
+
+  const posting = H().parseJobPostingJsonLd?.();
+  if (posting?.title) {
+    return typeof posting.title === "string" ? posting.title : posting.title?.name || "";
+  }
+  const og = document.querySelector('meta[property="og:title"]')?.content;
+  if (og && !/indeed/i.test(og)) return og.replace(/\s*-\s*Indeed.*$/i, "").trim();
+  return "";
+}
+
+function descriptionFromHeadingSection() {
+  const headings = document.querySelectorAll("h2, h3, h4");
+  for (const h of headings) {
+    const label = (h.textContent || "").trim();
+    if (!/full job description|job description/i.test(label)) continue;
+    const section = h.closest("section, article, div") || h.parentElement;
+    const text = section?.innerText?.trim() || "";
+    if (text.length > 120) return text;
+  }
+  return "";
+}
+
+function getIndeedJobDescription() {
+  const selectors = H().DESCRIPTION_SELECTORS || ["#jobDescriptionText"];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    const text = el?.innerText?.trim();
+    if (text && text.length > 60) return text;
+  }
+
+  const fromHeading = descriptionFromHeadingSection();
+  if (fromHeading) return fromHeading;
+
+  const posting = H().parseJobPostingJsonLd?.();
+  if (posting?.description) {
+    return H().stripHtml?.(posting.description) || String(posting.description);
+  }
+
+  const ogDesc = document.querySelector('meta[property="og:description"]')?.content?.trim();
+  if (ogDesc && ogDesc.length > 80) return ogDesc;
+
+  return "";
 }
 
 function scrapeJob() {
   const jobTitle = getIndeedJobTitle();
   const company = getIndeedCompany();
-
-  const descEl =
-    document.querySelector("#jobDescriptionText") ||
-    document.querySelector('[data-testid="jobDescriptionText"]') ||
-    document.querySelector('[data-testid="jobsearch-JobDescription"]') ||
-    document.querySelector(".jobsearch-JobComponent-description") ||
-    document.querySelector("#job-details") ||
-    document.querySelector('[id="jobDescriptionText"]');
-  let jobDescription = descEl?.innerText?.trim() || "";
-
-  if (!jobDescription && /smartapply\./i.test(window.location.hostname)) {
-    jobDescription = firstText([
-      '[data-testid="job-description"]',
-      ".ia-JobDescription",
-      "#ia-JobDescription",
-    ]);
-  }
+  let jobDescription = getIndeedJobDescription();
 
   const externalApply = isExternalApply();
 

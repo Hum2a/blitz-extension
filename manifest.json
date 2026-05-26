@@ -72,6 +72,7 @@
       "matches": ["https://*.indeed.com/*", "https://*.indeed.co.uk/*"],
       "js": [
         "content/page-context.js",
+        "content/indeed-helpers.js",
         "content/humanise.js",
         "content/file-upload.js",
         "content/indeed.js",

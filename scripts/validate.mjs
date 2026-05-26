@@ -18,6 +18,7 @@ const required = [
   "popup/dist/index.html",
   "popup/dist/dashboard.html",
   "content/page-context.js",
+  "content/indeed-helpers.js",
   "content/job-widget.js",
   "content/job-widget.css",
 ];

@@ -40,6 +40,7 @@ import {
   initSyncBackground,
 } from "./sync-messages.js";
 import { scriptsForUrl, safeHostname } from "../popup/src/lib/content-scripts.js";
+import { openBlitzExtensionUi } from "./open-blitz-ui.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -158,16 +159,8 @@ async function handleMessage(message, sender) {
     case "BLITZ_PAGE_STATE":
       return { ok: true };
 
-    case "OPEN_BLITZ": {
-      const popupUrl = chrome.runtime.getURL("popup/dist/index.html");
-      try {
-        await chrome.action.openPopup();
-        return { ok: true, mode: "popup" };
-      } catch {
-        await chrome.tabs.create({ url: popupUrl });
-        return { ok: true, mode: "tab" };
-      }
-    }
+    case "OPEN_BLITZ":
+      return openBlitzExtensionUi();
 
     case "WIDGET_GENERATE": {
       const job = message.payload?.jobData;
@@ -439,8 +432,6 @@ async function handleMessage(message, sender) {
       throw new Error(`Unknown message type: ${message.type}`);
   }
 }
-
-import { scriptsForUrl, safeHostname } from "../popup/src/lib/content-scripts.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));

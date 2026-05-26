@@ -42,6 +42,8 @@
       .catch(() => {});
   }
 
+  let indeedDescriptionRetryTimer = null;
+
   function reportJobIfReady(platform) {
     const context = window.blitzPageContext?.analyze?.() || { canCapture: false };
     if (!context.canCapture) {
@@ -52,11 +54,46 @@
     const jobData = scrapeCurrentJob(platform);
     if (jobData.error) {
       broadcastPageState(context, null);
+      if (platform === "indeed") scheduleIndeedDescriptionRetry();
       return;
     }
 
     broadcastPageState(context, jobData);
     chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData }).catch(() => {});
+
+    if (
+      platform === "indeed" &&
+      jobData.jobTitle &&
+      !(jobData.jobDescription || "").trim()
+    ) {
+      scheduleIndeedDescriptionRetry();
+    }
+  }
+
+  function scheduleIndeedDescriptionRetry() {
+    if (indeedDescriptionRetryTimer) return;
+    let attempts = 0;
+    indeedDescriptionRetryTimer = setInterval(() => {
+      attempts += 1;
+      const context = window.blitzPageContext?.analyze?.() || { canCapture: false };
+      if (!context.canCapture) {
+        clearInterval(indeedDescriptionRetryTimer);
+        indeedDescriptionRetryTimer = null;
+        return;
+      }
+      const jobData = scrapeCurrentJob("indeed");
+      if (!jobData.error && (jobData.jobDescription || "").trim().length > 60) {
+        broadcastPageState(context, jobData);
+        chrome.runtime.sendMessage({ type: "JOB_DETECTED", payload: jobData }).catch(() => {});
+        clearInterval(indeedDescriptionRetryTimer);
+        indeedDescriptionRetryTimer = null;
+        return;
+      }
+      if (attempts >= 12) {
+        clearInterval(indeedDescriptionRetryTimer);
+        indeedDescriptionRetryTimer = null;
+      }
+    }, 800);
   }
 
   async function routeFillForm(payload) {

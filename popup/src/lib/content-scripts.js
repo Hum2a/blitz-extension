@@ -17,7 +17,7 @@ export function scriptsForUrl(url) {
     return [...BASE_SCRIPTS, "content/linkedin.js", ...TAIL_SCRIPTS];
   }
   if (u.includes("indeed.com") || u.includes("indeed.co.uk")) {
-    return [...BASE_SCRIPTS, "content/indeed.js", ...TAIL_SCRIPTS];
+    return [...BASE_SCRIPTS, "content/indeed-helpers.js", "content/indeed.js", ...TAIL_SCRIPTS];
   }
   if (u.includes("myworkdayjobs.com")) {
     return [...BASE_SCRIPTS, "content/workday.js", ...TAIL_SCRIPTS];
