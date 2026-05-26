@@ -43,6 +43,7 @@ Out of scope:
 ## Safe development practices
 
 - Never commit API keys, license keys, `.env`, or `.dev.vars`
+- Never embed Supabase keys in committed source — use `.env` and `npm run config:sync` → gitignored `config.secrets.js`
 - Never embed the Supabase **service role** key in the extension — anon key + user JWT only
 - Never log `apiKey`, `cv_text`, sync passphrases, auth tokens, or decrypted sync payloads
 - Run `npm run build:check` before shipping; review `host_permissions` in `manifest.json` when adding new integrations

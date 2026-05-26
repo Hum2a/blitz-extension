@@ -39,13 +39,30 @@ for (const file of required) {
 }
 
 const configPath = join(root, "popup/src/lib/config.js");
+const secretsPath = join(root, "popup/src/lib/config.secrets.js");
 if (existsSync(configPath)) {
   const configSrc = readFileSync(configPath, "utf8");
-  if (/service_role|SERVICE_ROLE/i.test(configSrc)) {
-    console.log("  ✗ config.js — must not contain Supabase service role key");
+  const hasEmbeddedSecret =
+    /service_role|SERVICE_ROLE/i.test(configSrc) ||
+    /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\./.test(configSrc) ||
+    /https:\/\/[a-z0-9]+\.supabase\.co/i.test(configSrc);
+  if (hasEmbeddedSecret) {
+    console.log(
+      "  ✗ config.js — must not embed Supabase URL/keys; use .env + npm run config:sync"
+    );
     failed = true;
   } else {
-    console.log("  ✓ config.js — no service role key");
+    console.log("  ✓ config.js — no embedded Supabase secrets");
+  }
+}
+if (existsSync(secretsPath)) {
+  const gitignorePath = join(root, ".gitignore");
+  const gitignore = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf8") : "";
+  if (!gitignore.includes("config.secrets.js")) {
+    console.log("  ✗ config.secrets.js exists but is not listed in .gitignore");
+    failed = true;
+  } else {
+    console.log("  ✓ config.secrets.js is gitignored");
   }
 }
 

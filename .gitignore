@@ -12,6 +12,7 @@ dist/
 .env
 .env.*
 !.env.example
+popup/src/lib/config.secrets.js
 .license-value.json
 
 # OS & editors

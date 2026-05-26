@@ -177,9 +177,9 @@ export default function AccountSettings() {
         description="Optional encrypted backup across devices."
       >
         <p className="text-sm text-slate-600">
-          Cloud sync is not configured in this build. Add <code className="text-xs">SUPABASE_URL</code>{" "}
-          and <code className="text-xs">SUPABASE_ANON_KEY</code> in{" "}
-          <code className="text-xs">popup/src/lib/config.js</code> (see docs/SYNC_AND_AUTH.md).
+          Cloud sync is not configured. Add <code className="text-xs">VITE_SUPABASE_URL</code> and{" "}
+          <code className="text-xs">VITE_SUPABASE_ANON_KEY</code> to <code className="text-xs">.env</code>,
+          run <code className="text-xs">npm run config:sync</code>, then rebuild (see docs/SYNC_AND_AUTH.md).
         </p>
         <p className="text-sm text-slate-500">
           Blitz works fully offline without an account. Your AI API key never leaves this device.

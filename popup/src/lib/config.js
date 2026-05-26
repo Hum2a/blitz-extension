@@ -1,3 +1,7 @@
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.secrets.js";
+
+export { SUPABASE_URL, SUPABASE_ANON_KEY };
+
 export const LEMONSQUEEZY = {
   checkoutMonthly: "https://getblitz.lemonsqueezy.com/checkout/buy/monthly",
   checkoutYearly: "https://getblitz.lemonsqueezy.com/checkout/buy/yearly",
@@ -6,12 +10,9 @@ export const LEMONSQUEEZY = {
 export const LICENSE_ENDPOINT = "https://blitz-license.humzab1711.workers.dev";
 
 /**
- * Supabase (Auth + cloud sync). Set both before enabling account features.
- * Anon key is public; never embed the service role key in the extension.
+ * Supabase (Auth + cloud sync). Values come from .env via config.secrets.js (gitignored).
+ * Anon key is public in the built extension; never put the service role key here.
  */
-export const SUPABASE_URL = "";
-export const SUPABASE_ANON_KEY = "";
-
 export const SUPABASE_CONFIGURED = Boolean(
   SUPABASE_URL?.trim() && SUPABASE_ANON_KEY?.trim()
 );

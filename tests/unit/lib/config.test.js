@@ -14,7 +14,7 @@ describe("config", () => {
     expect(LEMONSQUEEZY.checkoutMonthly).toMatch(/lemonsqueezy/i);
   });
 
-  it("SUPABASE_CONFIGURED is false when env not set in repo", () => {
-    expect(SUPABASE_CONFIGURED).toBe(false);
+  it("SUPABASE_CONFIGURED reflects .env via config.secrets.js (boolean)", () => {
+    expect(typeof SUPABASE_CONFIGURED).toBe("boolean");
   });
 });

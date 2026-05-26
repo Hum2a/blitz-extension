@@ -27,7 +27,10 @@
   ],
   "scripts": {
     "setup": "npm install && npm run icons && npm run build",
-    "postinstall": "npm run copy:offscreen",
+    "postinstall": "npm run copy:offscreen && npm run config:sync",
+    "config:sync": "node scripts/sync-config-from-env.mjs",
+    "prebuild": "npm run config:sync",
+    "predev": "npm run config:sync",
     "copy:jspdf": "node scripts/copy-jspdf.mjs",
     "copy:offscreen": "node scripts/copy-offscreen-deps.mjs",
     "icons": "node scripts/generate-icons.mjs",
@@ -74,6 +77,9 @@
     "license:test": "npm run test --prefix license-worker",
     "deploy:worker": "npm run worker:deploy",
     "deploy:all": "npm run build:check && npm run worker:deploy",
+    "db:migrate": "node scripts/run-migrations.mjs",
+    "db:migrate:status": "node scripts/run-migrations.mjs --status",
+    "db:migrate:dry": "node scripts/run-migrations.mjs --dry-run",
     "load": "echo Open chrome://extensions → Developer mode → Load unpacked → select this folder"
   },
   "dependencies": {
@@ -93,8 +99,10 @@
     "@vitest/coverage-v8": "^4.1.7",
     "archiver": "^7.0.1",
     "autoprefixer": "^10.4.21",
+    "dotenv": "^16.5.0",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.9.0",
+    "pg": "^8.16.0",
     "postcss": "^8.5.3",
     "sharp": "^0.34.2",
     "tailwindcss": "^3.4.17",

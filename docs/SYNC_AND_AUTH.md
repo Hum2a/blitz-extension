@@ -6,7 +6,12 @@ Blitz remains **local-first**: generation, form fill, and BYOK AI work without a
 
 Create separate **dev** and **prod** projects at [supabase.com](https://supabase.com).
 
-1. Run SQL from [`supabase/migrations/001_initial.sql`](../supabase/migrations/001_initial.sql) in the SQL editor (or `supabase db push` if using CLI).
+1. Add `DATABASE_URL` to `.env` (see [`.env.example`](../.env.example)). Prefer **Session pooler** URI from Supabase → Connect (the `db.<ref>.supabase.co` direct host is IPv6-only and often fails on Windows with `ENOTFOUND`). Encode `#` in passwords as `%23`. Then run migrations:
+   ```bash
+   npm install
+   npm run db:migrate
+   ```
+   Or paste [`supabase/migrations/001_initial.sql`](../supabase/migrations/001_initial.sql) into the Supabase SQL editor.
 2. **Authentication → Providers**: enable Google; enable Email (OTP).
 3. **Authentication → URL configuration → Redirect URLs** add:
    - `https://<UNPACKED_EXTENSION_ID>.chromiumapp.org/*`
@@ -15,12 +20,23 @@ Create separate **dev** and **prod** projects at [supabase.com](https://supabase
 
 ## 2. Extension config
 
-Edit [`popup/src/lib/config.js`](../popup/src/lib/config.js):
+Supabase’s **“Connect via React / shadcn”** wizard (`@supabase/supabase-js`, shadcn components, React Router) targets web apps — **skip those for Blitz**. The extension already uses `auth.js` + `supabase-client.js` (fetch + PKCE).
 
-```js
-export const SUPABASE_URL = "https://YOUR_REF.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJ..."; // Project Settings → API → anon public
+Map the dashboard env vars to [`.env`](../.env):
+
+| Supabase UI name | Blitz `.env` |
+|------------------|--------------|
+| Project URL | `VITE_SUPABASE_URL` |
+| Anon key (`eyJ…`) or Publishable key (`sb_publishable_…`) | `VITE_SUPABASE_ANON_KEY` or `VITE_SUPABASE_PUBLISHABLE_KEY` |
+
+Add to [`.env`](../.env) (see [`.env.example`](../.env.example)), then sync into the extension:
+
+```bash
+npm run config:sync
+npm run build
 ```
+
+This writes gitignored `popup/src/lib/config.secrets.js`. **Do not** put keys in `config.js` (that file is committed).
 
 Never put the **service role** key in the extension. Use it only for Edge Functions (dashboard secrets).
 
