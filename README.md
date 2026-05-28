@@ -62,7 +62,7 @@ Add your API key in Blitz **Settings**, open a supported job posting, and genera
 └── chrome-store/        # Web Store submission checklist
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for message flows and module boundaries.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for message flows and module boundaries. **Recent features (Phases 2–4):** [docs/WHATS_NEW_H1_2026.md](docs/WHATS_NEW_H1_2026.md).
 
 ## npm scripts
 

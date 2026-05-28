@@ -104,4 +104,4 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 2. Update **Status** when items ship; link PRs in issue comments.
 3. After each Supabase migration, update `.cursor/rules/supabase-schema.mdc`.
 
-**Related:** `docs/ARCHITECTURE.md`, `docs/ADMIN_ROADMAP.md` (admin detail), `SECURITY.md`.
+**Related:** [What’s new (user guide)](WHATS_NEW_H1_2026.md), `docs/ARCHITECTURE.md`, `docs/ADMIN_ROADMAP.md` (admin detail), `SECURITY.md`.
