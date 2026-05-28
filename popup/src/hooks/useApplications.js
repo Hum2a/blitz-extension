@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  getAllApplications,
-  addApplication,
-  updateApplication,
-  deleteApplication,
-} from "../lib/db.js";
 import { HISTORY_EVENT_TYPES } from "../lib/application-store.js";
+import {
+  listApplicationsBridged,
+  addApplicationBridged,
+  updateApplicationBridged,
+  deleteApplicationBridged,
+} from "../lib/history-bridge.js";
 
 export function useApplications() {
   const [applications, setApplications] = useState([]);
@@ -13,7 +13,7 @@ export function useApplications() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const apps = await getAllApplications();
+    const apps = await listApplicationsBridged();
     setApplications(apps);
     setLoading(false);
     return apps;
@@ -33,7 +33,7 @@ export function useApplications() {
 
   const saveApplication = useCallback(
     async (record) => {
-      await addApplication(record);
+      await addApplicationBridged(record);
       return refresh();
     },
     [refresh]
@@ -41,7 +41,7 @@ export function useApplications() {
 
   const updateStatus = useCallback(
     async (id, status) => {
-      const apps = await getAllApplications();
+      const apps = await listApplicationsBridged();
       const existing = apps.find((a) => a.id === id);
       const events = [
         {
@@ -51,7 +51,7 @@ export function useApplications() {
         },
         ...(existing?.events || []),
       ].slice(0, 50);
-      await updateApplication(id, {
+      await updateApplicationBridged(id, {
         status,
         events,
         updatedAt: new Date().toISOString(),
@@ -63,7 +63,7 @@ export function useApplications() {
 
   const updateNotes = useCallback(
     async (id, notes) => {
-      await updateApplication(id, { notes });
+      await updateApplicationBridged(id, { notes });
       return refresh();
     },
     [refresh]
@@ -71,7 +71,7 @@ export function useApplications() {
 
   const removeApplication = useCallback(
     async (id) => {
-      await deleteApplication(id);
+      await deleteApplicationBridged(id);
       return refresh();
     },
     [refresh]

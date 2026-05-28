@@ -1,17 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { getStorage } from "../lib/storage.js";
+import { fetchQueueState } from "../lib/queue-bridge.js";
 
 export function useJobQueue() {
   const [queue, setQueue] = useState([]);
   const [processing, setProcessing] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [items, isProcessing] = await Promise.all([
-      getStorage("job_queue"),
-      getStorage("queue_processing"),
-    ]);
-    setQueue(items || []);
-    setProcessing(Boolean(isProcessing));
+    const state = await fetchQueueState();
+    setQueue(state.queue || []);
+    setProcessing(Boolean(state.processing));
+    setPaused(Boolean(state.paused));
   }, []);
 
   useEffect(() => {
@@ -23,5 +22,5 @@ export function useJobQueue() {
     return () => chrome.runtime.onMessage.removeListener(listener);
   }, [refresh]);
 
-  return { queue, processing, refresh };
+  return { queue, processing, paused, refresh };
 }

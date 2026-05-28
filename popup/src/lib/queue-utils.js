@@ -1,3 +1,5 @@
+import { normalizeQueueUrl } from "./queue-dedupe.js";
+
 const PLATFORM_PATTERNS = [
   { platform: "greenhouse", test: /greenhouse\.io/i },
   { platform: "linkedin", test: /linkedin\.com\/jobs/i },
@@ -49,7 +51,7 @@ export function parseJobUrls(text) {
       }
       urls.push({
         id: crypto.randomUUID(),
-        url: url.href,
+        url: normalizeQueueUrl(url.href) || url.href,
         platform,
         status: "pending",
         addedAt: new Date().toISOString(),

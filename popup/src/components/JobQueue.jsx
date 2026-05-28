@@ -3,6 +3,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useJobQueue } from "../hooks/useJobQueue.js";
 import { parseJobUrls } from "../lib/queue-utils.js";
 import { getStorage, setStorage } from "../lib/storage.js";
+import {
+  addQueueItems,
+  processQueueBridged,
+  pauseQueueBridged,
+  resumeQueueBridged,
+  retryQueueFailedBridged,
+  clearQueueBridged,
+} from "../lib/queue-bridge.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
 import { displayApplicationLabel } from "../lib/application-history-utils.js";
 import { scrollPanelClass } from "../lib/layout.js";
@@ -17,28 +25,56 @@ const STATUS_LABELS = {
 };
 
 export default function JobQueue({ onReviewItem, fullPage = false }) {
-  const { queue, processing, refresh } = useJobQueue();
+  const { queue, processing, paused, refresh } = useJobQueue();
   const [urlText, setUrlText] = useState("");
   const [invalid, setInvalid] = useState([]);
+  const [duplicateNote, setDuplicateNote] = useState(null);
 
   const addUrls = async () => {
     const { urls, invalid: bad } = parseJobUrls(urlText);
     setInvalid(bad);
+    setDuplicateNote(null);
     if (urls.length === 0) return;
 
-    const existing = (await getStorage("job_queue")) || [];
-    await setStorage("job_queue", [...existing, ...urls]);
-    setUrlText("");
+    try {
+      const result = await addQueueItems(urls);
+      const dupes = result?.duplicates || [];
+      if (dupes.length > 0) {
+        setDuplicateNote(
+          `Skipped ${dupes.length} duplicate${dupes.length === 1 ? "" : "s"} (queue or history).`
+        );
+      }
+      if (result?.added > 0 || result?.ok) {
+        setUrlText("");
+      }
+    } catch (err) {
+      setDuplicateNote(err.message || "Could not add URLs");
+    }
     refresh();
   };
 
   const processQueue = async () => {
-    await chrome.runtime.sendMessage({ type: "PROCESS_QUEUE" });
+    await processQueueBridged();
     refresh();
   };
 
   const clearQueue = async () => {
-    await setStorage("job_queue", []);
+    await clearQueueBridged();
+    refresh();
+  };
+
+  const pauseQueue = async () => {
+    await pauseQueueBridged();
+    refresh();
+  };
+
+  const resumeQueue = async () => {
+    await resumeQueueBridged();
+    refresh();
+  };
+
+  const retryFailed = async () => {
+    await retryQueueFailedBridged();
     refresh();
   };
 
@@ -61,6 +97,7 @@ export default function JobQueue({ onReviewItem, fullPage = false }) {
 
   const pendingCount = queue.filter((i) => i.status === "pending").length;
   const readyCount = queue.filter((i) => i.status === "ready").length;
+  const errorCount = queue.filter((i) => i.status === "error").length;
 
   return (
     <Stagger className={`space-y-3 ${scrollPanelClass(fullPage)}`}>
@@ -96,19 +133,29 @@ export default function JobQueue({ onReviewItem, fullPage = false }) {
                 Skipped {invalid.length} invalid/unsupported line(s).
               </motion.p>
             )}
+            {duplicateNote && (
+              <motion.p
+                className="text-xs text-violet-800 mt-1"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                {duplicateNote}
+              </motion.p>
+            )}
           </AnimatePresence>
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             <Btn
               onClick={addUrls}
               disabled={!urlText.trim()}
-              className="flex-1 bg-blitz-600 text-white text-xs py-2 rounded disabled:opacity-50 btn-shine"
+              className="flex-1 min-w-[7rem] bg-blitz-600 text-white text-xs py-2 rounded disabled:opacity-50 btn-shine"
             >
               Add to queue
             </Btn>
             <Btn
               onClick={processQueue}
-              disabled={processing || pendingCount === 0}
-              className="btn-surface-contrast flex-1 text-xs py-2 rounded disabled:opacity-50 btn-shine"
+              disabled={processing || paused || pendingCount === 0}
+              className="btn-surface-contrast flex-1 min-w-[7rem] text-xs py-2 rounded disabled:opacity-50 btn-shine"
             >
               {processing ? (
                 <span className="inline-flex items-center gap-1 justify-center">
@@ -117,12 +164,30 @@ export default function JobQueue({ onReviewItem, fullPage = false }) {
                     animate={{ rotate: 360 }}
                     transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
                   />
-                  Processing…
+                  {paused ? "Paused" : "Processing…"}
                 </span>
               ) : (
                 `Process (${pendingCount})`
               )}
             </Btn>
+            {processing && !paused && (
+              <Btn
+                type="button"
+                onClick={pauseQueue}
+                className="text-xs py-2 px-3 rounded border border-slate-300 bg-white text-slate-700"
+              >
+                Pause
+              </Btn>
+            )}
+            {paused && (
+              <Btn
+                type="button"
+                onClick={resumeQueue}
+                className="text-xs py-2 px-3 rounded border border-blitz-400 bg-blitz-50 text-blitz-800"
+              >
+                Resume
+              </Btn>
+            )}
           </div>
         </Card>
       </FadeUp>
@@ -136,16 +201,30 @@ export default function JobQueue({ onReviewItem, fullPage = false }) {
             exit={{ opacity: 0 }}
           >
             <span className="text-slate-600">
-              {readyCount} ready · {pendingCount} pending · {queue.length} total
+              {readyCount} ready · {pendingCount} pending
+              {errorCount > 0 ? ` · ${errorCount} failed` : ""} · {queue.length} total
+              {paused ? " · paused" : ""}
             </span>
-            <motion.button
-              type="button"
-              onClick={clearQueue}
-              className="text-red-600 underline"
-              whileHover={{ scale: 1.05 }}
-            >
-              Clear all
-            </motion.button>
+            <div className="flex gap-3">
+              {errorCount > 0 && (
+                <motion.button
+                  type="button"
+                  onClick={retryFailed}
+                  className="text-blitz-700 underline"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  Retry failed
+                </motion.button>
+              )}
+              <motion.button
+                type="button"
+                onClick={clearQueue}
+                className="text-red-600 underline"
+                whileHover={{ scale: 1.05 }}
+              >
+                Clear all
+              </motion.button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

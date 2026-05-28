@@ -53,10 +53,10 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 | **Lever** detector + scrape + fill | `done` | `content/lever.js` |
 | **Ashby** detector + scrape + fill | `done` | `content/ashby.js`; embed = tailor-only |
 | **Tailor-only mode** (PDF/DOC + screening export, no fill) | `done` | `tailor-only.js`, Review + queue |
-| Queue: pause/resume, retry failed, URL dedupe | P1 | M |
-| Duplicate job warning (queue + history `listingKey`) | P1 | S |
-| Web workspace **history parity** (bridge IDB or sync-read UI) | P1 | M |
-| Widget: match score + one-click Review | P2 | M |
+| Queue: pause/resume, retry failed, URL dedupe | `done` | `queue-dedupe.js`, `queue-bridge.js`, `PAUSE_QUEUE` |
+| Duplicate job warning (queue + history `listingKey`) | `done` | dedupe on add; tab `history` badge |
+| Web workspace **history parity** (bridge IDB or sync-read UI) | `done` | `history-bridge.js`, `LIST_APPLICATION_HISTORY` |
+| Widget: match score + one-click Review | `done` | `GET_JOB_HISTORY_MATCH`, `WIDGET_OPEN_REVIEW` |
 | Workday fill diagnostics UX | P2 | M |
 
 ---

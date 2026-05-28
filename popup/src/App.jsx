@@ -119,13 +119,11 @@ export default function App({ fullPage = false, bridgeMode = false }) {
 
   const loadFromHistory = async (record) => {
     try {
-      const result = await chrome.runtime.sendMessage({
+      const { sendRuntimeMessage } = await import("./lib/runtime-messages.js");
+      const result = await sendRuntimeMessage({
         type: "LOAD_HISTORY_APPLICATION",
         payload: { record },
       });
-      if (chrome.runtime.lastError) {
-        throw new Error(chrome.runtime.lastError.message);
-      }
       if (result?.error) throw new Error(result.error);
       setPendingJob(result.job);
       setApplication(result.application);

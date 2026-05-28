@@ -50,6 +50,11 @@ import { openBlitzExtensionUi } from "./open-blitz-ui.js";
 import { assertMessageAllowed } from "./message-auth.js";
 import { assertGenerationAllowed } from "../popup/src/lib/generation-guards.js";
 import { canGenerateToday } from "../popup/src/lib/daily-limit.js";
+import { handleHistoryMessage } from "./history-messages.js";
+import { dedupeQueueAdditions, normalizeQueueUrl } from "../popup/src/lib/queue-dedupe.js";
+import { detectPlatformFromUrl } from "../popup/src/lib/queue-utils.js";
+import { getAllApplications } from "../popup/src/lib/db.js";
+import { findApplicationInList } from "../popup/src/lib/application-store.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -157,6 +162,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 async function handleMessage(message, sender) {
   const syncResult = await handleSyncAuthMessage(message);
   if (syncResult !== null) return syncResult;
+
+  const historyResult = await handleHistoryMessage(message);
+  if (historyResult !== null) return historyResult;
 
   switch (message.type) {
     case "PING":
@@ -272,8 +280,11 @@ async function handleMessage(message, sender) {
     }
 
     case "LOAD_HISTORY_APPLICATION": {
-      const record = message.payload?.record;
+      let record = message.payload?.record;
       if (!record?.id) return { error: "No history record" };
+      const apps = await getAllApplications();
+      const full = apps.find((a) => a.id === record.id);
+      if (full) record = full;
       const loaded = await loadApplicationIntoPending(record);
       await setStorage("pending_job", loaded.job);
       await savePendingApplication(
@@ -387,8 +398,24 @@ async function handleMessage(message, sender) {
     case "ADD_QUEUE_URLS": {
       const existing = (await getStorage("job_queue")) || [];
       const incoming = message.payload?.items || [];
-      await setStorage("job_queue", [...existing, ...incoming]);
-      return { ok: true, count: existing.length + incoming.length };
+      const history = await getAllApplications();
+      const { accepted, duplicates } = dedupeQueueAdditions(incoming, existing, history);
+      if (accepted.length === 0 && duplicates.length > 0) {
+        return {
+          ok: false,
+          error: "All URLs were duplicates",
+          added: 0,
+          duplicates,
+        };
+      }
+      await setStorage("job_queue", [...existing, ...accepted]);
+      chrome.runtime.sendMessage({ type: "QUEUE_UPDATED" }).catch(() => {});
+      return {
+        ok: true,
+        added: accepted.length,
+        duplicates,
+        count: existing.length + accepted.length,
+      };
     }
 
     case "ADD_TABS_TO_QUEUE": {
@@ -396,29 +423,105 @@ async function handleMessage(message, sender) {
       const allTabs = await listOpenJobTabs();
       const selected = allTabs.filter((t) => tabIds.includes(t.tabId));
       const existing = (await getStorage("job_queue")) || [];
-      const incoming = queueItemsFromTabs(selected, existing);
-      if (incoming.length === 0) {
+      const history = await getAllApplications();
+      const items = selected
+        .filter((t) => t.capturable && t.url)
+        .map((tab) => ({
+          id: crypto.randomUUID(),
+          url: normalizeQueueUrl(tab.url) || tab.url,
+          platform: tab.platform || detectPlatformFromUrl(tab.url),
+          status: "pending",
+          addedAt: new Date().toISOString(),
+          jobData: tab.jobData || null,
+          application: null,
+          error: null,
+          sourceTabId: tab.tabId,
+          sourceTabTitle: tab.title,
+        }));
+      const { accepted, duplicates } = dedupeQueueAdditions(items, existing, history);
+      if (accepted.length === 0) {
         return {
           ok: false,
-          error: "No new capturable jobs to add (select Ready tabs or avoid duplicates)",
+          error:
+            duplicates.length > 0
+              ? "No new jobs to add (already in queue or history)"
+              : "No new capturable jobs to add (select Ready tabs)",
           added: 0,
+          duplicates,
         };
       }
-      await setStorage("job_queue", [...existing, ...incoming]);
+      await setStorage("job_queue", [...existing, ...accepted]);
       chrome.runtime.sendMessage({ type: "QUEUE_UPDATED" }).catch(() => {});
-      return { ok: true, added: incoming.length, count: existing.length + incoming.length };
+      return {
+        ok: true,
+        added: accepted.length,
+        duplicates,
+        count: existing.length + accepted.length,
+      };
     }
 
     case "GET_QUEUE": {
       return {
         queue: (await getStorage("job_queue")) || [],
         processing: await getStorage("queue_processing"),
+        paused: Boolean(await getStorage("queue_paused")),
       };
     }
 
+    case "PAUSE_QUEUE": {
+      await setStorage("queue_paused", true);
+      chrome.runtime.sendMessage({ type: "QUEUE_UPDATED" }).catch(() => {});
+      return { ok: true, paused: true };
+    }
+
+    case "RESUME_QUEUE": {
+      await setStorage("queue_paused", false);
+      chrome.runtime.sendMessage({ type: "QUEUE_UPDATED" }).catch(() => {});
+      const queue = (await getStorage("job_queue")) || [];
+      const hasPending = queue.some((q) => q.status === "pending");
+      const processing = await getStorage("queue_processing");
+      if (hasPending && !processing) {
+        processQueue(generateApplication).catch(() => {});
+      }
+      return { ok: true, paused: false, resumed: hasPending && !processing };
+    }
+
+    case "RETRY_QUEUE_FAILED": {
+      let queue = (await getStorage("job_queue")) || [];
+      let count = 0;
+      queue = queue.map((item) => {
+        if (item.status !== "error") return item;
+        count += 1;
+        return { ...item, status: "pending", error: null };
+      });
+      await setStorage("job_queue", queue);
+      chrome.runtime.sendMessage({ type: "QUEUE_UPDATED" }).catch(() => {});
+      return { ok: true, count };
+    }
+
     case "PROCESS_QUEUE": {
+      await setStorage("queue_paused", false);
       processQueue(generateApplication).catch(() => {});
       return { ok: true, started: true };
+    }
+
+    case "WIDGET_OPEN_REVIEW": {
+      const jobData = message.payload?.jobData;
+      const apps = await getAllApplications();
+      let record = message.payload?.historyId
+        ? apps.find((a) => a.id === message.payload.historyId)
+        : null;
+      if (!record && jobData) {
+        record = findApplicationInList(apps, jobData);
+      }
+      if (!record) return { error: "No saved application for this job yet" };
+      const loaded = await loadApplicationIntoPending(record);
+      await setStorage("pending_job", loaded.job);
+      await savePendingApplication(
+        { ...loaded.application, jobData: loaded.job },
+        loaded.job
+      );
+      return openBlitzExtensionUi();
     }
 
     case "CLEAR_QUEUE": {

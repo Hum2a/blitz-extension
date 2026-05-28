@@ -4,6 +4,7 @@ import {
 } from "../popup/src/lib/queue-utils.js";
 import { listingKey } from "../popup/src/lib/job-listing.js";
 import { getAllApplications } from "../popup/src/lib/db.js";
+import { dedupeQueueAdditions, normalizeQueueUrl } from "../popup/src/lib/queue-dedupe.js";
 
 export { isSupportedJobUrl };
 
@@ -122,17 +123,12 @@ export async function listOpenJobTabs() {
   });
 }
 
-export function queueItemsFromTabs(tabEntries, existingQueue = []) {
-  const existingUrls = new Set(existingQueue.map((i) => i.url));
-  const added = [];
-
-  for (const tab of tabEntries) {
-    if (!tab.capturable || !tab.url) continue;
-    if (existingUrls.has(tab.url)) continue;
-
-    const item = {
+export function queueItemsFromTabs(tabEntries, existingQueue = [], historyRecords = []) {
+  const items = tabEntries
+    .filter((tab) => tab.capturable && tab.url)
+    .map((tab) => ({
       id: crypto.randomUUID(),
-      url: tab.url,
+      url: normalizeQueueUrl(tab.url) || tab.url,
       platform: tab.platform || detectPlatformFromUrl(tab.url),
       status: "pending",
       addedAt: new Date().toISOString(),
@@ -141,10 +137,7 @@ export function queueItemsFromTabs(tabEntries, existingQueue = []) {
       error: null,
       sourceTabId: tab.tabId,
       sourceTabTitle: tab.title,
-    };
-    added.push(item);
-    existingUrls.add(tab.url);
-  }
+    }));
 
-  return added;
+  return dedupeQueueAdditions(items, existingQueue, historyRecords).accepted;
 }

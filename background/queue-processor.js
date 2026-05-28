@@ -54,6 +54,10 @@ export async function processQueue(generateApplication) {
     recordClientEvent("queue_started", { queue_count: pendingCount }).catch(() => {});
 
     for (let i = 0; i < queue.length; i++) {
+      if (await getStorage("queue_paused")) {
+        break;
+      }
+
       const item = queue[i];
       if (item.status !== "pending") continue;
 

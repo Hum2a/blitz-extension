@@ -41,7 +41,11 @@ function ApplicationDetail({ app, updateNotes, onOpenReview }) {
         <a href={app.url} target="_blank" rel="noreferrer" className="text-blitz-600 underline">
           View original listing
         </a>
-        {onOpenReview && (app.cvSnapshot || app.coverLetterSnapshot) && (
+        {onOpenReview &&
+          (app.cvSnapshot ||
+            app.coverLetterSnapshot ||
+            app.hasCv ||
+            app.hasCoverLetter) && (
           <button
             type="button"
             onClick={() => onOpenReview(app)}

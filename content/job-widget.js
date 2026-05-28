@@ -17,6 +17,7 @@
   let jobData = null;
   let generating = false;
   let progressText = "";
+  let historyMatch = null;
 
   try {
     expanded = localStorage.getItem("blitz_widget_expanded") !== "0";
@@ -53,8 +54,16 @@
       <p class="hint" data-el="hint"></p>
       <p class="job-title hidden" data-el="title"></p>
       <p class="job-meta hidden" data-el="meta"></p>
+      <div class="match-row hidden" data-el="match-row">
+        <div class="match-ring" data-el="match-ring" aria-hidden="true"></div>
+        <div class="match-copy">
+          <p class="match-label" data-el="match-label">Previous application</p>
+          <p class="match-detail hidden" data-el="match-detail"></p>
+        </div>
+      </div>
       <div class="actions">
         <button type="button" class="btn btn-primary" data-action="generate" disabled>Tailor application</button>
+        <button type="button" class="btn btn-secondary hidden" data-action="review">Review saved</button>
         <button type="button" class="btn btn-secondary" data-action="open">Open Blitz</button>
         <button type="button" class="btn btn-secondary" data-action="refresh">Refresh detection</button>
       </div>
@@ -92,6 +101,68 @@
     }
     if (ctx.pageType === PAGE_TYPES.SEARCH) return { cls: "status-list", label: "Browse jobs" };
     return { cls: "status-idle", label: "Jobs site" };
+  }
+
+  function renderMatchRing(score) {
+    const ring = $('[data-el="match-ring"]');
+    const pct = Math.max(0, Math.min(100, Number(score) || 0));
+    const color = pct >= 75 ? "#16a34a" : pct >= 50 ? "#ca8a04" : "#dc2626";
+    ring.innerHTML = `
+      <svg width="44" height="44" viewBox="0 0 44 44" role="img" aria-label="Match score ${pct}%">
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#e2e8f0" stroke-width="4"/>
+        <circle cx="22" cy="22" r="18" fill="none" stroke="${color}" stroke-width="4"
+          stroke-dasharray="${(pct / 100) * 113} 113" transform="rotate(-90 22 22)" stroke-linecap="round"/>
+        <text x="22" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#0f172a">${pct}</text>
+      </svg>`;
+  }
+
+  function renderHistoryMatch() {
+    const row = $('[data-el="match-row"]');
+    const reviewBtn = $('[data-action="review"]');
+    if (!historyMatch) {
+      row.classList.add("hidden");
+      reviewBtn.classList.add("hidden");
+      return;
+    }
+    row.classList.remove("hidden");
+    reviewBtn.classList.remove("hidden");
+    if (historyMatch.matchScore != null) {
+      renderMatchRing(historyMatch.matchScore);
+    } else {
+      $('[data-el="match-ring"]').textContent = "✓";
+    }
+    $('[data-el="match-label"]').textContent =
+      historyMatch.status === "applied" ? "You applied here" : "Saved application";
+    const detail = $('[data-el="match-detail"]');
+    const bits = [
+      historyMatch.applicationTitle,
+      historyMatch.status,
+      historyMatch.generatedAt
+        ? `Generated ${new Date(historyMatch.generatedAt).toLocaleDateString()}`
+        : null,
+    ].filter(Boolean);
+    if (bits.length) {
+      detail.textContent = bits.join(" · ");
+      detail.classList.remove("hidden");
+    } else {
+      detail.classList.add("hidden");
+    }
+  }
+
+  function fetchHistoryMatch() {
+    if (!jobData?.jobTitle && !jobData?.jobDescription) {
+      historyMatch = null;
+      renderHistoryMatch();
+      return;
+    }
+    chrome.runtime.sendMessage(
+      { type: "GET_JOB_HISTORY_MATCH", payload: { jobData } },
+      (res) => {
+        if (chrome.runtime.lastError) return;
+        historyMatch = res?.match || null;
+        renderHistoryMatch();
+      }
+    );
   }
 
   function render() {
@@ -142,11 +213,14 @@
 
     $('[data-el="fab-label"]').textContent =
       ctx?.pageType === PAGE_TYPES.SINGLE_JOB && hasJob ? "Blitz · Ready" : "Blitz";
+
+    renderHistoryMatch();
   }
 
   function update(ctx, job) {
     if (ctx) pageContext = ctx;
     if (job !== undefined) jobData = job?.error ? null : job;
+    fetchHistoryMatch();
     render();
   }
 
@@ -158,6 +232,7 @@
       if (res?.context) pageContext = res.context;
       if (res?.jobData && !res.jobData.error) jobData = res.jobData;
       else if (res?.error) progressText = res.error;
+      fetchHistoryMatch();
       render();
     });
   }
@@ -174,6 +249,27 @@
     }
     if (action === "refresh") {
       refreshDetection();
+      return;
+    }
+    if (action === "review") {
+      if (!jobData && !historyMatch) return;
+      chrome.runtime.sendMessage(
+        {
+          type: "WIDGET_OPEN_REVIEW",
+          payload: { jobData, historyId: historyMatch?.id },
+        },
+        (res) => {
+          if (chrome.runtime.lastError) {
+            progressText = chrome.runtime.lastError.message;
+            render();
+            return;
+          }
+          if (res?.error) {
+            progressText = res.error;
+            render();
+          }
+        }
+      );
       return;
     }
     if (action === "open") {
@@ -226,6 +322,7 @@
       jobData = msg.payload;
       if (!pageContext) pageContext = window.blitzPageContext?.analyze?.();
       if (pageContext) pageContext.canCapture = true;
+      fetchHistoryMatch();
       render();
     }
     if (msg.type === "GENERATION_PROGRESS") {

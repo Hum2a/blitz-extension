@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { sendExtensionMessage } from "../lib/extension-env.js";
+import { normalizeQueueUrl } from "../lib/queue-dedupe.js";
 import { useJobQueue } from "../hooks/useJobQueue.js";
 import { Card, Btn, FadeUp } from "./motion.jsx";
 
@@ -108,7 +109,10 @@ export default function WorkspaceTabJobs({ onViewQueue, compact = false }) {
   const [adding, setAdding] = useState(false);
   const [addMessage, setAddMessage] = useState(null);
 
-  const queuedUrls = useMemo(() => new Set(queue.map((i) => i.url)), [queue]);
+  const queuedUrls = useMemo(
+    () => new Set(queue.map((i) => normalizeQueueUrl(i.url) || i.url)),
+    [queue]
+  );
 
   const loadTabs = useCallback(async () => {
     setLoading(true);
@@ -118,7 +122,9 @@ export default function WorkspaceTabJobs({ onViewQueue, compact = false }) {
       const result = await sendExtensionMessage({ type: "LIST_JOB_TABS" });
       const list = result?.tabs || [];
       setTabs(list);
-      const capturableIds = list.filter((t) => t.capturable && !queuedUrls.has(t.url)).map((t) => t.tabId);
+      const capturableIds = list
+        .filter((t) => t.capturable && !queuedUrls.has(normalizeQueueUrl(t.url) || t.url))
+        .map((t) => t.tabId);
       setSelected(new Set(capturableIds));
     } catch (err) {
       setError(err.message || "Could not list browser tabs");
@@ -132,7 +138,9 @@ export default function WorkspaceTabJobs({ onViewQueue, compact = false }) {
     loadTabs();
   }, [loadTabs]);
 
-  const capturableTabs = tabs.filter((t) => t.capturable && !queuedUrls.has(t.url));
+  const capturableTabs = tabs.filter(
+    (t) => t.capturable && !queuedUrls.has(normalizeQueueUrl(t.url) || t.url)
+  );
   const selectedCapturable = [...selected].filter((id) =>
     capturableTabs.some((t) => t.tabId === id)
   );
@@ -165,7 +173,11 @@ export default function WorkspaceTabJobs({ onViewQueue, compact = false }) {
         setAddMessage(result?.error || "Nothing added");
         return;
       }
-      setAddMessage(`Added ${result.added} job${result.added === 1 ? "" : "s"} to queue`);
+      const dupNote =
+        result.duplicates?.length > 0
+          ? ` (${result.duplicates.length} duplicate${result.duplicates.length === 1 ? "" : "s"} skipped)`
+          : "";
+      setAddMessage(`Added ${result.added} job${result.added === 1 ? "" : "s"} to queue${dupNote}`);
       refreshQueue();
       await loadTabs();
     } catch (err) {
@@ -241,7 +253,7 @@ export default function WorkspaceTabJobs({ onViewQueue, compact = false }) {
                 key={tab.tabId}
                 tab={tab}
                 selected={selected.has(tab.tabId)}
-                inQueue={queuedUrls.has(tab.url)}
+                inQueue={queuedUrls.has(normalizeQueueUrl(tab.url) || tab.url)}
                 onToggle={toggle}
                 onActivate={activateTab}
               />
