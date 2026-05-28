@@ -22,6 +22,24 @@ describe("job-listing", () => {
       expect(listingKey(jobs.indeed)).toBe("indeed:jk:abc123def");
     });
 
+    it("normalizes Lever posting path", () => {
+      expect(
+        listingKey({
+          platform: "lever",
+          url: "https://jobs.lever.co/acme/11111111-2222-3333-4444-555555555555",
+        })
+      ).toBe("lever:acme:11111111-2222-3333-4444-555555555555");
+    });
+
+    it("normalizes Ashby posting path", () => {
+      expect(
+        listingKey({
+          platform: "ashby",
+          url: "https://jobs.ashbyhq.com/acme/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        })
+      ).toBe("ashby:acme:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    });
+
     it("falls back to title|company when no URL", () => {
       expect(listingKey(jobs.titleCompanyOnly)).toBe(
         "greenhouse|data scientist|delta inc"

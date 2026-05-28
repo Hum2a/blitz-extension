@@ -28,6 +28,7 @@ import {
   listVersions,
   restoreLatestSnapshot,
 } from "../lib/application-versions.js";
+import { isTailorOnlyJob, tailorOnlyHint } from "../lib/tailor-only.js";
 
 export default function ReviewPanel({
   application,
@@ -60,6 +61,7 @@ export default function ReviewPanel({
   const [compareLeftId, setCompareLeftId] = useState("");
   const [compareRightId, setCompareRightId] = useState("draft");
   const initialCvRef = useRef("");
+  const tailorOnly = isTailorOnlyJob(pendingJob || application?.jobData);
 
   const applyToEditor = (app) => {
     const text = app.tailoredCV || "";
@@ -385,24 +387,30 @@ export default function ReviewPanel({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
       >
-        <Btn
-          onClick={handleApprove}
-          disabled={filling}
-          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg btn-shine"
-        >
-          {filling ? (
-            <span className="inline-flex items-center gap-2 justify-center">
-              <motion.span
-                className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full inline-block"
-                animate={{ rotate: 360 }}
-                transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
-              />
-              Filling form…
-            </span>
-          ) : (
-            "Approve & fill"
-          )}
-        </Btn>
+        {tailorOnly ? (
+          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-snug">
+            {tailorOnlyHint(pendingJob || application?.jobData)}
+          </p>
+        ) : (
+          <Btn
+            onClick={handleApprove}
+            disabled={filling}
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg btn-shine"
+          >
+            {filling ? (
+              <span className="inline-flex items-center gap-2 justify-center">
+                <motion.span
+                  className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full inline-block"
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 0.7, ease: "linear" }}
+                />
+                Filling form…
+              </span>
+            ) : (
+              "Approve & fill"
+            )}
+          </Btn>
+        )}
         {generating && (
           <div className="space-y-2">
             <p className="text-xs text-slate-500">

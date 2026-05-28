@@ -97,14 +97,6 @@ export async function startBackgroundGeneration({
   if (!jobData?.jobTitle && !jobData?.jobDescription) {
     return { error: "No job detected. Open a supported job listing first." };
   }
-  if (jobData.externalApply) {
-    return {
-      error: "This job applies on the company site. Blitz cannot fill external applications.",
-    };
-  }
-  if (jobData.platform === "linkedin" && jobData.hasEasyApply === false) {
-    return { error: "This LinkedIn job does not offer Easy Apply." };
-  }
   if (!settings.cv_text?.trim()) {
     return { error: "Add your CV in Settings first." };
   }

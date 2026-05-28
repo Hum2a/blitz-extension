@@ -7,6 +7,8 @@
     linkedin: () => window.blitzLinkedin,
     indeed: () => window.blitzIndeed,
     workday: () => window.blitzWorkday,
+    lever: () => window.blitzLever,
+    ashby: () => window.blitzAshby,
   };
 
   function detectPlatformFromHost() {
@@ -15,6 +17,8 @@
     if (host.includes("linkedin.com")) return "linkedin";
     if (host.includes("indeed.com") || host.includes("indeed.co.uk")) return "indeed";
     if (host.includes("myworkdayjobs.com")) return "workday";
+    if (host.includes("lever.co")) return "lever";
+    if (host.includes("ashbyhq.com")) return "ashby";
     return null;
   }
 

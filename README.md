@@ -11,7 +11,7 @@
 
 - **BYOK AI tailoring** — Anthropic or OpenAI; your key stays in the browser
 - **Match score** — visual ring + rationale before you apply
-- **Human-like form fill** — Greenhouse, LinkedIn Easy Apply, Indeed, Workday
+- **Human-like form fill** — Greenhouse, LinkedIn Easy Apply, Indeed, Workday, Lever, Ashby
 - **Application tracker** — status, notes, CSV export
 - **Bulk job queue** — paste URLs, batch-generate applications
 - **Freemium** — 15 free applications; Pro via license key
@@ -28,6 +28,8 @@
 | Indeed (native) | ✅ | ✅ |
 | Indeed (company site) | ✅ | ⚠️ detect only |
 | Workday | ✅ | ✅ best-effort (Shadow DOM) |
+| Lever (`jobs.lever.co`) | ✅ | ✅ |
+| Ashby (`jobs.ashbyhq.com`) | ✅ | ✅ (embed-only sites: tailor + export) |
 
 ## Quick start
 

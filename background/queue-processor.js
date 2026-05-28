@@ -101,10 +101,6 @@ export async function processQueue(generateApplication) {
         if (!jobData?.jobTitle && !jobData?.jobDescription) {
           throw new Error("No job data found on page");
         }
-        if (jobData.externalApply) {
-          throw new Error("External apply — open manually");
-        }
-
         const settings = await getAllSettings();
         const application = await generateApplication(
           jobData,

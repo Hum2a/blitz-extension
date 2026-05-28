@@ -1,4 +1,4 @@
-const platforms = ["Greenhouse", "LinkedIn Jobs", "Indeed", "Workday"];
+const platforms = ["Greenhouse", "LinkedIn Jobs", "Indeed", "Workday", "Lever", "Ashby"];
 
 export default function Platforms() {
   return (

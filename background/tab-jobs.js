@@ -62,9 +62,7 @@ export async function queryTabJobInfo(tab) {
     const jobData = info?.jobData?.error ? null : info?.jobData;
     const capturable =
       Boolean(context?.canCapture) &&
-      Boolean(jobData?.jobTitle || jobData?.jobDescription) &&
-      !jobData?.externalApply &&
-      !(jobData?.platform === "linkedin" && jobData?.hasEasyApply === false);
+      Boolean(jobData?.jobTitle || jobData?.jobDescription);
 
     return {
       ...base,

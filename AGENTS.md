@@ -42,7 +42,7 @@ npm run test         # validate + optional license API smoke test
 
 ## Platforms
 
-Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (Shadow DOM, best-effort). External Indeed redirects are detect-only.
+Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (best-effort), Lever, Ashby. External Indeed / Ashby embed: tailor + PDF export (no auto-fill).
 
 ## Feature index (keep in sync)
 

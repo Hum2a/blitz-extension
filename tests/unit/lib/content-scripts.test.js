@@ -20,6 +20,17 @@ describe("content-scripts", () => {
       expect(scriptsForUrl("https://www.linkedin.com/in/me")).toBeNull();
     });
 
+    it("returns lever bundle", () => {
+      const scripts = scriptsForUrl("https://jobs.lever.co/acme/abc-123");
+      expect(scripts).toContain("content/lever.js");
+      expect(scripts).toContain("content/job-posting-jsonld.js");
+    });
+
+    it("returns ashby bundle", () => {
+      const scripts = scriptsForUrl("https://jobs.ashbyhq.com/acme/uuid-here");
+      expect(scripts).toContain("content/ashby.js");
+    });
+
     it("returns null for unsupported hosts", () => {
       expect(scriptsForUrl("https://example.com/jobs")).toBeNull();
     });
@@ -41,6 +52,8 @@ describe("content-scripts", () => {
       ["www.linkedin.com", "linkedin"],
       ["www.indeed.co.uk", "indeed"],
       ["acme.wd5.myworkdayjobs.com", "workday"],
+      ["jobs.lever.co", "lever"],
+      ["jobs.ashbyhq.com", "ashby"],
       ["google.com", null],
     ])("%s → %s", (host, expected) => {
       expect(detectPlatformFromHost(host)).toBe(expected);

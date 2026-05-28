@@ -119,10 +119,11 @@ export default function Dashboard({
   }, [applications]);
 
   const externalApply = pendingJob?.externalApply === true;
+  const ashbyEmbedOnly = pendingJob?.ashbyEmbedOnly === true;
   const linkedinNoEasyApply =
     pendingJob?.platform === "linkedin" && pendingJob?.hasEasyApply === false;
-  const canGenerate =
-    hasJob && !generating && !detecting && license.allowed && !externalApply && !linkedinNoEasyApply;
+  const tailorOnly = externalApply || ashbyEmbedOnly || linkedinNoEasyApply;
+  const canGenerate = hasJob && !generating && !detecting && license.allowed;
 
   const jobCard = (
     <FadeUp>
@@ -242,13 +243,15 @@ export default function Dashboard({
                   )}
                 </div>
                 <AnimatePresence>
-                  {externalApply && (
+                  {tailorOnly && (
                     <motion.p
                       className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2"
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                     >
-                      Applies on company site — Blitz cannot auto-fill this role.
+                      {externalApply || ashbyEmbedOnly
+                        ? "External apply — Blitz will tailor your CV; download from Review and apply on the company site."
+                        : "No Easy Apply — tailor with Blitz, then apply manually."}
                     </motion.p>
                   )}
                   {linkedinNoEasyApply && (

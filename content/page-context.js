@@ -17,6 +17,8 @@
     if (host.includes("linkedin.com")) return "linkedin";
     if (host.includes("indeed.com") || host.includes("indeed.co.uk")) return "indeed";
     if (host.includes("myworkdayjobs.com")) return "workday";
+    if (host.includes("lever.co")) return "lever";
+    if (host.includes("ashbyhq.com")) return "ashby";
     return null;
   }
 
@@ -268,6 +270,99 @@
     return { pageType: PAGE_TYPES.PLATFORM, confidence: "low", hint: "Greenhouse" };
   }
 
+  function leverContext(path) {
+    const parts = path.split("?")[0].split("/").filter(Boolean);
+    const isPosting =
+      parts.length >= 2 &&
+      /[0-9a-f-]{8,}/i.test(parts[1]) &&
+      !/^(jobs|apply)$/i.test(parts[1]);
+
+    const singleJob = isPosting || hasAny([
+      "[data-qa='posting-name']",
+      ".posting-headline",
+      ".posting-page",
+      "[data-qa='job-description']",
+      "#application-form",
+    ]);
+
+    const jobLinks = countElements([
+      'a[href*="/"]',
+      ".posting",
+      ".postings-group .posting",
+    ]);
+
+    if (singleJob) {
+      return {
+        pageType: PAGE_TYPES.SINGLE_JOB,
+        confidence: isPosting ? "high" : "medium",
+        hint: window.blitzLever?.isApplyPage?.()
+          ? "Lever application form"
+          : "Lever job posting",
+      };
+    }
+
+    if (parts.length === 1 || jobLinks > 2) {
+      return {
+        pageType: PAGE_TYPES.JOB_LIST,
+        confidence: "medium",
+        hint: "Lever job board — open a role",
+        listingCount: jobLinks,
+      };
+    }
+
+    return { pageType: PAGE_TYPES.PLATFORM, confidence: "low", hint: "Lever careers" };
+  }
+
+  function ashbyContext(path) {
+    const parts = path.split("?")[0].split("/").filter(Boolean);
+    const isPosting =
+      parts.length >= 2 && /[0-9a-f-]{8,}/i.test(parts[1]);
+
+    const embedOnly = window.blitzAshby?.hasCrossOriginAshbyApplyIframe?.() ?? false;
+
+    const singleJob =
+      (isPosting && !embedOnly) ||
+      hasAny([
+        '[data-testid="job-description"]',
+        '[class*="JobDescription"]',
+        "main h1",
+      ]);
+
+    const jobLinks = countElements([
+      'a[href*="/"]',
+      '[class*="JobPosting"]',
+      '[class*="jobPosting"]',
+    ]);
+
+    if (embedOnly) {
+      return {
+        pageType: PAGE_TYPES.SINGLE_JOB,
+        confidence: "medium",
+        hint: "Ashby embed — open jobs.ashbyhq.com to auto-fill",
+        variant: "embed_only",
+      };
+    }
+
+    if (singleJob) {
+      return {
+        pageType: PAGE_TYPES.SINGLE_JOB,
+        confidence: isPosting ? "high" : "medium",
+        hint: "Ashby job posting",
+      };
+    }
+
+    if (parts.length === 1 || jobLinks > 2) {
+      return {
+        pageType: PAGE_TYPES.JOB_LIST,
+        confidence: "medium",
+        hint: "Ashby job board — open a role",
+        listingCount: jobLinks,
+      };
+    }
+
+    return { pageType: PAGE_TYPES.PLATFORM, confidence: "low", hint: "Ashby careers" };
+  }
+
   function workdayContext(path) {
     const singleJob = hasAny([
       '[data-automation-id="jobPostingHeader"]',
@@ -330,6 +425,12 @@
         break;
       case "workday":
         ctx = workdayContext(path);
+        break;
+      case "lever":
+        ctx = leverContext(path);
+        break;
+      case "ashby":
+        ctx = ashbyContext(path);
         break;
       default:
         ctx = { pageType: PAGE_TYPES.UNSUPPORTED, confidence: "none", hint: "" };

@@ -484,7 +484,7 @@ async function scrapeActiveTabJob(tabId) {
   if (!tab?.id || !tab.url) {
     return {
       error:
-        "No job tab found. Open a job on Greenhouse, LinkedIn, Indeed, or Workday in this browser window.",
+        "No job tab found. Open a job on Greenhouse, LinkedIn, Indeed, Workday, Lever, or Ashby in this browser window.",
       code: "no_job_tab",
     };
   }

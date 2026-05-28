@@ -19,7 +19,8 @@ Job origins: `page-context.js` → `humanise.js` → `file-upload.js` → **plat
 | `detector.js` | Platform detect, `JOB_DETECTED`, `GET_TAB_JOB_INFO`, `FILL_FORM` / `SCRAPE_JOB` |
 | `humanise.js` | `window.blitzHumanise` — typing, clicks, native value setter for React |
 | `file-upload.js` | Attach PDF/base64 to file inputs |
-| `greenhouse.js` / `linkedin.js` / `indeed.js` / `workday.js` | `scrapeJob()`, `fillForm(payload)` on `window.blitz*` |
+| `job-posting-jsonld.js` | Shared `JobPosting` JSON-LD parse for Lever/Ashby |
+| `greenhouse.js` / `linkedin.js` / `indeed.js` / `workday.js` / `lever.js` / `ashby.js` | `scrapeJob()`, `fillForm(payload)` on `window.blitz*` |
 
 ## Fill payload
 
@@ -31,6 +32,8 @@ Job origins: `page-context.js` → `humanise.js` → `file-upload.js` → **plat
 - **Indeed**: block `externalApply` redirects; widget on `/jobs`, `viewjob`, `jk`/`vjk`, `smartapply.*`, `/rc/clk`; SPA via `watchSpaNavigation`
 - **Workday**: `queryDeep()` for Shadow DOM
 - **Greenhouse**: `DataTransfer` for resume upload
+- **Lever**: `jobs.lever.co` / `jobs.eu.lever.co`; `name`/`email`/`resume` fields; JSON-LD fallback
+- **Ashby**: `jobs.ashbyhq.com`; cross-origin embed iframe → `externalApply` / tailor-only (no fill)
 
 ## Messages handled in content
 

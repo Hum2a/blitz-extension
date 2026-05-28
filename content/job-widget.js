@@ -123,9 +123,7 @@
     const canGenerate =
       ctx?.canCapture &&
       (jobData?.jobTitle || jobData?.jobDescription) &&
-      !generating &&
-      !jobData?.externalApply &&
-      !(jobData?.platform === "linkedin" && jobData?.hasEasyApply === false);
+      !generating;
 
     const genBtn = $('[data-action="generate"]');
     genBtn.disabled = !canGenerate;

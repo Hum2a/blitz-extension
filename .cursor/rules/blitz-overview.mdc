@@ -26,7 +26,7 @@ Chrome Extension (MV3) that tailors CV/cover letter via user’s AI key (BYOK), 
 
 ## Platforms
 
-Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (Shadow DOM, best-effort). External Indeed redirects are detect-only.
+Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (Shadow DOM, best-effort), Lever (`jobs.lever.co`), Ashby (`jobs.ashbyhq.com`). External Indeed / Ashby embeds: tailor + export (no fill).
 
 ## Commands
 

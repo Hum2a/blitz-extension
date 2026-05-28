@@ -50,9 +50,9 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 
 | Item | Priority | Size |
 |------|----------|------|
-| **Lever** detector + scrape + fill | P0 | L |
-| **Ashby** detector + scrape + fill | P0 | L |
-| **Tailor-only mode** (PDF/DOC + screening export, no fill) | P0 | M |
+| **Lever** detector + scrape + fill | `done` | `content/lever.js` |
+| **Ashby** detector + scrape + fill | `done` | `content/ashby.js`; embed = tailor-only |
+| **Tailor-only mode** (PDF/DOC + screening export, no fill) | `done` | `tailor-only.js`, Review + queue |
 | Queue: pause/resume, retry failed, URL dedupe | P1 | M |
 | Duplicate job warning (queue + history `listingKey`) | P1 | S |
 | Web workspace **history parity** (bridge IDB or sync-read UI) | P1 | M |

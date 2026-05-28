@@ -19,6 +19,9 @@
     "https://*.indeed.com/*",
     "https://*.indeed.co.uk/*",
     "https://*.myworkdayjobs.com/*",
+    "https://jobs.lever.co/*",
+    "https://jobs.eu.lever.co/*",
+    "https://jobs.ashbyhq.com/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
     "https://license.blitzai.online/*",
@@ -55,7 +58,10 @@
         "https://www.linkedin.com/*",
         "https://*.indeed.com/*",
         "https://*.indeed.co.uk/*",
-        "https://*.myworkdayjobs.com/*"
+        "https://*.myworkdayjobs.com/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.eu.lever.co/*",
+        "https://jobs.ashbyhq.com/*"
       ]
     }
   ],
@@ -104,6 +110,32 @@
         "content/humanise.js",
         "content/file-upload.js",
         "content/greenhouse.js",
+        "content/detector.js",
+        "content/job-widget.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://jobs.lever.co/*", "https://jobs.eu.lever.co/*"],
+      "js": [
+        "content/page-context.js",
+        "content/job-posting-jsonld.js",
+        "content/humanise.js",
+        "content/file-upload.js",
+        "content/lever.js",
+        "content/detector.js",
+        "content/job-widget.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://jobs.ashbyhq.com/*"],
+      "js": [
+        "content/page-context.js",
+        "content/job-posting-jsonld.js",
+        "content/humanise.js",
+        "content/file-upload.js",
+        "content/ashby.js",
         "content/detector.js",
         "content/job-widget.js"
       ],

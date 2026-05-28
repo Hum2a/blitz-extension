@@ -3,6 +3,8 @@ const PLATFORM_PATTERNS = [
   { platform: "linkedin", test: /linkedin\.com\/jobs/i },
   { platform: "indeed", test: /indeed\.(com|co\.uk)/i },
   { platform: "workday", test: /myworkdayjobs\.com/i },
+  { platform: "lever", test: /jobs\.(eu\.)?lever\.co/i },
+  { platform: "ashby", test: /jobs\.ashbyhq\.com/i },
 ];
 
 export function detectPlatformFromUrl(url) {

@@ -37,6 +37,21 @@ export function listingKey(job) {
         return `workday:${u.origin}${u.pathname}`;
       }
 
+      if (host.includes("lever.co")) {
+        const parts = u.pathname.split("/").filter(Boolean);
+        if (parts.length >= 2) {
+          const slug = parts[1].replace(/\/apply$/i, "");
+          return `lever:${parts[0]}:${slug}`;
+        }
+        return `lever:${u.pathname}`;
+      }
+
+      if (host.includes("ashbyhq.com")) {
+        const parts = u.pathname.split("/").filter(Boolean);
+        if (parts.length >= 2) return `ashby:${parts[0]}:${parts[1]}`;
+        return `ashby:${u.pathname}`;
+      }
+
       u.hash = "";
       ["utm_source", "utm_medium", "utm_campaign", "from", "ref"].forEach((p) =>
         u.searchParams.delete(p)

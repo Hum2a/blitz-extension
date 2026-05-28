@@ -2,6 +2,7 @@
 
 const BASE_SCRIPTS = [
   "content/page-context.js",
+  "content/job-posting-jsonld.js",
   "content/humanise.js",
   "content/file-upload.js",
 ];
@@ -22,6 +23,12 @@ export function scriptsForUrl(url) {
   if (u.includes("myworkdayjobs.com")) {
     return [...BASE_SCRIPTS, "content/workday.js", ...TAIL_SCRIPTS];
   }
+  if (u.includes("lever.co")) {
+    return [...BASE_SCRIPTS, "content/lever.js", ...TAIL_SCRIPTS];
+  }
+  if (u.includes("ashbyhq.com")) {
+    return [...BASE_SCRIPTS, "content/ashby.js", ...TAIL_SCRIPTS];
+  }
   return null;
 }
 
@@ -40,5 +47,7 @@ export function detectPlatformFromHost(hostname) {
   if (host.includes("linkedin.com")) return "linkedin";
   if (host.includes("indeed.com") || host.includes("indeed.co.uk")) return "indeed";
   if (host.includes("myworkdayjobs.com")) return "workday";
+  if (host.includes("lever.co")) return "lever";
+  if (host.includes("ashbyhq.com")) return "ashby";
   return null;
 }
