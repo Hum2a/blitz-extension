@@ -2,7 +2,7 @@
 
 Blitz is **E2EE**: admins never see CV text, API keys, or application content. The dashboard operates on **metadata, entitlements, roles, and audit** only unless we add explicit (opt-in) telemetry later.
 
-**Today (shipped):** Dashboard counts · Users list · Licenses (set Pro/Free) · Roles + email-login toggle · Google / developer email auth · `admin_audit_log` writes (no viewer).
+**Today (shipped):** Dashboard · Analytics · Users + user detail · Licenses · Sync health · Staff · Billing events · Audit log · Privacy page · Config (maintenance, banner, min version, feature flags) · Roles + email-login toggle · Google / developer email auth · `admin_audit_log` · account suspend · support notes · `client_events` telemetry table.
 
 ---
 
@@ -86,7 +86,7 @@ Blitz is **E2EE**: admins never see CV text, API keys, or application content. T
 
 | Feature | Value | Status |
 |---------|-------|--------|
-| Audit log viewer + filters | Required | Table exists, **no UI** |
+| Audit log viewer + filters | Required | ✅ `admin/pages/Audit.jsx` |
 | Export audit CSV | Compliance | Query + download |
 | Action labels glossary | Clarity | Docs |
 | GDPR deletion log | Legal | Audit + delete-account |
@@ -101,8 +101,8 @@ Blitz is **E2EE**: admins never see CV text, API keys, or application content. T
 | Copy user ID / email | Support tickets |
 | Internal notes on user | *New `support_notes` (developer only, not synced)* |
 | Impersonation | **Skip** — no access to E2EE data, high risk |
-| Maintenance mode flag | *New `app_config`* → extension reads via sync or manifest |
-| Feature flags (per tier) | Product |
+| Maintenance mode flag | ✅ `app_config` → extension via `get_app_config` |
+| Feature flags (`disable_*`) | ✅ Admin Config + extension `generation-guards.js` |
 | Announcement banner text | Product |
 | Health: Supabase / Edge Functions / License worker | Ops |
 

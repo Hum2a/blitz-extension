@@ -24,6 +24,15 @@ function isEntitlementExpired(expiresAt) {
 export async function checkLicenseStatus() {
   const stored = await getStorage("license");
   if (!stored?.key) {
+    const proWithoutKey =
+      stored?.tier === "pro" && !isEntitlementExpired(stored.expiresAt);
+    if (proWithoutKey) {
+      return {
+        tier: "pro",
+        valid: true,
+        applicationsUsed: stored?.applicationsUsed ?? 0,
+      };
+    }
     return { tier: "free", valid: false, applicationsUsed: stored?.applicationsUsed ?? 0 };
   }
 

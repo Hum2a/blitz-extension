@@ -117,6 +117,7 @@ export default function Config() {
             rows={8}
             value={form.feature_flags_json}
             onChange={(e) => setForm({ ...form, feature_flags_json: e.target.value })}
+            placeholder={'{\n  "disable_generation": false,\n  "disable_queue": false,\n  "disable_widget": false,\n  "disable_fill": false\n}'}
           />
         </label>
       </div>

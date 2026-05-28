@@ -31,7 +31,18 @@ export async function recordClientEvent(eventType, meta = {}) {
 
 function sanitizeMeta(meta) {
   const safe = {};
-  const allowed = ["platform", "version", "view", "tier", "doc_count", "app_count", "error_code"];
+  const allowed = [
+    "platform",
+    "version",
+    "view",
+    "tier",
+    "doc_count",
+    "app_count",
+    "error_code",
+    "success",
+    "source",
+    "queue_count",
+  ];
   for (const key of allowed) {
     if (meta[key] !== undefined) safe[key] = meta[key];
   }

@@ -9,6 +9,8 @@ alwaysApply: false
 ## Files
 
 - `background/service-worker.js` — message router, AI generation, license, PDF trigger, queue, external web
+- `background/message-auth.js` — sender allowlists (extension page / content / web)
+- `background/generation-runner.js` — background AI job + `assertGenerationAllowed`
 - `background/queue-processor.js` — bulk queue (reuse `sourceTabId` when open, else background tab)
 - `background/tab-jobs.js` — `listOpenJobTabs`, `queueItemsFromTabs` for workspace tab browser
 - `offscreen/offscreen.html` + `pdf-generator.js` — HTML → html2canvas → jsPDF (vendored deps)
@@ -21,7 +23,7 @@ Queue / tabs: `PROCESS_QUEUE`, `ADD_QUEUE_URLS`, `ADD_TABS_TO_QUEUE`, `LIST_JOB_
 
 Widget: `WIDGET_GENERATE`, `OPEN_BLITZ`, `BLITZ_PAGE_STATE`
 
-External: `chrome.runtime.onMessageExternal` for `localhost` / `127.0.0.1` (web dashboard) — same `handleMessage` switch
+External: `onMessageExternal` for `localhost`, `127.0.0.1`, `app.blitzai.online` — allowlisted types only (`message-auth.js`); `TEST_API_KEY` extension-only
 
 Return `{ error: string }` on failure. Use `return true` + `sendResponse` for async handlers.
 

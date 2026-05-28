@@ -48,6 +48,8 @@ import {
 import { scriptsForUrl, safeHostname } from "../popup/src/lib/content-scripts.js";
 import { openBlitzExtensionUi } from "./open-blitz-ui.js";
 import { assertMessageAllowed } from "./message-auth.js";
+import { assertGenerationAllowed } from "../popup/src/lib/generation-guards.js";
+import { canGenerateToday } from "../popup/src/lib/daily-limit.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -319,6 +321,11 @@ async function handleMessage(message, sender) {
     }
 
     case "FILL_FORM": {
+      try {
+        await assertGenerationAllowed({ action: "fill" });
+      } catch (err) {
+        throw new Error(err.message);
+      }
       const application = await getStorage("pending_application");
       const settings = await getAllSettings();
       let tabId = sender.tab?.id || message.payload?.tabId;
@@ -568,12 +575,21 @@ async function generateApplication(
   );
 
   const aiConfig = await getStorage("ai_config");
-  const { allowed, remaining } = await canSubmitApplication({ enforceServer: true });
+  const daily = await canGenerateToday(preferences);
   report(
     "license",
-    allowed ? "Quota OK" : "Quota exceeded",
-    remaining === Infinity ? "Pro — unlimited" : `${remaining} free applications left`
+    daily.allowed ? "Quota OK" : "Daily limit reached",
+    daily.remaining === Infinity
+      ? "Pro — unlimited"
+      : `${daily.remaining} generations left today (${daily.used}/${daily.limit})`
   );
+  if (!daily.allowed) {
+    throw new Error(
+      `Daily generation limit reached (${daily.used}/${daily.limit}). Try again tomorrow or upgrade to Pro.`
+    );
+  }
+
+  const { allowed, remaining } = await canSubmitApplication({ enforceServer: true });
   if (!allowed) {
     throw new Error("Free tier limit reached (15 applications). Upgrade to Pro.");
   }

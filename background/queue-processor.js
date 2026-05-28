@@ -1,5 +1,7 @@
 import { getStorage, setStorage, getAllSettings } from "../popup/src/lib/storage.js";
-import { canSubmitApplication } from "../popup/src/lib/license.js";
+import { assertGenerationAllowed } from "../popup/src/lib/generation-guards.js";
+import { incrementDailyUsage } from "../popup/src/lib/daily-limit.js";
+import { recordClientEvent } from "../popup/src/lib/telemetry.js";
 import { persistGeneratedApplication } from "../popup/src/lib/application-store.js";
 import { recordApiUsage, API_USAGE_TYPES } from "../popup/src/lib/api-usage-log.js";
 
@@ -38,18 +40,27 @@ export async function processQueue(generateApplication) {
   const processing = await getStorage("queue_processing");
   if (processing) return { alreadyRunning: true };
 
+  try {
+    await assertGenerationAllowed({ action: "queue", source: "queue" });
+  } catch (err) {
+    return { error: err.message };
+  }
+
   await setStorage("queue_processing", true);
 
   try {
     let queue = (await getStorage("job_queue")) || [];
+    const pendingCount = queue.filter((q) => q.status === "pending").length;
+    recordClientEvent("queue_started", { queue_count: pendingCount }).catch(() => {});
 
     for (let i = 0; i < queue.length; i++) {
       const item = queue[i];
       if (item.status !== "pending") continue;
 
-      const { allowed } = await canSubmitApplication();
-      if (!allowed) {
-        queue[i] = { ...item, status: "error", error: "Free tier limit reached" };
+      try {
+        await assertGenerationAllowed({ action: "queue", source: "queue" });
+      } catch (err) {
+        queue[i] = { ...item, status: "error", error: err.message };
         await setStorage("job_queue", queue);
         broadcastQueueUpdate();
         break;
@@ -114,6 +125,12 @@ export async function processQueue(generateApplication) {
         }).catch(() => {});
 
         await persistGeneratedApplication({ ...application, jobData }, jobData);
+        await incrementDailyUsage();
+        recordClientEvent("generate_completed", {
+          platform: jobData.platform || "unknown",
+          success: true,
+          source: "queue",
+        }).catch(() => {});
 
         queue = (await getStorage("job_queue")) || [];
         queue[i] = {
@@ -150,6 +167,7 @@ export async function processQueue(generateApplication) {
   } finally {
     await setStorage("queue_processing", false);
     broadcastQueueUpdate();
+    recordClientEvent("queue_finished", {}).catch(() => {});
   }
 
   return { done: true };

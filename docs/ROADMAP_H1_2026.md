@@ -6,7 +6,7 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 
 ---
 
-## Phase 0 — Security & trust (May 2026) `in progress`
+## Phase 0 — Security & trust (May 2026) `done` (ops deploy remaining)
 
 **Goal:** Close critical authorization gaps before scaling users or marketing spend.
 
@@ -18,28 +18,29 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 | Background message sender authorization | `done` | `background/message-auth.js` |
 | Server tier refresh before AI generation | `done` | `license.js` + `pullLicenseEntitlement` downgrade |
 | License worker CORS allowlist | `done` | No `Access-Control-Allow-Origin: *` on POST |
-| Deploy migration `008` + redeploy Edge Functions | `planned` | Ops |
+| Deploy migration `008` + redeploy Edge Functions | `planned` | Ops — verify production |
 | License worker rate limiting (WAF / Worker) | `planned` | See `docs/GITHUB_ISSUES_BACKLOG.md` |
 | Rich-editor sanitize on every `onChange` | `planned` | XSS hardening |
 | `npm audit` in CI + Dependabot alerts | `planned` | Supply chain |
 
 ---
 
-## Phase 1 — Quality & operability (Jun 2026)
+## Phase 1 — Quality & operability (Jun 2026) `in progress`
 
 **Goal:** Catch regressions in sync, generation, and queue; align docs with shipped admin.
 
-| Item | Priority | Size |
-|------|----------|------|
-| Unit tests: `sync-engine.js` (merge, suspend, unlock) | P0 | M |
-| Unit tests: service worker message router (mocked) | P0 | M |
-| Reconcile `docs/ADMIN_ROADMAP.md` with shipped admin pages | P1 | S |
-| Wire `feature_flags` in extension (`app-config.js` → gates) | P1 | S |
-| `dailyLimit` preference UI + enforcement in queue/generation | P1 | S |
-| Expand `client_events` (platform, generate, errors — no PII) | P1 | S |
-| Raise Vitest coverage thresholds (lib 40%+, sync 60%+) | P2 | S |
-| CI: optional license-worker smoke (fail on main) | P2 | S |
-| ESLint + Prettier (incremental adopt) | P3 | M |
+| Item | Status | Notes |
+|------|--------|-------|
+| Unit tests: `sync-engine.js` merge helpers | `done` | `sync-engine-merge.test.js`; suspend/unlock — planned |
+| Unit tests: SW message contracts | `done` | `generation-guards-sw.test.js` + `message-auth.test.js` |
+| Reconcile `docs/ADMIN_ROADMAP.md` | `done` | Shipped features marked ✅ |
+| Wire `feature_flags` in extension | `done` | `app-feature-flags.js`, `generation-guards.js` |
+| `dailyLimit` UI + enforcement | `done` | Settings + queue/generation-runner/SW |
+| Expand `client_events` telemetry | `done` | `generate_completed`, `queue_*`, `generate_failed` |
+| `generation-guards.js` central checks | `done` | maintenance + flags + daily + license |
+| Raise Vitest coverage thresholds | `planned` | Target lib 25%+ next |
+| CI: license-worker tests in workflow | `planned` | When worker has stable tests |
+| ESLint + Prettier | `planned` | P3 |
 
 ---
 

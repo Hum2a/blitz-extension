@@ -1,4 +1,7 @@
 import { getStorage, setStorage, getAllSettings } from "../popup/src/lib/storage.js";
+import { assertGenerationAllowed } from "../popup/src/lib/generation-guards.js";
+import { incrementDailyUsage } from "../popup/src/lib/daily-limit.js";
+import { recordClientEvent } from "../popup/src/lib/telemetry.js";
 import { buildApplicationPrompts } from "../popup/src/lib/prompts.js";
 import {
   createProgressReporter,
@@ -106,6 +109,15 @@ export async function startBackgroundGeneration({
     return { error: "Add your CV in Settings first." };
   }
 
+  try {
+    await assertGenerationAllowed({
+      source,
+      action: source === "widget" ? "widget" : "generate",
+    });
+  } catch (err) {
+    return { error: err.message };
+  }
+
   if (requirePromptPreflight) {
     const preflight = buildApplicationPrompts({
       cvText: settings.cv_text,
@@ -156,10 +168,22 @@ export async function startBackgroundGeneration({
 
       const application = await savePendingApplication(result, snapshot);
       await persistGeneratedApplication(application, snapshot);
+      await incrementDailyUsage();
+      recordClientEvent("generate_completed", {
+        platform: snapshot.platform || "unknown",
+        tier: (await getStorage("license"))?.tier || "free",
+        success: true,
+        source,
+      }).catch(() => {});
       await setGenerationStatus(idleGenerationStatus());
       chrome.runtime.sendMessage({ type: "APPLICATION_READY", payload: application }).catch(() => {});
     } catch (err) {
       const message = err.message || "Generation failed";
+      recordClientEvent("generate_failed", {
+        platform: snapshot.platform || "unknown",
+        error_code: message.slice(0, 80),
+        source,
+      }).catch(() => {});
       await logGenerateApiCall(settings, snapshot, null, err);
       const status = await getStorage("generation_status");
       await setGenerationStatus(failedGenerationStatus(message, status?.progress));

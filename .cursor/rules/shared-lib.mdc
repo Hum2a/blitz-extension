@@ -14,7 +14,11 @@ Used by **popup** and **background** (imported via relative paths).
 | `ai.js` | `callAI`, `parseApplicationResponse` — Anthropic + OpenAI |
 | `prompts.js` | `buildApplicationPrompts`, `PROMPTS.*` — JSON-only responses |
 | `prompt-parts.js` | `preferences.promptParts` toggles for cost control |
-| `license.js` | Free tier (15), `validateLicense`, `canSubmitApplication` |
+| `license.js` | Free tier (15), `validateLicense`, `canSubmitApplication`, server refresh |
+| `daily-limit.js` | `preferences.dailyLimit` soft cap per day (Pro bypass) |
+| `app-config.js` / `app-feature-flags.js` | Remote `get_app_config`; `disable_*` flags |
+| `generation-guards.js` | Maintenance + flags + daily + license before generate/fill/queue |
+| `telemetry.js` | `client_events` (signed-in only, no PII meta) |
 | `db.js` | IndexedDB `blitz_db` / `applications` store (`listingKey` index, v2) |
 | `application-store.js` | `persistGeneratedApplication`, `persistFilledApplication`, events, `loadApplicationIntoPending` |
 | `api-usage-log.js` | `recordApiUsage`, IndexedDB `api_usage` store (v3) — local API transaction log |

@@ -589,6 +589,20 @@ export default function Settings({ onSaved, fullPage = false }) {
               Auto-submit after fill on LinkedIn (review the page first if unsure)
             </span>
           </label>
+          <SettingsField
+            label="Daily generation limit"
+            hint="Soft cap per calendar day on Free tier. Pro is unlimited. Set 0 for no daily cap."
+          >
+            <SettingsInput
+              type="number"
+              min={0}
+              max={99}
+              value={form.preferences?.dailyLimit ?? 25}
+              onChange={(e) =>
+                update("preferences.dailyLimit", Math.max(0, parseInt(e.target.value, 10) || 0))
+              }
+            />
+          </SettingsField>
           <div className="pt-4 border-t border-slate-100">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
               Prompt content (API cost)

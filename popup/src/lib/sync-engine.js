@@ -29,14 +29,14 @@ const BATCH_SIZE = 50;
 let pushTimer = null;
 let pushInFlight = false;
 
-function compareUpdatedAt(a, b) {
+export function compareUpdatedAt(a, b) {
   const ta = new Date(a || 0).getTime();
   const tb = new Date(b || 0).getTime();
   if (ta !== tb) return ta > tb ? 1 : -1;
   return 0;
 }
 
-function pickWinner(localAt, remoteAt, localDevice, remoteDevice) {
+export function pickWinner(localAt, remoteAt, localDevice, remoteDevice) {
   const cmp = compareUpdatedAt(localAt, remoteAt);
   if (cmp > 0) return "local";
   if (cmp < 0) return "remote";
