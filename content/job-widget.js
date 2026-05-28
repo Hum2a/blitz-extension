@@ -27,7 +27,8 @@
 
   const host = document.createElement("div");
   host.id = "blitz-extension-widget-root";
-  host.setAttribute("aria-hidden", "false");
+  host.setAttribute("role", "complementary");
+  host.setAttribute("aria-label", "Blitz job application assistant");
   document.documentElement.appendChild(host);
 
   const shadow = host.attachShadow({ mode: "open" });
@@ -46,7 +47,7 @@
   panel.innerHTML = `
     <div class="header">
       <div class="brand"><span class="mark">B</span> Blitz</div>
-      <button type="button" class="icon-btn" data-action="minimize" title="Minimize">−</button>
+      <button type="button" class="icon-btn" data-action="minimize" title="Minimize" aria-label="Minimize Blitz panel">−</button>
     </div>
     <div class="body">
       <span class="platform-pill" data-el="platform">—</span>
@@ -62,10 +63,10 @@
         </div>
       </div>
       <div class="actions">
-        <button type="button" class="btn btn-primary" data-action="generate" disabled>Tailor application</button>
-        <button type="button" class="btn btn-secondary hidden" data-action="review">Review saved</button>
-        <button type="button" class="btn btn-secondary" data-action="open">Open Blitz</button>
-        <button type="button" class="btn btn-secondary" data-action="refresh">Refresh detection</button>
+        <button type="button" class="btn btn-primary" data-action="generate" disabled aria-label="Tailor application with Blitz">Tailor application</button>
+        <button type="button" class="btn btn-secondary hidden" data-action="review" aria-label="Review saved application in Blitz">Review saved</button>
+        <button type="button" class="btn btn-secondary" data-action="open" aria-label="Open Blitz dashboard">Open Blitz</button>
+        <button type="button" class="btn btn-secondary" data-action="refresh" aria-label="Refresh job detection">Refresh detection</button>
       </div>
       <p class="progress" data-el="progress"></p>
     </div>
@@ -75,6 +76,7 @@
   const fab = document.createElement("button");
   fab.type = "button";
   fab.className = "fab";
+  fab.setAttribute("aria-label", "Open Blitz assistant");
   fab.innerHTML = '<span class="fab-dot idle" data-el="fab-dot"></span><span data-el="fab-label">Blitz</span>';
   wrap.appendChild(fab);
 

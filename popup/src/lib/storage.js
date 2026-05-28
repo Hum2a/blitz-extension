@@ -31,6 +31,8 @@ const DEFAULTS = {
     coverLetterMode: "always",
     autoSubmit: false,
     dailyLimit: 25,
+    generationLanguage: "en",
+    uiLocale: "en",
     cvTemplate: "modern",
     promptParts: {
       includeCvPrinciples: true,
@@ -90,7 +92,13 @@ async function maybeQueueSync(key) {
   }
 }
 
-import { remapAnthropicModel, ANTHROPIC_DEFAULT_MODEL, OPENAI_DEFAULT_MODEL } from "./models.js";
+import {
+  remapAnthropicModel,
+  ANTHROPIC_DEFAULT_MODEL,
+  OPENAI_DEFAULT_MODEL,
+  GOOGLE_DEFAULT_MODEL,
+  OPENROUTER_DEFAULT_MODEL,
+} from "./models.js";
 
 export function normalizeAiConfig(aiConfig) {
   const base = { ...DEFAULTS.ai_config, ...(aiConfig || {}) };
@@ -101,10 +109,15 @@ export function normalizeAiConfig(aiConfig) {
     }
   }
   if (!base.model?.trim()) {
-    return {
-      ...base,
-      model: base.provider === "openai" ? OPENAI_DEFAULT_MODEL : ANTHROPIC_DEFAULT_MODEL,
-    };
+    const defaultModel =
+      base.provider === "openai"
+        ? OPENAI_DEFAULT_MODEL
+        : base.provider === "google"
+          ? GOOGLE_DEFAULT_MODEL
+          : base.provider === "openrouter"
+            ? OPENROUTER_DEFAULT_MODEL
+            : ANTHROPIC_DEFAULT_MODEL;
+    return { ...base, model: defaultModel };
   }
   return base;
 }

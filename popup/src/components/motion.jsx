@@ -1,6 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { prefersReducedMotion } from "../lib/reduced-motion.js";
 
 export { motion, AnimatePresence };
+
+const reduceMotion = prefersReducedMotion();
 
 export const ease = [0.22, 1, 0.36, 1];
 
@@ -44,6 +47,9 @@ export const stagger = {
 };
 
 export function Page({ children, className = "" }) {
+  if (reduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
   return (
     <motion.div variants={page} initial="initial" animate="animate" exit="exit" className={className}>
       {children}
@@ -60,6 +66,13 @@ export function Stagger({ children, className = "" }) {
 }
 
 export function FadeUp({ children, className = "", delay = 0, ...rest }) {
+  if (reduceMotion) {
+    return (
+      <div className={className} {...rest}>
+        {children}
+      </div>
+    );
+  }
   return (
     <motion.div
       variants={fadeUp}

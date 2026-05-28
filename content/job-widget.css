@@ -48,6 +48,16 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+
+  .btn:active {
+    transform: none;
+  }
+}
+
 .header {
   display: flex;
   align-items: center;

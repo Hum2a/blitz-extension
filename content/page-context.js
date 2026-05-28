@@ -19,6 +19,7 @@
     if (host.includes("myworkdayjobs.com")) return "workday";
     if (host.includes("lever.co")) return "lever";
     if (host.includes("ashbyhq.com")) return "ashby";
+    if (host.includes("bamboohr.com")) return "bamboohr";
     return null;
   }
 
@@ -363,6 +364,31 @@
     return { pageType: PAGE_TYPES.PLATFORM, confidence: "low", hint: "Ashby careers" };
   }
 
+  function bamboohrContext(path) {
+    const onJob =
+      /\/careers\/\d+/i.test(path) ||
+      hasAny([".BambooRichText h2", "h1"]) ||
+      Boolean(document.querySelector(".jobDescription, .BambooRichText"));
+
+    if (onJob) {
+      return {
+        pageType: PAGE_TYPES.SINGLE_JOB,
+        confidence: "medium",
+        hint: "BambooHR job posting",
+      };
+    }
+
+    if (/\/careers/i.test(path)) {
+      return {
+        pageType: PAGE_TYPES.JOB_LIST,
+        confidence: "medium",
+        hint: "BambooHR careers — open a job",
+      };
+    }
+
+    return { pageType: PAGE_TYPES.PLATFORM, confidence: "low", hint: "BambooHR" };
+  }
+
   function workdayContext(path) {
     const singleJob = hasAny([
       '[data-automation-id="jobPostingHeader"]',
@@ -431,6 +457,9 @@
         break;
       case "ashby":
         ctx = ashbyContext(path);
+        break;
+      case "bamboohr":
+        ctx = bamboohrContext(path);
         break;
       default:
         ctx = { pageType: PAGE_TYPES.UNSUPPORTED, confidence: "none", hint: "" };

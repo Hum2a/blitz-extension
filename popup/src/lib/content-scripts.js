@@ -29,6 +29,9 @@ export function scriptsForUrl(url) {
   if (u.includes("ashbyhq.com")) {
     return [...BASE_SCRIPTS, "content/ashby.js", ...TAIL_SCRIPTS];
   }
+  if (u.includes("bamboohr.com")) {
+    return [...BASE_SCRIPTS, "content/bamboohr.js", ...TAIL_SCRIPTS];
+  }
   return null;
 }
 
@@ -49,5 +52,6 @@ export function detectPlatformFromHost(hostname) {
   if (host.includes("myworkdayjobs.com")) return "workday";
   if (host.includes("lever.co")) return "lever";
   if (host.includes("ashbyhq.com")) return "ashby";
+  if (host.includes("bamboohr.com")) return "bamboohr";
   return null;
 }

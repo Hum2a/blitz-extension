@@ -25,6 +25,9 @@
     "https://jobs.ashbyhq.com/*",
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://openrouter.ai/*",
+    "https://*.bamboohr.com/*",
     "https://license.blitzai.online/*",
     "https://*.supabase.co/*"
   ],
@@ -62,7 +65,8 @@
         "https://*.myworkdayjobs.com/*",
         "https://jobs.lever.co/*",
         "https://jobs.eu.lever.co/*",
-        "https://jobs.ashbyhq.com/*"
+        "https://jobs.ashbyhq.com/*",
+        "https://*.bamboohr.com/*"
       ]
     }
   ],
@@ -141,8 +145,27 @@
         "content/job-widget.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.bamboohr.com/careers/*"],
+      "js": [
+        "content/page-context.js",
+        "content/job-posting-jsonld.js",
+        "content/humanise.js",
+        "content/file-upload.js",
+        "content/bamboohr.js",
+        "content/detector.js",
+        "content/job-widget.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "blitz@getblitz.io",
+      "strict_min_version": "109.0"
+    }
+  },
   "icons": {
     "16": "assets/icon16.png",
     "48": "assets/icon48.png",

@@ -154,6 +154,8 @@ Encrypted client-side (see `popup/src/lib/sync-payload.js`):
 | `cv_html_template` | PDF HTML template |
 | `ai_config` | **provider + model only** (no API key) |
 | `license` | **tier + usage** (no license key string) |
+| `job_queue` | Bulk queue metadata (no generated application bodies) |
+| `pending_job` | Active job tab context (title, company, url) |
 
 **Local-only:** `ai_config.apiKey`, `license.key`, pending job/queue, auth session, sync crypto state.
 

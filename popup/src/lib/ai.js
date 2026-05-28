@@ -3,18 +3,16 @@ import {
   ANTHROPIC_DEFAULT_MODEL,
   ANTHROPIC_FALLBACK_CHAIN,
   OPENAI_DEFAULT_MODEL,
+  GOOGLE_DEFAULT_MODEL,
+  OPENROUTER_DEFAULT_MODEL,
+  resolveProviderModel,
   uniqueModels,
   isModelErrorMessage,
 } from "./models.js";
 import { humanizeGeneratedText, stripEmDashes } from "./humanize-text.js";
 
 export function resolveModel(provider, model) {
-  if (provider === "anthropic") {
-    return remapAnthropicModel(model);
-  }
-  const trimmed = model?.trim();
-  if (trimmed) return trimmed;
-  return OPENAI_DEFAULT_MODEL;
+  return resolveProviderModel(provider, model);
 }
 
 export function formatApiError(errBody, status, provider) {
@@ -56,6 +54,14 @@ export async function callAI({
   if (provider === "openai") {
     onApiProgress?.(resolveModel("openai", model), 1, 1);
     return callOpenAI({ apiKey, model, systemPrompt, userPrompt });
+  }
+  if (provider === "google") {
+    onApiProgress?.(resolveModel("google", model), 1, 1);
+    return callGoogle({ apiKey, model, systemPrompt, userPrompt });
+  }
+  if (provider === "openrouter") {
+    onApiProgress?.(resolveModel("openrouter", model), 1, 1);
+    return callOpenRouter({ apiKey, model, systemPrompt, userPrompt });
   }
   throw new Error(`Unknown AI provider: ${provider}`);
 }
@@ -122,6 +128,71 @@ async function callAnthropicWithFallback({
     }
   }
   throw lastError || new Error("No Anthropic models available for this API key.");
+}
+
+async function callGoogle({ apiKey, model, systemPrompt, userPrompt }) {
+  const resolvedModel = resolveModel("google", model);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(resolvedModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: { maxOutputTokens: 8192, temperature: 0.4 },
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(formatApiError(err, response.status, "Google Gemini"));
+  }
+
+  const data = await response.json();
+  const text =
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+  const usageMeta = data.usageMetadata || {};
+  return {
+    text,
+    usage: {
+      input_tokens: usageMeta.promptTokenCount,
+      output_tokens: usageMeta.candidatesTokenCount,
+    },
+    model: resolvedModel,
+  };
+}
+
+async function callOpenRouter({ apiKey, model, systemPrompt, userPrompt }) {
+  const resolvedModel = resolveModel("openrouter", model);
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://getblitz.io",
+      "X-Title": "Blitz Job Application Assistant",
+    },
+    body: JSON.stringify({
+      model: resolvedModel,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 8192,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(formatApiError(err, response.status, "OpenRouter"));
+  }
+
+  const data = await response.json();
+  return {
+    text: data.choices?.[0]?.message?.content || "",
+    usage: data.usage,
+    model: data.model || resolvedModel,
+  };
 }
 
 async function callOpenAI({ apiKey, model, systemPrompt, userPrompt }) {

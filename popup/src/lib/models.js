@@ -19,6 +19,10 @@ export const ANTHROPIC_FALLBACK_CHAIN = [
 
 export const OPENAI_DEFAULT_MODEL = "gpt-4o";
 
+export const GOOGLE_DEFAULT_MODEL = "gemini-2.0-flash";
+
+export const OPENROUTER_DEFAULT_MODEL = "google/gemini-2.0-flash-001";
+
 export const ANTHROPIC_MODEL_SUGGESTIONS = [
   { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (recommended)" },
   { id: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
@@ -30,6 +34,28 @@ export const OPENAI_MODEL_SUGGESTIONS = [
   { id: "gpt-4o", label: "GPT-4o (recommended)" },
   { id: "gpt-4o-mini", label: "GPT-4o mini (cheaper)" },
 ];
+
+export const GOOGLE_MODEL_SUGGESTIONS = [
+  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash (recommended)" },
+  { id: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+  { id: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+];
+
+export const OPENROUTER_MODEL_SUGGESTIONS = [
+  { id: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
+  { id: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4" },
+  { id: "openai/gpt-4o", label: "GPT-4o" },
+];
+
+export function resolveProviderModel(provider, model) {
+  if (provider === "anthropic") return remapAnthropicModel(model);
+  const trimmed = model?.trim();
+  if (trimmed) return trimmed;
+  if (provider === "openai") return OPENAI_DEFAULT_MODEL;
+  if (provider === "google") return GOOGLE_DEFAULT_MODEL;
+  if (provider === "openrouter") return OPENROUTER_DEFAULT_MODEL;
+  return ANTHROPIC_DEFAULT_MODEL;
+}
 
 export function remapAnthropicModel(model) {
   const trimmed = model?.trim();

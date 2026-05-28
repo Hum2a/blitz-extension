@@ -41,6 +41,7 @@
     "admin:build": "vite build --config vite.admin.config.js",
     "marketing:dev": "vite --config vite.marketing.config.js",
     "marketing:build": "vite build --config vite.marketing.config.js",
+    "marketing:e2e": "npm run marketing:build && vite preview --config vite.marketing.config.js --port 3789 --strictPort --host 127.0.0.1",
     "build": "npm run copy:offscreen && vite build",
     "build:check": "npm run build && npm run validate",
     "clean": "node scripts/clean.mjs",
@@ -57,6 +58,8 @@
     "test:unit:coverage": "vitest run --coverage",
     "test:unit:ui": "vitest --ui",
     "test:validate": "node scripts/validate.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "test:license": "npm run test --prefix license-worker",
     "pack": "npm run build:check && node scripts/zip-extension.mjs",
     "pack:zip": "node scripts/zip-extension.mjs",
@@ -121,6 +124,7 @@
     "sharp": "^0.34.2",
     "tailwindcss": "^3.4.17",
     "vite": "^6.3.5",
+    "@playwright/test": "^1.52.0",
     "vitest": "^4.1.7",
     "wrangler": "^4.14.0"
   }

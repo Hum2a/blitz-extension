@@ -13,8 +13,25 @@ describe("sync-payload", () => {
     expect(SYNCABLE_STORAGE_KEYS.has("appearance")).toBe(true);
     expect(SYNCABLE_STORAGE_KEYS.has("ai_config")).toBe(true);
     expect(SYNCABLE_STORAGE_KEYS.has("license")).toBe(true);
-    expect(LOCAL_ONLY_STORAGE_KEYS.has("pending_job")).toBe(true);
+    expect(SYNCABLE_STORAGE_KEYS.has("job_queue")).toBe(true);
+    expect(SYNCABLE_STORAGE_KEYS.has("pending_job")).toBe(true);
+    expect(LOCAL_ONLY_STORAGE_KEYS.has("pending_application")).toBe(true);
     expect(LOCAL_ONLY_STORAGE_KEYS.has("auth_session")).toBe(true);
+  });
+
+  it("strips application bodies from job_queue for cloud", () => {
+    const cloud = prepareForCloud("job_queue", [
+      {
+        id: "1",
+        url: "https://example.com/job",
+        platform: "greenhouse",
+        status: "ready",
+        application: { tailoredCV: "secret cv" },
+        jobData: { jobTitle: "Dev", company: "Acme", url: "https://example.com/job" },
+      },
+    ]);
+    expect(cloud[0].application).toBeUndefined();
+    expect(cloud[0].jobData.jobTitle).toBe("Dev");
   });
 
   it("strips apiKey from ai_config for cloud", () => {

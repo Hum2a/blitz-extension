@@ -38,11 +38,12 @@ npm run dev          # watch UI
 npm run validate     # asset check
 npm run pack         # store zip
 npm run test         # validate + optional license API smoke test
+npm run test:e2e     # Playwright smoke (npm run test:e2e:install once)
 ```
 
 ## Platforms
 
-Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (best-effort), Lever, Ashby. External Indeed / Ashby embed: tailor + PDF export (no auto-fill).
+Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (best-effort), Lever, Ashby, BambooHR. AI: Anthropic, OpenAI, Google Gemini, OpenRouter (BYOK). External Indeed / Ashby embed: tailor + PDF export (no auto-fill).
 
 ## Feature index (keep in sync)
 

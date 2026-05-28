@@ -20,7 +20,7 @@ Job origins: `page-context.js` → `humanise.js` → `file-upload.js` → **plat
 | `humanise.js` | `window.blitzHumanise` — typing, clicks, native value setter for React |
 | `file-upload.js` | Attach PDF/base64 to file inputs |
 | `job-posting-jsonld.js` | Shared `JobPosting` JSON-LD parse for Lever/Ashby |
-| `greenhouse.js` / `linkedin.js` / `indeed.js` / `workday.js` / `lever.js` / `ashby.js` | `scrapeJob()`, `fillForm(payload)` on `window.blitz*` |
+| `greenhouse.js` / `linkedin.js` / `indeed.js` / `workday.js` / `lever.js` / `ashby.js` / `bamboohr.js` | `scrapeJob()`, `fillForm(payload)` on `window.blitz*` |
 
 ## Fill payload
 

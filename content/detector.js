@@ -9,6 +9,7 @@
     workday: () => window.blitzWorkday,
     lever: () => window.blitzLever,
     ashby: () => window.blitzAshby,
+    bamboohr: () => window.blitzBamboohr,
   };
 
   function detectPlatformFromHost() {
@@ -19,6 +20,7 @@
     if (host.includes("myworkdayjobs.com")) return "workday";
     if (host.includes("lever.co")) return "lever";
     if (host.includes("ashbyhq.com")) return "ashby";
+    if (host.includes("bamboohr.com")) return "bamboohr";
     return null;
   }
 

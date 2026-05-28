@@ -16,7 +16,12 @@ import {
   ANTHROPIC_MODEL_SUGGESTIONS,
   OPENAI_MODEL_SUGGESTIONS,
   ANTHROPIC_DEFAULT_MODEL,
+  GOOGLE_MODEL_SUGGESTIONS,
+  OPENROUTER_MODEL_SUGGESTIONS,
+  GOOGLE_DEFAULT_MODEL,
+  OPENROUTER_DEFAULT_MODEL,
 } from "../lib/models.js";
+import { GENERATION_LANGUAGES } from "../lib/prompts.js";
 import { scrollPanelClass } from "../lib/layout.js";
 import SettingsLayout from "./settings/SettingsLayout.jsx";
 import SettingsCard, {
@@ -360,12 +365,14 @@ export default function Settings({ onSaved, fullPage = false }) {
             >
               <option value="anthropic">Anthropic (Claude)</option>
               <option value="openai">OpenAI</option>
+              <option value="google">Google (Gemini)</option>
+              <option value="openrouter">OpenRouter</option>
             </SettingsSelect>
           </SettingsField>
           <SettingsField label="API key" hint="Stored locally in your browser only.">
             <SettingsInput
               type="password"
-              placeholder="sk-… or Anthropic key"
+              placeholder="Provider API key"
               value={form.ai_config?.apiKey || ""}
               onChange={(e) => update("ai_config.apiKey", e.target.value)}
             />
@@ -378,6 +385,34 @@ export default function Settings({ onSaved, fullPage = false }) {
                 className="font-mono text-xs"
               >
                 {OPENAI_MODEL_SUGGESTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </SettingsSelect>
+            </SettingsField>
+          ) : form.ai_config?.provider === "google" ? (
+            <SettingsField label="Model">
+              <SettingsSelect
+                value={form.ai_config?.model || GOOGLE_DEFAULT_MODEL}
+                onChange={(e) => update("ai_config.model", e.target.value)}
+                className="font-mono text-xs"
+              >
+                {GOOGLE_MODEL_SUGGESTIONS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </SettingsSelect>
+            </SettingsField>
+          ) : form.ai_config?.provider === "openrouter" ? (
+            <SettingsField label="Model" hint="OpenRouter model id (provider/model).">
+              <SettingsSelect
+                value={form.ai_config?.model || OPENROUTER_DEFAULT_MODEL}
+                onChange={(e) => update("ai_config.model", e.target.value)}
+                className="font-mono text-xs"
+              >
+                {OPENROUTER_MODEL_SUGGESTIONS.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label}
                   </option>
@@ -592,6 +627,21 @@ export default function Settings({ onSaved, fullPage = false }) {
               Auto-submit after fill on LinkedIn (review the page first if unsure)
             </span>
           </label>
+          <SettingsField
+            label="Generation language"
+            hint="Language for tailored CV, cover letter, and screening answers."
+          >
+            <SettingsSelect
+              value={form.preferences?.generationLanguage || "en"}
+              onChange={(e) => update("preferences.generationLanguage", e.target.value)}
+            >
+              {Object.entries(GENERATION_LANGUAGES).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </SettingsSelect>
+          </SettingsField>
           <SettingsField
             label="Daily generation limit"
             hint="Soft cap per calendar day on Free tier. Pro is unlimited. Set 0 for no daily cap."

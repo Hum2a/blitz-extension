@@ -17,15 +17,20 @@ export const SYNCABLE_USER_SETTINGS_KEYS = [
   "license",
 ];
 
-export const SYNCABLE_STORAGE_KEYS = new Set(SYNCABLE_USER_SETTINGS_KEYS);
+/** Workspace state synced E2EE (metadata only — no CV bodies in queue). */
+export const WORKSPACE_SYNC_KEYS = ["job_queue", "pending_job"];
+
+export const SYNCABLE_STORAGE_KEYS = new Set([
+  ...SYNCABLE_USER_SETTINGS_KEYS,
+  ...WORKSPACE_SYNC_KEYS,
+]);
 
 /** Never uploaded to cloud. */
 export const LOCAL_ONLY_STORAGE_KEYS = new Set([
-  "pending_job",
   "pending_application",
   "generation_status",
-  "job_queue",
   "queue_processing",
+  "queue_paused",
   "debug_log",
   "auth_session",
   "sync_state",
@@ -52,6 +57,38 @@ export function prepareForCloud(key, value) {
         tier: base.tier,
         applicationsUsed: base.applicationsUsed,
         validatedAt: base.validatedAt,
+        billingSource: base.billingSource || null,
+      };
+    }
+    case "job_queue": {
+      const items = Array.isArray(value) ? value : [];
+      return items.map((item) => ({
+        id: item.id,
+        url: item.url,
+        platform: item.platform,
+        status: item.status,
+        addedAt: item.addedAt,
+        error: item.error || null,
+        sourceTabId: item.sourceTabId ?? null,
+        sourceTabTitle: item.sourceTabTitle || null,
+        jobData: item.jobData
+          ? {
+              jobTitle: item.jobData.jobTitle,
+              company: item.jobData.company,
+              url: item.jobData.url,
+              platform: item.jobData.platform,
+            }
+          : null,
+      }));
+    }
+    case "pending_job": {
+      if (!value) return null;
+      return {
+        jobTitle: value.jobTitle,
+        company: value.company,
+        url: value.url,
+        platform: value.platform,
+        externalApply: Boolean(value.externalApply),
       };
     }
     default:
@@ -81,6 +118,17 @@ export function mergeFromCloud(key, localValue, remoteValue) {
         key:
           (typeof localValue === "object" && localValue?.key) || DEFAULTS.license.key,
       };
+    case "job_queue": {
+      const local = Array.isArray(localValue) ? localValue : [];
+      const remote = Array.isArray(remoteValue) ? remoteValue : [];
+      if (!remote.length) return local;
+      if (!local.length) return remote;
+      return remote.length >= local.length ? remote : local;
+    }
+    case "pending_job":
+      if (!remoteValue) return localValue;
+      if (!localValue) return remoteValue;
+      return remoteValue;
     default:
       return remoteValue;
   }

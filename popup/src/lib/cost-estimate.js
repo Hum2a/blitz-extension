@@ -29,6 +29,15 @@ const PRICING_USD_PER_M = {
     "gpt-4-turbo": { input: 10, output: 30 },
     default: { input: 2.5, output: 10 },
   },
+  google: {
+    "gemini-2.0-flash": { input: 0.1, output: 0.4 },
+    "gemini-1.5-pro": { input: 1.25, output: 5 },
+    "gemini-1.5-flash": { input: 0.075, output: 0.3 },
+    default: { input: 0.1, output: 0.4 },
+  },
+  openrouter: {
+    default: { input: 2, output: 8 },
+  },
 };
 
 export function getModelPricing(provider, model) {

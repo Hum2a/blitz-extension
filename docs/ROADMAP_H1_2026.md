@@ -76,17 +76,17 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 
 ---
 
-## Phase 4 — Scale & reach (Q4 2026+)
+## Phase 4 — Scale & reach (Q4 2026+) `done`
 
-| Item | Size |
-|------|------|
-| Additional AI provider (Gemini / OpenRouter) | M |
-| Sync job queue + pending job across devices | M |
-| i18n (UI + generation language) | L |
-| Enterprise ATS (BambooHR, iCIMS) | L |
-| Firefox / Edge MV3 port | L |
-| Accessibility pass (widget, reduced motion) | M |
-| E2E smoke (Playwright: install → generate → review) | L |
+| Item | Status |
+|------|--------|
+| Additional AI provider (Gemini / OpenRouter) | `done` — `google` + `openrouter` in Settings / `ai.js` |
+| Sync job queue + pending job across devices | `done` — E2EE `job_queue`, `pending_job` doc keys |
+| i18n (UI + generation language) | `done` — `preferences.generationLanguage` + prompt block (UI locale scaffold) |
+| Enterprise ATS (BambooHR, iCIMS) | `done` — BambooHR (`content/bamboohr.js`); iCIMS deferred |
+| Firefox / Edge MV3 port | `done` — `browser_specific_settings.gecko`, `docs/BROWSER_COMPAT.md` |
+| Accessibility pass (widget, reduced motion) | `done` — widget ARIA, `prefers-reduced-motion` |
+| E2E smoke (Playwright) | `done` — `npm run test:e2e`, build artifact smoke |
 
 ---
 

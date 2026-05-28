@@ -62,11 +62,28 @@ Human writing (all generated text: tailoredCV, coverLetter, screeningAnswers, su
 - For date ranges use a hyphen with spaces: "Jan 2020 - Present", not an em dash.
 `;
 
-export function buildSystemPrompt(profile, parts) {
+export const GENERATION_LANGUAGES = {
+  en: "English",
+  de: "German",
+  es: "Spanish",
+  fr: "French",
+};
+
+function generationLanguageBlock(code) {
+  if (!code || code === "en") return "";
+  const label = GENERATION_LANGUAGES[code] || code;
+  return `Write all candidate-facing text (tailoredCV, coverLetter, screeningAnswers, applicationTitle) in ${label}. Keep JSON property names in English.`;
+}
+
+export function buildSystemPrompt(profile, parts, options = {}) {
+  const lang = options.generationLanguage || parts?.generationLanguage || "en";
   const blocks = [
     "You act as a senior technical recruiter, hiring manager, ATS optimiser, and CV writer. Tailor CVs and cover letters to specific job descriptions.",
     HUMAN_PUNCTUATION_RULE,
   ];
+
+  const langBlock = generationLanguageBlock(lang);
+  if (langBlock) blocks.push(langBlock);
 
   if (parts.includeCvPrinciples) {
     blocks.push(CV_WRITING_PRINCIPLES);
@@ -168,7 +185,9 @@ export function buildApplicationPrompts({
   const inputParts = [];
   const excludedParts = [];
 
-  const systemPrompt = buildSystemPrompt(userProfile, parts);
+  const systemPrompt = buildSystemPrompt(userProfile, parts, {
+    generationLanguage: preferences.generationLanguage,
+  });
 
   if (parts.includeBaseCv && cvText?.trim()) {
     inputParts.push({ key: "cv", label: "Base CV", text: `Base CV:\n${cvText.trim()}` });
