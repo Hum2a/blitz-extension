@@ -23,7 +23,8 @@ describe("prompts", () => {
         { name: "Jane" },
         { includeCvPrinciples: true, includeSystemProfile: false }
       );
-      expect(prompt).toMatch(/CV writing rules/i);
+      expect(prompt).toMatch(/CV rules/i);
+      expect(prompt).toMatch(/senior technical recruiter/i);
       expect(prompt).not.toMatch(/User profile for screening/i);
     });
 

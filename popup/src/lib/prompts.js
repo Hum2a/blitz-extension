@@ -6,59 +6,33 @@ import {
 const LINKEDIN_MAX_CHARS = 12000;
 
 const CV_WRITING_PRINCIPLES = `
-CV writing rules (follow strictly when producing tailoredCV):
+CV rules (tailoredCV + cvDocument — follow strictly):
 
-Core Principles:
-- Write for impact, clarity, and relevance, not completeness.
-- Optimise for ATS + human skim readers.
-- Prefer outcomes over responsibilities.
-- Every line should answer: "Why does this matter?"
+Persona: senior technical recruiter, hiring manager, ATS optimiser, and CV writer. Completely tailor and optimise the CV for THIS role only.
 
-Structure & Length:
-- Keep CV to 1–2 pages max.
-- Use clear sections: Summary, Experience, Projects, Education, Skills.
-- Prioritise recent and relevant experience.
-- Remove or compress unrelated roles unless they show leadership or scale.
+Task: rewrite every section for max alignment with the job description. Inputs are Base CV (+ LinkedIn if provided) and job listing.
 
-Bullet Point Formula:
-- Use this structure wherever possible: Accomplished X by doing Y, resulting in Z
-- Examples:
-  - Reduced API latency by 40% by introducing edge caching and query batching.
-  - Built a mentor-matching algorithm using weighted scoring, increasing successful matches by 3x
+Requirements:
+- Optimise for ATS parsing and human recruiters; mirror JD language, priorities, and terminology naturally.
+- ONE A4 page maximum. Bullets over paragraphs; concise, high-density, skimmable plain text; no fluff or generic claims.
+- Reorder content so the most relevant experience appears strongest; remove or compress irrelevant content aggressively.
+- Every bullet passes the "so what?" test; strong action verbs; achievements, ownership, scalability, performance, reliability, business impact, technical decisions.
+- Quantify impact where truthful (metrics, scale, %, users, revenue, automation, speed). Use proxy scale only when exact numbers are unavailable.
+- Tailor summary and skills to the role; align projects and experience to JD technologies and responsibilities.
+- Reframe transferable experience strategically when needed — believable and internally consistent. Sound like a credible candidate for THIS role, not a generic engineer. UK tech hiring standards.
 
-Metrics & Evidence:
-- Quantify impact wherever possible: users, sessions, load time, revenue, scale, adoption, accuracy, cost reduction.
-- If exact numbers are not available, use directional or proxy metrics (e.g. "sub-second load times", "multi-tenant", "enterprise-scale").
+Infer the best-fit role archetype from the JD and apply ONE emphasis:
+- startup → ownership, speed, product thinking, breadth
+- enterprise/corporate → scalability, stakeholder communication, reliability, governance, structured delivery
+- frontend → UI/UX, performance, accessibility, responsiveness, modern frontend architecture
+- backend → APIs, distributed systems, databases, scalability, observability, performance optimisation
+- AI/ML → data pipelines, model integration, experimentation, inference performance, AI product delivery
+- devops/platform → CI/CD, infrastructure automation, cloud architecture, monitoring, security, reliability engineering
+- junior (candidate slightly underqualified) → transferable experience, fast learning, initiative, practical project depth
 
-Technical Detail:
-- Mention technologies only where they add signal.
-- Prefer how and why tools were used, not tool dumping.
-- Show system thinking: architecture, trade-offs, performance, reliability, security, scalability.
+Cover letter (when enabled): 250–400 words; natural, confident, company- and role-specific; reference relevant experience, tech, and impact; avoid generic AI phrasing.
 
-Language & Tone:
-- Use strong action verbs: built, shipped, architected, optimised, led.
-- Avoid filler phrases: responsible for, worked on, helped with.
-- Be confident but factual. No hype, no buzzword soup.
-- Never use the em dash character (—). Use commas, full stops, colons, or parentheses instead. Date ranges may use a simple hyphen (e.g. Jan 2020 - Present).
-
-Role Tailoring:
-- Mirror the job description language and priorities.
-- Reorder bullets to surface the most relevant skills first.
-- Adjust emphasis:
-  - Product roles → outcomes & users
-  - Infra roles → reliability, scale, automation
-  - Startup roles → ownership & breadth
-
-What to Cut:
-- Long narratives.
-- Obvious skills without context.
-- Repetition across roles.
-- Early or junior experience that no longer differentiates the candidate.
-
-Final Checks:
-- Every bullet passes the "so what?" test.
-- CV can be skimmed in 30 seconds and still tell a clear story.
-- Formatting is clean, consistent, and readable in plain text.
+Do not fabricate employers, dates, roles, or metrics.
 `;
 
 function formatLinkedInSection(linkedinProfileText) {
@@ -90,7 +64,7 @@ Human writing (all generated text: tailoredCV, coverLetter, screeningAnswers, su
 
 export function buildSystemPrompt(profile, parts) {
   const blocks = [
-    "You are an expert career coach and CV writer. You help job seekers tailor CVs and cover letters to specific job descriptions.",
+    "You act as a senior technical recruiter, hiring manager, ATS optimiser, and CV writer. Tailor CVs and cover letters to specific job descriptions.",
     HUMAN_PUNCTUATION_RULE,
   ];
 
@@ -142,7 +116,7 @@ function isHumzaProfile(userProfile = {}) {
 function buildResponseSchema(jobData, parts) {
   const titleHint = formatApplicationTitle(jobData);
   const coverLetterInstruction = parts.includeCoverLetter
-    ? '"Professional cover letter, 3 paragraphs, specific to this role and company. Do not use generic filler phrases."'
+    ? '"Tailored cover letter, 250–400 words, natural and specific to this company and role. Reference relevant experience, technologies, and impact. No generic AI phrasing."'
     : '"" (empty string, cover letter disabled)';
 
   const screeningBlock = parts.includeScreeningQuestions
@@ -154,7 +128,7 @@ function buildResponseSchema(jobData, parts) {
   return `Generate a tailored application. All prose must follow the no-em-dash rule above. Respond with this exact JSON structure:
 {
   "applicationTitle": "Short label for finding this later, format: {Job Title} - {Company Name} (e.g. ${JSON.stringify(titleHint.replace(/\u2014/g, " - "))})",
-  "tailoredCV": "Full tailored CV as plain text (same content as cvDocument). Sections: Professional Summary, Education, Technical Skills, Career. Use accomplishment bullets. ATS-friendly plain text.",
+  "tailoredCV": "Full one-page tailored CV as plain text (same content as cvDocument). Sections: Professional Summary, Education, Technical Skills, Career. High-impact bullets only. ATS-friendly plain text.",
   "cvDocument": {
     "fullName": "string",
     "contactLine": "plain text fallback for contact row",
@@ -176,7 +150,7 @@ function buildResponseSchema(jobData, parts) {
   "coverLetter": ${coverLetterInstruction},
   ${screeningBlock}
   "matchScore": <integer 0-100 representing how well the base CV matches this role>,
-  "matchRationale": "2 sentence explanation of the match score"
+  "matchRationale": "Brief strategic tailoring summary: 3–5 concise bullets on what you changed in the CV/cover letter and why it improves fit for this role; end with one sentence on the match score"
 }`;
 }
 
@@ -237,8 +211,8 @@ export function buildApplicationPrompts({
   }
 
   const tailoringNote = parts.includeCvPrinciples
-    ? "Apply all CV writing rules above when tailoring."
-    : "Tailor the CV to the job listing.";
+    ? "Apply all CV rules above. Deliver: (1) one-page tailored CV, (2) tailored cover letter if enabled, (3) strategic changes in matchRationale."
+    : "Completely tailor the CV to this job listing (one A4 page max). Explain strategic changes in matchRationale.";
 
   const bespokeConstraints = [];
   if (isHumzaProfile(userProfile)) {
