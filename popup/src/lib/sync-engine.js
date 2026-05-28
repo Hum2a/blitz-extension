@@ -429,7 +429,7 @@ async function pullApplications(token, meta, passphrase, deviceId, since, fullMe
 export async function pullLicenseEntitlement(token) {
   try {
     const rows = await restSelect("license_entitlements", token, {
-      query: "?select=tier,applications_used,expires_at&limit=1",
+      query: "?select=tier,applications_used,expires_at,source&limit=1",
     });
     const ent = rows?.[0];
     if (!ent) return;
@@ -437,6 +437,8 @@ export async function pullLicenseEntitlement(token) {
     const expired =
       ent.expires_at && new Date(ent.expires_at).getTime() < Date.now();
     const proActive = ent.tier === "pro" && !expired;
+
+    const billingSource = ent.source || license.billingSource || null;
 
     if (proActive) {
       await setStorage(
@@ -446,6 +448,7 @@ export async function pullLicenseEntitlement(token) {
           tier: "pro",
           expiresAt: ent.expires_at || null,
           validatedAt: new Date().toISOString(),
+          billingSource,
         },
         { skipSync: true }
       );
@@ -459,6 +462,7 @@ export async function pullLicenseEntitlement(token) {
         tier: "free",
         expiresAt: ent.expires_at || null,
         validatedAt: new Date().toISOString(),
+        billingSource,
         ...(typeof ent.applications_used === "number"
           ? { applicationsUsed: ent.applications_used }
           : {}),

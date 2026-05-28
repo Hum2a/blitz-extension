@@ -107,6 +107,9 @@ export function buildHistoryRecord(application, jobData, options = {}) {
     },
     events: appendEvent(existing?.events, eventType),
     latestSnapshot: application?.latestSnapshot || existing?.latestSnapshot || null,
+    followUpAt: existing?.followUpAt ?? null,
+    followUpNote: existing?.followUpNote ?? "",
+    notes: existing?.notes ?? application?.notes ?? "",
   };
 
   return record;
@@ -216,6 +219,7 @@ export function formatHistoryEvent(type) {
     [HISTORY_EVENT_TYPES.FORM_FILLED]: "Form filled",
     [HISTORY_EVENT_TYPES.SUBMITTED]: "Submitted",
     [HISTORY_EVENT_TYPES.STATUS_CHANGED]: "Status updated",
+    imported: "Imported",
   };
   return labels[type] || type;
 }

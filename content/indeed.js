@@ -211,4 +211,49 @@ async function fillForm(payload) {
   chrome.runtime.sendMessage({ type: "APPLICATION_SUBMITTED" });
 }
 
-window.blitzIndeed = { scrapeJob, fillForm };
+function listJobListings() {
+  const seen = new Set();
+  const jobs = [];
+  const host = window.location.host;
+
+  const add = (jk, jobTitle, company) => {
+    if (!jk || seen.has(jk)) return;
+    seen.add(jk);
+    const url = `https://${host}/viewjob?jk=${encodeURIComponent(jk)}`;
+    jobs.push({
+      url,
+      jobTitle: jobTitle || "",
+      company: company || "",
+      platform: "indeed",
+    });
+  };
+
+  document.querySelectorAll("[data-jk]").forEach((el) => {
+    const jk = el.getAttribute("data-jk");
+    const card = el.closest(".job_seen_beacon, .jobsearch-ResultsList > li, li");
+    const title =
+      card?.querySelector("h2, .jobTitle, [class*='jobTitle']")?.textContent?.trim() || "";
+    const company =
+      card?.querySelector("[data-testid='company-name'], .companyName, .company")?.textContent?.trim() ||
+      "";
+    add(jk, title, company);
+  });
+
+  document.querySelectorAll('a[href*="jk="]').forEach((anchor) => {
+    try {
+      const u = new URL(anchor.href, window.location.origin);
+      const jk = u.searchParams.get("jk") || u.searchParams.get("vjk");
+      if (!jk) return;
+      const card = anchor.closest(".job_seen_beacon, li");
+      const title = card?.querySelector("h2, .jobTitle")?.textContent?.trim() || "";
+      const company = card?.querySelector(".companyName")?.textContent?.trim() || "";
+      add(jk, title, company);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  return jobs.slice(0, 40);
+}
+
+window.blitzIndeed = { scrapeJob, fillForm, listJobListings };

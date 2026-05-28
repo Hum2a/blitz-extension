@@ -1,3 +1,5 @@
+import { listingKey as jobListingKey } from "./job-listing.js";
+
 export const APPLICATION_STATUSES = [
   "generated",
   "applied",
@@ -100,8 +102,123 @@ export function computeHistorySummary(applications) {
   };
 }
 
-export function filterApplications(applications, { statusFilter, search }) {
+function parseCsvLine(line) {
+  const cells = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (ch === "," && !inQuotes) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+const CSV_HEADER_MAP = {
+  title: "title",
+  company: "company",
+  role: "role",
+  date: "date",
+  platform: "platform",
+  "match score": "matchScore",
+  status: "status",
+  url: "url",
+  notes: "notes",
+};
+
+/**
+ * Import application metadata from exported CSV (no CV bodies).
+ */
+export function parseApplicationsFromCsv(text) {
+  const lines = String(text || "")
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean);
+  if (lines.length < 2) {
+    return { records: [], errors: ["File is empty or has no data rows."] };
+  }
+
+  const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
+  const keys = headers.map((h) => CSV_HEADER_MAP[h] || null);
+  if (!keys.includes("title") && !keys.includes("role")) {
+    return {
+      records: [],
+      errors: ["Unrecognized CSV — expected columns like Title, Company, Role, URL."],
+    };
+  }
+
+  const records = [];
+  const errors = [];
+
+  for (let row = 1; row < lines.length; row += 1) {
+    const cells = parseCsvLine(lines[row]);
+    if (cells.every((c) => !c)) continue;
+
+    const rowObj = {};
+    keys.forEach((key, i) => {
+      if (key) rowObj[key] = cells[i] ?? "";
+    });
+
+    const role = rowObj.role || rowObj.title || "Imported role";
+    const company = rowObj.company || "";
+    const url = rowObj.url || "";
+    const status = APPLICATION_STATUSES.includes(rowObj.status)
+      ? rowObj.status
+      : "generated";
+    const now = new Date().toISOString();
+    const parsedDate = rowObj.date ? new Date(rowObj.date) : null;
+    const generatedAt =
+      parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString() : now;
+
+    const jobRef = { url, company, jobTitle: role, platform: rowObj.platform || "" };
+    records.push({
+      id: crypto.randomUUID(),
+      listingKey: jobListingKey(jobRef) || `${company}:${role}`.toLowerCase(),
+      applicationTitle: rowObj.title || (company ? `${role} - ${company}` : role),
+      company,
+      role,
+      url,
+      platform: rowObj.platform || "",
+      status,
+      generatedAt,
+      updatedAt: now,
+      appliedAt: status === "applied" ? generatedAt : null,
+      matchScore: rowObj.matchScore ? Number(rowObj.matchScore) : null,
+      matchRationale: "",
+      cvSnapshot: "",
+      coverLetterSnapshot: "",
+      screeningAnswers: [],
+      jobData: { jobTitle: role, company, url, platform: rowObj.platform || "" },
+      events: [{ type: "imported", at: now, detail: "Imported from CSV" }],
+      notes: rowObj.notes || "",
+      followUpAt: null,
+      followUpNote: "",
+    });
+  }
+
+  if (records.length === 0) errors.push("No valid rows found.");
+  return { records, errors };
+}
+
+export function filterApplications(applications, { statusFilter, search, followUpOnly }) {
   let list = [...applications];
+  if (followUpOnly) {
+    list = list.filter((a) => a.followUpAt && new Date(a.followUpAt).getTime() >= Date.now() - 86_400_000);
+  }
   if (statusFilter && statusFilter !== "all") {
     list = list.filter((a) => a.status === statusFilter);
   }

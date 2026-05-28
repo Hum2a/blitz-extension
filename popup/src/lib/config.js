@@ -5,6 +5,8 @@ export { SUPABASE_URL, SUPABASE_ANON_KEY };
 export const LEMONSQUEEZY = {
   checkoutMonthly: "https://getblitz.lemonsqueezy.com/checkout/buy/monthly",
   checkoutYearly: "https://getblitz.lemonsqueezy.com/checkout/buy/yearly",
+  /** Lemon Squeezy customer portal — manage/cancel subscription */
+  customerPortal: "https://getblitz.lemonsqueezy.com/billing",
 };
 
 export const LICENSE_ENDPOINT = "https://license.blitzai.online";

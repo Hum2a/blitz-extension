@@ -61,18 +61,18 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 
 ---
 
-## Phase 3 — Growth & monetization (Sep 2026)
+## Phase 3 — Growth & monetization (Sep 2026) `done`
 
 **Goal:** Reduce support load, improve conversion, inform product with data.
 
-| Item | Priority | Size |
-|------|----------|------|
-| Lemon Squeezy customer portal link in Settings | P1 | S |
-| Admin: platform-mix from telemetry | P1 | M |
-| Smart job-list capture (LinkedIn/Indeed search) | P2 | M |
-| Follow-up reminders (interview / check-back) | P2 | M |
-| Import history from CSV | P2 | M |
-| Chrome Web Store listing + `VITE_CHROME_WEB_STORE_URL` on marketing | P1 | S |
+| Item | Priority | Status |
+|------|----------|--------|
+| Lemon Squeezy customer portal link in Settings | P1 | `done` — `LEMONSQUEEZY.customerPortal` when `billingSource=lemonsqueezy` |
+| Admin: platform-mix from telemetry | P1 | `done` — migration `009`, Analytics platform chart |
+| Smart job-list capture (LinkedIn/Indeed search) | P2 | `done` — `LIST_PAGE_JOBS`, `PageJobCapture.jsx` |
+| Follow-up reminders (interview / check-back) | P2 | `done` — `followUpAt`, alarms + notifications |
+| Import history from CSV | P2 | `done` — `parseApplicationsFromCsv`, History import |
+| Chrome Web Store listing + `VITE_CHROME_WEB_STORE_URL` on marketing | P1 | `done` — `marketing/lib/config.js` + `.env.example` |
 
 ---
 

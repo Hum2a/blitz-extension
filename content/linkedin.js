@@ -202,4 +202,44 @@ async function fillForm(payload) {
   chrome.runtime.sendMessage({ type: "APPLICATION_SUBMITTED" });
 }
 
-window.blitzLinkedin = { scrapeJob, fillForm };
+function listJobListings() {
+  const seen = new Set();
+  const jobs = [];
+
+  const add = (href, jobTitle, company) => {
+    try {
+      const u = new URL(href, window.location.origin);
+      if (!/\/jobs\/view\/\d+/i.test(u.pathname)) return;
+      const url = `${u.origin}${u.pathname}`;
+      if (seen.has(url)) return;
+      seen.add(url);
+      jobs.push({
+        url,
+        jobTitle: jobTitle || "",
+        company: company || "",
+        platform: "linkedin",
+      });
+    } catch {
+      /* invalid href */
+    }
+  };
+
+  document.querySelectorAll('a[href*="/jobs/view/"]').forEach((anchor) => {
+    const card = anchor.closest(
+      ".jobs-search-results__list-item, .scaffold-layout__list-item, li, [data-job-id]"
+    );
+    const title =
+      anchor.textContent?.trim() ||
+      card?.querySelector("strong, h3, .job-card-list__title")?.textContent?.trim() ||
+      "";
+    const company =
+      card?.querySelector(
+        ".artdeco-entity-lockup__subtitle, .job-card-container__company-name, [class*='subtitle']"
+      )?.textContent?.trim() || "";
+    add(anchor.href, title, company);
+  });
+
+  return jobs.slice(0, 40);
+}
+
+window.blitzLinkedin = { scrapeJob, fillForm, listJobListings };

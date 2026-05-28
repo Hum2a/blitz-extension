@@ -58,12 +58,14 @@ import { canGenerateToday } from "../popup/src/lib/daily-limit.js";
 import { handleHistoryMessage } from "./history-messages.js";
 import { dedupeQueueAdditions, normalizeQueueUrl } from "../popup/src/lib/queue-dedupe.js";
 import { detectPlatformFromUrl } from "../popup/src/lib/queue-utils.js";
+import { initFollowUpReminders, syncFollowUpAlarms } from "./reminders.js";
 import { getAllApplications } from "../popup/src/lib/db.js";
 import { findApplicationInList } from "../popup/src/lib/application-store.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
 initSyncBackground();
+initFollowUpReminders();
 
 async function setPendingJobAndReconcile(jobData) {
   await setStorage("pending_job", jobData);
@@ -555,6 +557,31 @@ async function handleMessage(message, sender) {
         loaded.job
       );
       return openBlitzExtensionUi();
+    }
+
+    case "LIST_PAGE_JOBS": {
+      const jobTab = await findJobTabForScrape(message.payload?.tabId);
+      if (!jobTab?.id) {
+        throw new Error(
+          "No job tab found. Open a LinkedIn or Indeed search/results page in this browser window."
+        );
+      }
+      const listResult = await chrome.tabs.sendMessage(jobTab.id, { type: "LIST_PAGE_JOBS" });
+      if (listResult?.error && !listResult?.jobs?.length) {
+        throw new Error(listResult.error);
+      }
+      return {
+        ok: true,
+        jobs: listResult?.jobs || [],
+        platform: listResult?.platform,
+        pageType: listResult?.pageType,
+        tabId: jobTab.id,
+      };
+    }
+
+    case "SYNC_FOLLOW_UP_REMINDERS": {
+      await syncFollowUpAlarms();
+      return { ok: true };
     }
 
     case "CLEAR_QUEUE": {

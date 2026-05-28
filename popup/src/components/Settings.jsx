@@ -286,6 +286,9 @@ export default function Settings({ onSaved, fullPage = false }) {
   const license = form.license || {};
   const used = license.applicationsUsed ?? 0;
   const isPro = license.tier === "pro";
+  const lemonBilling =
+    license.billingSource === "lemonsqueezy" ||
+    license.source === "lemonsqueezy";
 
   const statusBanner = (profileSaveStatus || saveError) && (
     <motion.div
@@ -656,6 +659,21 @@ export default function Settings({ onSaved, fullPage = false }) {
                 Upgrade — £49/yr
               </a>
             </div>
+          )}
+          {isPro && lemonBilling && (
+            <a
+              href={LEMONSQUEEZY.customerPortal}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex text-sm font-medium text-blitz-700 underline hover:text-blitz-900"
+            >
+              Manage subscription (Lemon Squeezy) →
+            </a>
+          )}
+          {isPro && !lemonBilling && (
+            <p className="text-xs text-slate-500">
+              Pro via license key — contact support to change billing.
+            </p>
           )}
           <SettingsField label="License key">
             <SettingsInput

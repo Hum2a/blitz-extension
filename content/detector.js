@@ -111,6 +111,33 @@
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === "LIST_PAGE_JOBS") {
+      const platform = detectPlatform();
+      const handler = PLATFORMS[platform]?.();
+      if (!handler?.listJobListings) {
+        sendResponse({
+          error: "Job list capture is only supported on LinkedIn and Indeed search pages.",
+          jobs: [],
+        });
+        return true;
+      }
+      const context = window.blitzPageContext?.analyze?.() || null;
+      const pageType = context?.pageType;
+      if (pageType !== "job_list" && pageType !== "search") {
+        sendResponse({
+          error: "Open a job search or results list, then scan again.",
+          jobs: [],
+          pageType,
+        });
+        return true;
+      }
+      sendResponse({
+        jobs: handler.listJobListings(),
+        platform,
+        pageType,
+      });
+      return true;
+    }
     if (message.type === "SCRAPE_JOB") {
       const platform = detectPlatform();
       if (!platform) {

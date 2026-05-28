@@ -12,6 +12,7 @@ describe("config", () => {
 
   it("exposes LemonSqueezy checkout URLs", () => {
     expect(LEMONSQUEEZY.checkoutMonthly).toMatch(/lemonsqueezy/i);
+    expect(LEMONSQUEEZY.customerPortal).toMatch(/billing/i);
   });
 
   it("SUPABASE_CONFIGURED reflects .env via config.secrets.js (boolean)", () => {

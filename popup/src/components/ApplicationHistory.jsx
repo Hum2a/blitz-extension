@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApplications } from "../hooks/useApplications.js";
 import MatchScoreRing from "./MatchScoreRing.jsx";
@@ -8,11 +8,19 @@ import {
   STATUS_LABELS,
   STATUS_STYLES,
   exportApplicationsToCsv,
+  parseApplicationsFromCsv,
   computeHistorySummary,
   filterApplications,
   displayApplicationLabel,
   historyDisplayDate,
 } from "../lib/application-history-utils.js";
+import { addApplicationBridged, updateApplicationBridged } from "../lib/history-bridge.js";
+import {
+  FOLLOW_UP_PRESETS,
+  followUpAtFromDays,
+  formatFollowUpAt,
+  syncFollowUpAlarmsFromUi,
+} from "../lib/follow-up-reminders.js";
 import { formatHistoryEvent } from "../lib/application-store.js";
 import { scrollPanelClass } from "../lib/layout.js";
 import { useModal } from "../hooks/useModal.js";
@@ -30,7 +38,7 @@ function SummaryPill({ label, value, highlight }) {
   );
 }
 
-function ApplicationDetail({ app, updateNotes, onOpenReview }) {
+function ApplicationDetail({ app, updateNotes, onOpenReview, onSetFollowUp, onClearFollowUp }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: -4 }}
@@ -73,6 +81,43 @@ function ApplicationDetail({ app, updateNotes, onOpenReview }) {
           </ul>
         </div>
       )}
+      <div>
+        <p className="font-semibold text-slate-700 mb-1">Follow-up reminder</p>
+        {app.followUpAt ? (
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="text-[11px] font-medium text-violet-800 bg-violet-50 border border-violet-200 px-2 py-1 rounded">
+              {formatFollowUpAt(app.followUpAt)} ·{" "}
+              {new Date(app.followUpAt).toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={() => onClearFollowUp(app.id)}
+              className="text-[11px] text-slate-500 underline"
+            >
+              Clear
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {FOLLOW_UP_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => onSetFollowUp(app.id, followUpAtFromDays(preset.days), preset.label)}
+                className="text-[11px] px-2 py-1 rounded border border-slate-200 bg-white hover:border-blitz-300"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {app.followUpNote && (
+          <p className="text-[11px] text-slate-500 mb-2">{app.followUpNote}</p>
+        )}
+      </div>
       <label className="block">
         <span className="font-semibold text-slate-700">Notes</span>
         <textarea
@@ -125,6 +170,10 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState(null);
+  const [followUpFilter, setFollowUpFilter] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     refresh();
@@ -132,9 +181,55 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
 
   const summary = useMemo(() => computeHistorySummary(applications), [applications]);
   const filtered = useMemo(
-    () => filterApplications(applications, { statusFilter, search }),
-    [applications, statusFilter, search]
+    () => filterApplications(applications, { statusFilter, search, followUpOnly: followUpFilter }),
+    [applications, statusFilter, search, followUpFilter]
   );
+
+  const handleImportCsv = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportMessage(null);
+    try {
+      const text = await file.text();
+      const { records, errors } = parseApplicationsFromCsv(text);
+      if (records.length === 0) {
+        setImportMessage(errors[0] || "Nothing to import.");
+        return;
+      }
+      for (const record of records) {
+        await addApplicationBridged(record);
+      }
+      await refresh();
+      setImportMessage(`Imported ${records.length} application${records.length === 1 ? "" : "s"}.`);
+      if (errors.length) setImportMessage((m) => `${m} ${errors.join(" ")}`);
+    } catch (err) {
+      setImportMessage(err.message || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const setFollowUp = async (id, followUpAt, label) => {
+    await updateApplicationBridged(id, {
+      followUpAt,
+      followUpNote: label,
+      updatedAt: new Date().toISOString(),
+    });
+    await syncFollowUpAlarmsFromUi();
+    await refresh();
+  };
+
+  const clearFollowUp = async (id) => {
+    await updateApplicationBridged(id, {
+      followUpAt: null,
+      followUpNote: "",
+      updatedAt: new Date().toISOString(),
+    });
+    await syncFollowUpAlarmsFromUi();
+    await refresh();
+  };
 
   const handleDelete = async (app) => {
     const label = displayApplicationLabel(app);
@@ -177,14 +272,49 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
             </p>
           </div>
         )}
-        <Btn
-          onClick={() => exportApplicationsToCsv(applications)}
-          disabled={applications.length === 0}
-          className={`text-xs border border-slate-300 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50 ${fullPage ? "ml-auto" : ""}`}
-        >
-          Export CSV
-        </Btn>
+        <div className={`flex flex-wrap gap-2 ${fullPage ? "ml-auto" : ""}`}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportCsv}
+          />
+          <Btn
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="text-xs border border-slate-300 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50"
+          >
+            {importing ? "Importing…" : "Import CSV"}
+          </Btn>
+          <Btn
+            onClick={() => exportApplicationsToCsv(applications)}
+            disabled={applications.length === 0}
+            className="text-xs border border-slate-300 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-50"
+          >
+            Export CSV
+          </Btn>
+        </div>
       </div>
+      {importMessage && (
+        <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          {importMessage}
+        </p>
+      )}
+
+      {applications.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <label className="flex items-center gap-1.5 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={followUpFilter}
+              onChange={(e) => setFollowUpFilter(e.target.checked)}
+            />
+            Follow-ups only
+          </label>
+        </div>
+      )}
 
       {applications.length > 0 && (
         <div className="flex flex-wrap gap-2 justify-between items-center">
@@ -334,6 +464,8 @@ export default function ApplicationHistory({ fullPage = false, onOpenReview }) {
                       app={app}
                       updateNotes={updateNotes}
                       onOpenReview={onOpenReview}
+                      onSetFollowUp={setFollowUp}
+                      onClearFollowUp={clearFollowUp}
                     />
                   )}
                 </AnimatePresence>

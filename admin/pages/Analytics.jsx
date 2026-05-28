@@ -131,6 +131,42 @@ export default function Analytics({ onOpenUser }) {
 
       <div className="two-col">
         <section className="section">
+          <h2>Platform mix (7d)</h2>
+          <p className="muted small">
+            From generate/queue telemetry — no job titles or CV content.
+          </p>
+          <BarChart
+            data={stats.platforms_by_mix || []}
+            labelKey="platform"
+            valueKey="count"
+          />
+          <DataTable
+            columns={[
+              { label: "platform", key: "platform" },
+              { label: "events", key: "count" },
+            ]}
+            rows={stats.platforms_by_mix || []}
+            rowKey="platform"
+            emptyMessage="No platform telemetry yet."
+          />
+        </section>
+        <section className="section">
+          <h2>Pro billing source</h2>
+          <p className="muted small">license_entitlements.source for active Pro rows.</p>
+          <DataTable
+            columns={[
+              { label: "source", key: "source" },
+              { label: "users", key: "count" },
+            ]}
+            rows={stats.billing_sources || []}
+            rowKey="source"
+            emptyMessage="No Pro entitlements yet."
+          />
+        </section>
+      </div>
+
+      <div className="two-col">
+        <section className="section">
           <h2>Admin actions (30d)</h2>
           <DataTable
             columns={[
