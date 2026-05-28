@@ -23,7 +23,12 @@ import {
 } from "../popup/src/lib/license.js";
 import { processQueue } from "./queue-processor.js";
 import { startBackgroundGeneration } from "./generation-runner.js";
-import { listOpenJobTabs, queueItemsFromTabs, findJobTabForScrape } from "./tab-jobs.js";
+import {
+  listOpenJobTabs,
+  queueItemsFromTabs,
+  findJobTabForScrape,
+  isSupportedJobUrl,
+} from "./tab-jobs.js";
 import {
   applyTailoredCvToPdfLayout,
   resolvePdfHtmlForExport,
@@ -331,6 +336,29 @@ async function handleMessage(message, sender) {
       return { base64 };
     }
 
+    case "SCAN_WORKDAY_FILL": {
+      const settings = await getAllSettings();
+      const application = await getStorage("pending_application");
+      const jobTab = await findJobTabForScrape(message.payload?.tabId);
+      if (!jobTab?.id) {
+        throw new Error(
+          "No Workday tab found. Open the job application in this browser window, then scan again."
+        );
+      }
+      if (!isSupportedJobUrl(jobTab.url) || !jobTab.url.includes("myworkdayjobs.com")) {
+        throw new Error("Active tab is not a Workday job page.");
+      }
+      const scanResult = await chrome.tabs.sendMessage(jobTab.id, {
+        type: "SCAN_WORKDAY_FILL",
+        payload: {
+          screeningAnswers: application?.screeningAnswers || message.payload?.screeningAnswers,
+          userProfile: settings.user_profile,
+        },
+      });
+      if (scanResult?.error) throw new Error(scanResult.error);
+      return { ok: true, diagnostics: scanResult?.diagnostics, tabId: jobTab.id };
+    }
+
     case "FILL_FORM": {
       try {
         await assertGenerationAllowed({ action: "fill" });
@@ -339,14 +367,13 @@ async function handleMessage(message, sender) {
       }
       const application = await getStorage("pending_application");
       const settings = await getAllSettings();
-      let tabId = sender.tab?.id || message.payload?.tabId;
+      const jobTab = await findJobTabForScrape(sender.tab?.id || message.payload?.tabId);
 
-      if (!tabId) {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        tabId = tab?.id;
+      if (!jobTab?.id) {
+        throw new Error(
+          "No job tab found. Open the application page on Greenhouse, LinkedIn, Indeed, Workday, Lever, or Ashby in this browser window."
+        );
       }
-
-      if (!tabId) throw new Error("No active tab for form fill");
       if (!application) throw new Error("No application to fill. Generate one first.");
 
       let pdfBase64 = null;
@@ -365,7 +392,7 @@ async function handleMessage(message, sender) {
         pdfBase64 = null;
       }
 
-      await chrome.tabs.sendMessage(tabId, {
+      const fillResult = await chrome.tabs.sendMessage(jobTab.id, {
         type: "FILL_FORM",
         payload: {
           tailoredCV: htmlToPlainText(application.tailoredCV) || application.tailoredCV,
@@ -377,7 +404,13 @@ async function handleMessage(message, sender) {
         },
       });
 
-      return { ok: true };
+      if (fillResult?.error) throw new Error(fillResult.error);
+
+      return {
+        ok: true,
+        fillDiagnostics: fillResult?.diagnostics || null,
+        tabId: jobTab.id,
+      };
     }
 
     case "APPLICATION_SUBMITTED":

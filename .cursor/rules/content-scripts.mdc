@@ -30,7 +30,7 @@ Job origins: `page-context.js` → `humanise.js` → `file-upload.js` → **plat
 
 - **LinkedIn**: multi-step Easy Apply modal; click Apply on fill; optional `autoSubmit`
 - **Indeed**: block `externalApply` redirects; widget on `/jobs`, `viewjob`, `jk`/`vjk`, `smartapply.*`, `/rc/clk`; SPA via `watchSpaNavigation`
-- **Workday**: `queryDeep()` for Shadow DOM
+- **Workday**: `queryDeep()` for Shadow DOM; `scanFillReadiness()` + fill report (`fillDiagnostics`) for Review diagnostics
 - **Greenhouse**: `DataTransfer` for resume upload
 - **Lever**: `jobs.lever.co` / `jobs.eu.lever.co`; `name`/`email`/`resume` fields; JSON-LD fallback
 - **Ashby**: `jobs.ashbyhq.com`; cross-origin embed iframe → `externalApply` / tailor-only (no fill)

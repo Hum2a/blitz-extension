@@ -57,7 +57,7 @@ Living plan aligned with the [repository diagnosis](ARCHITECTURE.md) (May 2026).
 | Duplicate job warning (queue + history `listingKey`) | `done` | dedupe on add; tab `history` badge |
 | Web workspace **history parity** (bridge IDB or sync-read UI) | `done` | `history-bridge.js`, `LIST_APPLICATION_HISTORY` |
 | Widget: match score + one-click Review | `done` | `GET_JOB_HISTORY_MATCH`, `WIDGET_OPEN_REVIEW` |
-| Workday fill diagnostics UX | P2 | M |
+| Workday fill diagnostics UX | `done` | `workday.js` scan/fill report, `WorkdayFillDiagnostics.jsx` |
 
 ---
 

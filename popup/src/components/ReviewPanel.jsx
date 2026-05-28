@@ -29,6 +29,8 @@ import {
   restoreLatestSnapshot,
 } from "../lib/application-versions.js";
 import { isTailorOnlyJob, tailorOnlyHint } from "../lib/tailor-only.js";
+import WorkdayFillDiagnostics from "./WorkdayFillDiagnostics.jsx";
+import { sendRuntimeMessage } from "../lib/runtime-messages.js";
 
 export default function ReviewPanel({
   application,
@@ -48,6 +50,13 @@ export default function ReviewPanel({
   const [coverLetter, setCoverLetter] = useState("");
   const [answers, setAnswers] = useState([]);
   const [filling, setFilling] = useState(false);
+  const [workdayScanning, setWorkdayScanning] = useState(false);
+  const [workdayScan, setWorkdayScan] = useState(null);
+  const [workdayFillReport, setWorkdayFillReport] = useState(null);
+  const [showFillReport, setShowFillReport] = useState(false);
+
+  const jobPlatform = pendingJob?.platform || application?.jobData?.platform;
+  const isWorkday = jobPlatform === "workday";
   const [pdfLoading, setPdfLoading] = useState(false);
   const [cvPreviewOpen, setCvPreviewOpen] = useState(false);
   const [cvPreviewHtml, setCvPreviewHtml] = useState("");
@@ -274,6 +283,25 @@ export default function ReviewPanel({
     );
   };
 
+  const scanWorkdayPage = async () => {
+    setWorkdayScanning(true);
+    setWorkdayScan(null);
+    try {
+      const result = await sendRuntimeMessage({
+        type: "SCAN_WORKDAY_FILL",
+        payload: { screeningAnswers: answers },
+      });
+      setWorkdayScan(result.diagnostics || null);
+    } catch (err) {
+      await showAlert(err.message || "Could not scan Workday page", {
+        title: "Scan failed",
+        variant: "error",
+      });
+    } finally {
+      setWorkdayScanning(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (!license.allowed) {
       await showAlert("Free tier limit reached (15 applications).", {
@@ -296,10 +324,8 @@ export default function ReviewPanel({
     onApplicationUpdate(updated);
 
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const result = await chrome.runtime.sendMessage({
+      const result = await sendRuntimeMessage({
         type: "FILL_FORM",
-        payload: { tabId: tab?.id },
       });
       if (result?.error) throw new Error(result.error);
 
@@ -307,11 +333,17 @@ export default function ReviewPanel({
       await refreshApplications();
 
       license.refresh();
-      await showAlert("Form filled. Review the page and submit when ready.", {
-        title: "Form filled",
-        variant: "success",
-      });
-      onBack();
+
+      if (result?.fillDiagnostics) {
+        setWorkdayFillReport(result.fillDiagnostics);
+        setShowFillReport(true);
+      } else {
+        await showAlert("Form filled. Review the page and submit when ready.", {
+          title: "Form filled",
+          variant: "success",
+        });
+        onBack();
+      }
     } catch (err) {
       await showAlert(err.message || "Failed to fill form", {
         title: "Fill failed",
@@ -387,6 +419,19 @@ export default function ReviewPanel({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
       >
+        {isWorkday && !tailorOnly && (
+          <div className="space-y-2">
+            <Btn
+              type="button"
+              onClick={scanWorkdayPage}
+              disabled={workdayScanning || filling}
+              className="w-full border border-violet-300 bg-violet-50 hover:bg-violet-100 text-violet-900 font-medium py-2 rounded-lg text-sm disabled:opacity-50"
+            >
+              {workdayScanning ? "Scanning Workday tab…" : "Scan Workday page"}
+            </Btn>
+            {workdayScan && <WorkdayFillDiagnostics diagnostics={workdayScan} compact />}
+          </div>
+        )}
         {tailorOnly ? (
           <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 leading-snug">
             {tailorOnlyHint(pendingJob || application?.jobData)}
@@ -662,6 +707,32 @@ export default function ReviewPanel({
             className="w-full h-64 text-xs font-mono border rounded-lg p-2 bg-slate-50"
           />
         </div>
+      </Modal>
+
+      <Modal
+        open={showFillReport}
+        onClose={() => {
+          setShowFillReport(false);
+          onBack();
+        }}
+        title="Workday fill complete"
+        size="md"
+        footer={
+          <ModalButton
+            onClick={() => {
+              setShowFillReport(false);
+              onBack();
+            }}
+          >
+            Done
+          </ModalButton>
+        }
+      >
+        <p className="text-sm text-slate-600 mb-3">
+          Blitz filled what it could find. Review the Workday tab, complete any missing fields, then
+          submit when ready.
+        </p>
+        {workdayFillReport && <WorkdayFillDiagnostics diagnostics={workdayFillReport} />}
       </Modal>
     </Stagger>
   );

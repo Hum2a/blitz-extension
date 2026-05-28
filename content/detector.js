@@ -106,7 +106,8 @@
     if (!handler?.fillForm) {
       throw new Error(`Form fill not supported for platform: ${platform || "unknown"}`);
     }
-    await handler.fillForm(payload);
+    const result = await handler.fillForm(payload);
+    return platform === "workday" ? result : null;
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -121,8 +122,24 @@
     }
     if (message.type === "FILL_FORM") {
       routeFillForm(message.payload)
-        .then(() => sendResponse({ ok: true }))
+        .then((diagnostics) => sendResponse({ ok: true, diagnostics: diagnostics || null }))
         .catch((err) => sendResponse({ error: err.message }));
+      return true;
+    }
+    if (message.type === "SCAN_WORKDAY_FILL") {
+      const platform = detectPlatform();
+      if (platform !== "workday") {
+        sendResponse({ error: "Open a Workday application tab to scan." });
+        return true;
+      }
+      const handler = PLATFORMS.workday?.();
+      if (!handler?.scanFillReadiness) {
+        sendResponse({ error: "Workday scanner not loaded — reload the job tab." });
+        return true;
+      }
+      sendResponse({
+        diagnostics: handler.scanFillReadiness(message.payload || {}),
+      });
       return true;
     }
     if (message.type === "GET_TAB_JOB_INFO") {
