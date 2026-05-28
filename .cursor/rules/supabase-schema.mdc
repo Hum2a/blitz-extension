@@ -7,7 +7,7 @@ alwaysApply: true
 
 **Update this file whenever you add or change** `supabase/migrations/*.sql`.
 
-Last aligned with: `001`–`006` migrations (through `006_app_config_telemetry.sql`)
+Last aligned with: `001`–`008` migrations (through `008_security_fixes.sql`)
 
 ## ER diagram
 

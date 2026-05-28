@@ -29,8 +29,14 @@ Deno.serve(async (req) => {
   try {
     const rawBody = await req.text();
     const secret = Deno.env.get("LEMONSQUEEZY_WEBHOOK_SECRET") || "";
+    if (!secret) {
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const signature = req.headers.get("X-Signature");
-    if (secret && !(await verifySignature(rawBody, signature, secret))) {
+    if (!(await verifySignature(rawBody, signature, secret))) {
       return new Response(JSON.stringify({ error: "Invalid signature" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

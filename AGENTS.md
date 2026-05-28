@@ -46,7 +46,7 @@ Greenhouse, LinkedIn Easy Apply, Indeed (native), Workday (Shadow DOM, best-effo
 
 ## Feature index (keep in sync)
 
-See `.cursor/rules/features-architecture.mdc` for the full table. Major areas:
+See `.cursor/rules/features-architecture.mdc` for the full table. Product roadmap: `docs/ROADMAP_H1_2026.md`. Major areas:
 
 - **Full workspace** — `dashboard.html` / `npm run web:dev`; `SiteShell`, `fullPage` layouts
 - **On-page widget** — `content/job-widget.js` + `page-context.js`

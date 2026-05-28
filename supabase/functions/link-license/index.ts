@@ -65,6 +65,22 @@ Deno.serve(async (req) => {
     const digest = await crypto.subtle.digest("SHA-256", encoder.encode(key.trim()));
     const hash = btoa(String.fromCharCode(...new Uint8Array(digest)));
 
+    const { data: existing } = await admin
+      .from("license_entitlements")
+      .select("user_id")
+      .eq("license_key_hash", hash)
+      .maybeSingle();
+
+    if (existing?.user_id && existing.user_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "This license key is already linked to another account" }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const { error: upsertError } = await admin.from("license_entitlements").upsert(
       {
         user_id: user.id,

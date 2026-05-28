@@ -47,6 +47,7 @@ import {
 } from "./sync-messages.js";
 import { scriptsForUrl, safeHostname } from "../popup/src/lib/content-scripts.js";
 import { openBlitzExtensionUi } from "./open-blitz-ui.js";
+import { assertMessageAllowed } from "./message-auth.js";
 
 const OFFSCREEN_URL = "offscreen/offscreen.html";
 
@@ -117,6 +118,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GENERATE_PDF_OFFSCREEN") {
     return false;
   }
+  try {
+    assertMessageAllowed(message, sender, { external: false });
+  } catch (err) {
+    sendResponse({ error: err.message || "Message not allowed" });
+    return;
+  }
   handleMessage(message, sender).then(sendResponse).catch((err) => {
     sendResponse({ error: err.message || "Unknown error" });
   });
@@ -127,9 +134,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   const origin = sender.origin || "";
   const allowed =
-    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+    origin === "https://app.blitzai.online";
   if (!allowed) {
     sendResponse({ error: "Origin not allowed" });
+    return;
+  }
+  try {
+    assertMessageAllowed(message, sender, { external: true });
+  } catch (err) {
+    sendResponse({ error: err.message || "Message not allowed" });
     return;
   }
   handleMessage(message, sender).then(sendResponse).catch((err) => {
@@ -554,7 +568,7 @@ async function generateApplication(
   );
 
   const aiConfig = await getStorage("ai_config");
-  const { allowed, remaining } = await canSubmitApplication();
+  const { allowed, remaining } = await canSubmitApplication({ enforceServer: true });
   report(
     "license",
     allowed ? "Quota OK" : "Quota exceeded",

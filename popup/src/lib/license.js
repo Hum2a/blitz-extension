@@ -15,6 +15,12 @@ export async function validateLicense(key) {
   }
 }
 
+function isEntitlementExpired(expiresAt) {
+  if (!expiresAt) return false;
+  const t = new Date(expiresAt).getTime();
+  return Number.isFinite(t) && t < Date.now();
+}
+
 export async function checkLicenseStatus() {
   const stored = await getStorage("license");
   if (!stored?.key) {
@@ -37,18 +43,41 @@ export async function checkLicenseStatus() {
     return { ...result, applicationsUsed: stored.applicationsUsed ?? 0 };
   }
 
+  const tier = stored.tier || "free";
+  const proActive =
+    tier === "pro" && !isEntitlementExpired(stored.expiresAt);
+
   return {
-    tier: stored.tier || "free",
-    valid: stored.tier === "pro",
+    tier: proActive ? "pro" : "free",
+    valid: proActive,
     applicationsUsed: stored.applicationsUsed ?? 0,
   };
 }
 
-export async function canSubmitApplication() {
+/**
+ * When signed in, refresh tier from server before generation (prevents local storage tampering).
+ */
+export async function refreshLicenseFromServer() {
+  try {
+    const { getValidAccessToken } = await import("./auth.js");
+    const token = await getValidAccessToken();
+    if (!token) return;
+    const { pullLicenseEntitlement } = await import("./sync-engine.js");
+    await pullLicenseEntitlement(token);
+  } catch {
+    /* optional */
+  }
+}
+
+export async function canSubmitApplication({ enforceServer = false } = {}) {
+  if (enforceServer) {
+    await refreshLicenseFromServer();
+  }
+
   const license = await getStorage("license");
   const status = await checkLicenseStatus();
 
-  if (status.tier === "pro" || status.valid) {
+  if (status.tier === "pro" && status.valid) {
     return { allowed: true, remaining: Infinity };
   }
 

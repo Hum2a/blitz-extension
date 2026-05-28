@@ -434,27 +434,37 @@ export async function pullLicenseEntitlement(token) {
     const ent = rows?.[0];
     if (!ent) return;
     const license = (await getStorage("license")) || {};
-    if (ent.tier === "pro") {
+    const expired =
+      ent.expires_at && new Date(ent.expires_at).getTime() < Date.now();
+    const proActive = ent.tier === "pro" && !expired;
+
+    if (proActive) {
       await setStorage(
         "license",
         {
           ...license,
           tier: "pro",
+          expiresAt: ent.expires_at || null,
           validatedAt: new Date().toISOString(),
         },
         { skipSync: true }
       );
+      return;
     }
-    if (typeof ent.applications_used === "number" && ent.tier !== "pro") {
-      await setStorage(
-        "license",
-        {
-          ...license,
-          applicationsUsed: ent.applications_used,
-        },
-        { skipSync: true }
-      );
-    }
+
+    await setStorage(
+      "license",
+      {
+        ...license,
+        tier: "free",
+        expiresAt: ent.expires_at || null,
+        validatedAt: new Date().toISOString(),
+        ...(typeof ent.applications_used === "number"
+          ? { applicationsUsed: ent.applications_used }
+          : {}),
+      },
+      { skipSync: true }
+    );
   } catch {
     /* entitlements are optional */
   }
