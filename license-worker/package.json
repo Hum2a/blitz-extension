@@ -11,6 +11,6 @@
     "deploy": "wrangler deploy --env production"
   },
   "devDependencies": {
-    "wrangler": "^4.14.0"
+    "wrangler": "^4.102.0"
   }
 }
