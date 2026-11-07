@@ -1,0 +1,1 @@
+Same CV, every job? Blitz is a Chrome extension that tailors your CV and cover letter for each role, lets you review everything, then fills the form. Your API key stays in the browser.
